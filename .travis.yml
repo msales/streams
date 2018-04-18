@@ -1,0 +1,19 @@
+sudo: false
+
+language: go
+go:
+  - 1.10
+
+before_install:
+  - go get -u github.com/golang/dep/cmd/dep github.com/golang/lint/golint
+  - go get github.com/mattn/goveralls
+  - go get golang.org/x/tools/cmd/cover
+
+script:
+  - dep ensure
+  - golint $(go list ./... | grep -v /vendor/)
+  - go vet $(go list ./... | grep -v /vendor/)
+  - go test -cover $(go list ./... | grep -v /vendor/)
+
+notifications:
+  email: false
