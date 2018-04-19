@@ -1,11 +1,13 @@
 package main
 
 import (
-	"github.com/msales/streams"
+	"log"
 	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/msales/streams"
 )
 
 func main() {
@@ -16,16 +18,13 @@ func main() {
 		Print("print")
 
 	task := streams.NewTask(builder.Build())
+	task.OnError(func(err error) {
+		log.Fatal(err.Error())
+	})
 	task.Start()
 
 	// Wait for SIGTERM
-	sigs := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigs
-		done <- true
-	}()
+	done := listenForSignals()
 	<-done
 
 	task.Close()
@@ -63,4 +62,18 @@ func DoubleMapper(k, v interface{}) (interface{}, interface{}, error) {
 	num := v.(int)
 
 	return k, num * 2, nil
+}
+
+func listenForSignals() chan bool {
+	sigs := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigs
+		done <- true
+	}()
+
+	return done
 }

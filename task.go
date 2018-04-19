@@ -1,19 +1,52 @@
 package streams
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/msales/pkg/log"
+	"github.com/msales/pkg/stats"
+)
+
+type ErrorFunc func(error)
+
+type TaskFunc func(*Task)
+
+func WithLogger(logger log.Logger) TaskFunc {
+	return func(t *Task) {
+		t.logger = logger
+	}
+}
+
+func WithStats(stats stats.Stats) TaskFunc {
+	return func(t *Task) {
+		t.stats = stats
+	}
+}
 
 type Task struct {
 	topology *Topology
 
+	logger log.Logger
+	stats  stats.Stats
+
 	running bool
+	errorFn ErrorFunc
 	wg      sync.WaitGroup
 }
 
-func NewTask(topology *Topology) *Task {
-	return &Task{
+func NewTask(topology *Topology, opts ...TaskFunc) *Task {
+	t := &Task{
 		topology: topology,
+		logger:   log.Null,
+		stats:    stats.Null,
 		running:  false,
 	}
+
+	for _, opt := range opts {
+		opt(t)
+	}
+
+	return t
 }
 
 func (t *Task) run() {
@@ -28,12 +61,12 @@ func (t *Task) run() {
 		for source, node := range t.topology.Sources() {
 			k, v, err := source.Consume()
 			if err != nil {
-				// TODO: handle
+				t.handleError(err)
 			}
 
-			ctx.node = node
+			ctx.currentNode = node
 			if err := node.Process(k, v); err != nil {
-				// TODO: handle
+				t.handleError(err)
 			}
 		}
 	}
@@ -55,6 +88,12 @@ func (t *Task) closeTopology() {
 	}
 }
 
+func (t *Task) handleError(err error) {
+	t.running = false
+
+	t.errorFn(err)
+}
+
 func (t *Task) Start() {
 	go t.run()
 }
@@ -67,6 +106,10 @@ func (t *Task) Commit() error {
 	}
 
 	return nil
+}
+
+func (t *Task) OnError(fn ErrorFunc) {
+	t.errorFn = fn
 }
 
 func (t *Task) Close() {

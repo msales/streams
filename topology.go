@@ -1,5 +1,7 @@
 package streams
 
+import "time"
+
 type Node interface {
 	WithContext(ctx Context)
 	AddChild(n Node)
@@ -32,6 +34,8 @@ func (n *SourceNode) Process(key, value interface{}) error {
 		return nil
 	}
 
+	n.ctx.Stats().Inc("node.throughput", 1, 1.0, map[string]string{"name": n.name})
+
 	return n.ctx.Forward(key, value)
 }
 
@@ -41,12 +45,14 @@ func (n *SourceNode) Close() error {
 
 type ProcessorNode struct {
 	name      string
+	ctx  Context
 	processor Processor
 
 	children []Node
 }
 
 func (n *ProcessorNode) WithContext(ctx Context) {
+	n.ctx = ctx
 	n.processor.WithContext(ctx)
 }
 
@@ -59,7 +65,17 @@ func (n *ProcessorNode) Children() []Node {
 }
 
 func (n *ProcessorNode) Process(key, value interface{}) error {
-	return n.processor.Process(key, value)
+	start := time.Now()
+
+	n.ctx.Stats().Inc("node.throughput", 1, 1.0, map[string]string{"name": n.name})
+
+	if err := n.processor.Process(key, value); err != nil {
+		return err
+	}
+
+	n.ctx.Stats().Timing("node.latency", time.Since(start), 1.0, map[string]string{"name": n.name})
+
+	return nil
 }
 
 func (n *ProcessorNode) Close() error {
