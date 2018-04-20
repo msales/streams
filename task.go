@@ -100,7 +100,7 @@ func (t *Task) Start() {
 
 func (t *Task) Commit(sync bool) error {
 	for source := range t.topology.Sources() {
-		if err := source.Commit(); err != nil {
+		if err := source.Commit(sync); err != nil {
 			return err
 		}
 	}
