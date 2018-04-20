@@ -39,5 +39,5 @@ func (p *CacheSink) Process(key, value interface{}) error {
 
 // Close closes the processor.
 func (p *CacheSink) Close() error {
-	return nil
+	return p.ctx.Commit()
 }
