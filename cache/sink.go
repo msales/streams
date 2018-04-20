@@ -32,7 +32,7 @@ func (p *CacheSink) Process(key, value interface{}) error {
 	k := key.(string)
 
 	p.cache.Set(k, value, p.expire)
-	p.ctx.Commit()
+	p.ctx.CommitAsync()
 
 	return nil
 }

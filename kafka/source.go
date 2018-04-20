@@ -73,12 +73,16 @@ func (s *KafkaSource) Consume() (key, value interface{}, err error) {
 	}
 }
 
-func (s *KafkaSource) Commit() error {
+func (s *KafkaSource) Commit(sync bool) error {
 	if s.lastMsg == nil {
 		return nil
 	}
 
 	s.consumer.MarkOffset(s.lastMsg, "")
+	if !sync {
+		return nil
+	}
+
 	if err := s.consumer.CommitOffsets(); err != nil {
 		return errors.Wrap(err, "streams: could not commit kafka offset")
 	}

@@ -98,7 +98,7 @@ func (t *Task) Start() {
 	go t.run()
 }
 
-func (t *Task) Commit() error {
+func (t *Task) Commit(sync bool) error {
 	for source := range t.topology.Sources() {
 		if err := source.Commit(); err != nil {
 			return err
