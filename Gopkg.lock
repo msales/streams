@@ -8,6 +8,12 @@
   version = "v1.16.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/bradfitz/gomemcache"
+  packages = ["memcache"]
+  revision = "1952afaa557dc08e8e0d89eafab110fb501c1a2b"
+
+[[projects]]
   name = "github.com/bsm/sarama-cluster"
   packages = ["."]
   revision = "cf455bc755fe41ac9bb2861e7a961833d9c2ecc3"
@@ -44,6 +50,21 @@
   version = "v1.1.0"
 
 [[projects]]
+  name = "github.com/go-redis/redis"
+  packages = [
+    ".",
+    "internal",
+    "internal/consistenthash",
+    "internal/hashtag",
+    "internal/pool",
+    "internal/proto",
+    "internal/singleflight",
+    "internal/util"
+  ]
+  revision = "877867d2845fbaf86798befe410b6ceb6f5c29a3"
+  version = "v6.10.2"
+
+[[projects]]
   name = "github.com/go-stack/stack"
   packages = ["."]
   revision = "259ab82a6cad3992b4e21ff5cac294ccb06474bc"
@@ -70,6 +91,7 @@
 [[projects]]
   name = "github.com/msales/pkg"
   packages = [
+    "cache",
     "log",
     "stats"
   ]
@@ -95,10 +117,31 @@
   version = "v0.8.0"
 
 [[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/rcrowley/go-metrics"
   packages = ["."]
   revision = "d932a24a8ccb8fcadc993e5c6c58f93dac168294"
+
+[[projects]]
+  name = "github.com/stretchr/objx"
+  packages = ["."]
+  revision = "facf9a85c22f48d2f52f2380e4efce1768749a89"
+  version = "v0.1"
+
+[[projects]]
+  name = "github.com/stretchr/testify"
+  packages = [
+    "assert",
+    "mock"
+  ]
+  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
+  version = "v1.2.1"
 
 [[projects]]
   branch = "master"
@@ -115,6 +158,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1678f19cd6a4595a8a6c9c2d9c0a49fbe9e4f3fb379e5f75093e6594578b5a65"
+  inputs-digest = "bca21e98783caaf015553295766cce6622cb8081c79b2ec35511c53b3dac0c62"
   solver-name = "gps-cdcl"
   solver-version = 1

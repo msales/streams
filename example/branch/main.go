@@ -24,7 +24,7 @@ func main() {
 
 	builder := streams.NewStreamBuilder()
 
-	s := builder.Source("rand-source", NewBranchRandIntSource()).
+	s := builder.Source("rand-source", NewRandIntSource()).
 		Branch("branch", BranchEvenNumberFilter, BranchOddNumberFilter)
 
 	// Event numbers
@@ -47,25 +47,25 @@ func main() {
 	task.Close()
 }
 
-type BranchRandomIntSource struct {
+type RandIntSource struct {
 	rand *rand.Rand
 }
 
-func NewBranchRandIntSource() streams.Source {
-	return &BranchRandomIntSource{
+func NewRandIntSource() streams.Source {
+	return &RandIntSource{
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
-func (s *BranchRandomIntSource) Consume() (key, value interface{}, err error) {
+func (s *RandIntSource) Consume() (key, value interface{}, err error) {
 	return nil, s.rand.Intn(100), nil
 }
 
-func (s *BranchRandomIntSource) Commit() error {
+func (s *RandIntSource) Commit(sync bool) error {
 	return nil
 }
 
-func (s *BranchRandomIntSource) Close() error {
+func (s *RandIntSource) Close() error {
 	return nil
 }
 

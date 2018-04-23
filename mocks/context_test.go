@@ -1,0 +1,184 @@
+package mocks
+
+import (
+	"testing"
+
+	"github.com/msales/pkg/log"
+	"github.com/msales/pkg/stats"
+	"github.com/msales/streams"
+)
+
+func TestContext_ImplementsContextInterface(t *testing.T) {
+	var c interface{} = &Context{}
+
+	if _, ok := c.(streams.Context); !ok {
+		t.Error("The mock context should implement the streams.Context interface.")
+	}
+}
+
+func TestContext_HandlesExpectations(t *testing.T) {
+	c := NewContext(t)
+
+	c.ExpectForward("test", "test")
+	c.ExpectForwardToChild("test", "test", 1)
+	c.ExpectCommit()
+	c.ExpectCommitAsync()
+
+	c.Forward("test", "test")
+	c.ForwardToChild("test", "test", 1)
+	c.Commit()
+	c.CommitAsync()
+	c.AssertExpectations()
+}
+
+func TestContext_WithoutExpectationOnForward(t *testing.T) {
+	mockT := new(testing.T)
+	defer func() {
+		if !mockT.Failed() {
+			t.Error("Expected error when no expectation on Forward")
+		}
+
+	}()
+	c := NewContext(mockT)
+
+	c.Forward("test", "test")
+}
+
+func TestContext_WithWrongExpectationOnForward(t *testing.T) {
+	mockT := new(testing.T)
+	defer func() {
+		if !mockT.Failed() {
+			t.Error("Expected error when wrong expectation on Forward")
+		}
+
+	}()
+	c := NewContext(mockT)
+	c.ExpectForward(1, 1)
+
+	c.Forward("test", "test")
+}
+
+func TestContext_WithoutExpectationOnForwardToChild(t *testing.T) {
+	mockT := new(testing.T)
+	defer func() {
+		if !mockT.Failed() {
+			t.Error("Expected error when no expectation on Forward")
+		}
+
+	}()
+	c := NewContext(mockT)
+
+	c.ForwardToChild("test", "test", 1)
+}
+
+func TestContextWithWrongExpectationOnForwardToChild(t *testing.T) {
+	mockT := new(testing.T)
+	defer func() {
+		if !mockT.Failed() {
+			t.Error("Expected error when wrong expectation on ForwardToChild")
+		}
+
+	}()
+	c := NewContext(mockT)
+	c.ExpectForwardToChild(1, 1, 3)
+
+	c.ForwardToChild("test", "test", 1)
+}
+
+func TestContext_WithoutExpectationOnCommit(t *testing.T) {
+	mockT := new(testing.T)
+	defer func() {
+		if !mockT.Failed() {
+			t.Error("Expected error when no expectation on Commit")
+		}
+
+	}()
+	c := NewContext(mockT)
+
+	c.Commit()
+}
+
+func TestContext_WithoutExpectationOnCommitAsync(t *testing.T) {
+	mockT := new(testing.T)
+	defer func() {
+		if !mockT.Failed() {
+			t.Error("Expected error when no expectation on CommitAsync")
+		}
+
+	}()
+	c := NewContext(mockT)
+
+	c.CommitAsync()
+}
+
+func TestContext_WithUnfulfilledExpectationOnForward(t *testing.T) {
+	mockT := new(testing.T)
+	defer func() {
+		if !mockT.Failed() {
+			t.Error("Expected error when unforfilled expectation on Forward")
+		}
+
+	}()
+	c := NewContext(mockT)
+	c.ExpectForward(1, 1)
+
+	c.AssertExpectations()
+}
+
+func TestContext_WithUnfulfilledExpectationOnForwardToChild(t *testing.T) {
+	mockT := new(testing.T)
+	defer func() {
+		if !mockT.Failed() {
+			t.Error("Expected error when unforfilled expectation on ForwardToChild")
+		}
+
+	}()
+	c := NewContext(mockT)
+	c.ExpectForwardToChild(1, 1, 1)
+
+	c.AssertExpectations()
+}
+
+func TestContext_WithUnfulfilledExpectationOnCommit(t *testing.T) {
+	mockT := new(testing.T)
+	defer func() {
+		if !mockT.Failed() {
+			t.Error("Expected error when unforfilled expectation on Commit")
+		}
+
+	}()
+	c := NewContext(mockT)
+	c.ExpectCommit()
+
+	c.AssertExpectations()
+}
+
+func TestContext_WithUnfulfilledExpectationOnCommitAsync(t *testing.T) {
+	mockT := new(testing.T)
+	defer func() {
+		if !mockT.Failed() {
+			t.Error("Expected error when unforfilled expectation on CommitAsync")
+		}
+
+	}()
+	c := NewContext(mockT)
+	c.ExpectCommitAsync()
+
+	c.AssertExpectations()
+}
+
+func TestContext_Logger(t *testing.T) {
+	c := NewContext(t)
+
+	if c.Logger() != log.Null {
+		t.Error("Expected null logger")
+	}
+}
+
+func TestContext_Stats(t *testing.T) {
+	c := NewContext(t)
+
+	if c.Stats() != stats.Null {
+		t.Error("Expected null stats")
+	}
+}

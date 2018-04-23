@@ -12,6 +12,7 @@ type KafkaSource struct {
 	keyDecoder   Decoder
 	valueDecoder Decoder
 
+	state   map[string]map[int32]int64
 	buf     chan *sarama.ConsumerMessage
 	lastErr error
 	lastMsg *sarama.ConsumerMessage
@@ -28,10 +29,11 @@ func NewKafkaSource(topic, group string, brokers []string, config sarama.Config)
 	}
 
 	s := &KafkaSource{
-		consumer: consumer,
-		keyDecoder: ByteDecoder{},
+		consumer:     consumer,
+		keyDecoder:   ByteDecoder{},
 		valueDecoder: ByteDecoder{},
-		buf:      make(chan *sarama.ConsumerMessage, 1000),
+		buf:          make(chan *sarama.ConsumerMessage, 1000),
+		state:        make(map[string]map[int32]int64),
 	}
 
 	go s.readErrors()
@@ -66,6 +68,8 @@ func (s *KafkaSource) Consume() (key, value interface{}, err error) {
 			return nil, nil ,err
 		}
 
+		s.markState(msg)
+
 		return k, v, nil
 
 	default:
@@ -78,7 +82,11 @@ func (s *KafkaSource) Commit(sync bool) error {
 		return nil
 	}
 
-	s.consumer.MarkOffset(s.lastMsg, "")
+	for topic, partitions := range s.state {
+		for partition, offset := range partitions {
+			s.consumer.MarkPartitionOffset(topic, partition, offset, "")
+		}
+	}
 	if !sync {
 		return nil
 	}
@@ -92,6 +100,16 @@ func (s *KafkaSource) Commit(sync bool) error {
 
 func (s *KafkaSource) Close() error {
 	return s.consumer.Close()
+}
+
+func (s *KafkaSource) markState(msg *sarama.ConsumerMessage) {
+	partitions, ok := s.state[msg.Topic]
+	if !ok {
+		partitions = make(map[int32]int64)
+		s.state[msg.Topic] = partitions
+	}
+
+	partitions[msg.Partition] = msg.Offset
 }
 
 func (s *KafkaSource) readErrors() {

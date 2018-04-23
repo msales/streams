@@ -13,10 +13,10 @@ import (
 func main() {
 	builder := streams.NewStreamBuilder()
 
-	stream1 := builder.Source("rand1-source", NewMergeRandomIntSource()).
+	stream1 := builder.Source("rand1-source", NewRandIntSource()).
 		Filter("filter1", LowNumberFilter)
 
-	builder.Source("rand2-source", NewMergeRandomIntSource()).
+	builder.Source("rand2-source", NewRandIntSource()).
 		Filter("filter2", HighNumberFilter).
 		Map("add-hundedred-mapper", AddHundredMapper).
 		Merge("merge", stream1).
@@ -35,25 +35,25 @@ func main() {
 	task.Close()
 }
 
-type MergeRandomIntSource struct {
+type RandIntSource struct {
 	rand *rand.Rand
 }
 
-func NewMergeRandomIntSource() streams.Source {
-	return &MergeRandomIntSource{
+func NewRandIntSource() streams.Source {
+	return &RandIntSource{
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
-func (s *MergeRandomIntSource) Consume() (key, value interface{}, err error) {
+func (s *RandIntSource) Consume() (key, value interface{}, err error) {
 	return nil, s.rand.Intn(100), nil
 }
 
-func (s *MergeRandomIntSource) Commit() error {
+func (s *RandIntSource) Commit(sync bool) error {
 	return nil
 }
 
-func (s *MergeRandomIntSource) Close() error {
+func (s *RandIntSource) Close() error {
 	return nil
 }
 

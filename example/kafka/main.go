@@ -84,25 +84,25 @@ func consumerTask(s stats.Stats, brokers []string, c *sarama.Config) (*streams.T
 	return task, nil
 }
 
-type RandomIntSource struct {
+type RandIntSource struct {
 	rand *rand.Rand
 }
 
 func NewRandIntSource() streams.Source {
-	return &RandomIntSource{
+	return &RandIntSource{
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
-func (s *RandomIntSource) Consume() (key, value interface{}, err error) {
+func (s *RandIntSource) Consume() (key, value interface{}, err error) {
 	return nil, s.rand.Intn(100), nil
 }
 
-func (s *RandomIntSource) Commit() error {
+func (s *RandIntSource) Commit(sync bool) error {
 	return nil
 }
 
-func (s *RandomIntSource) Close() error {
+func (s *RandIntSource) Close() error {
 	return nil
 }
 
