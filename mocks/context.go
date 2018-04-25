@@ -1,6 +1,7 @@
 package mocks
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/msales/pkg/log"
@@ -15,6 +16,8 @@ type record struct {
 
 type Context struct {
 	t *testing.T
+
+	shouldError bool
 
 	expectForward     []record
 	expectCommit      bool
@@ -40,6 +43,11 @@ func (c *Context) Forward(key, value interface{}) error {
 		c.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v, got %v:%v", record.key, record.value, key, value)
 	}
 
+	if c.shouldError {
+		c.shouldError = false
+		return errors.New("test")
+	}
+
 	return nil
 }
 
@@ -55,6 +63,11 @@ func (c *Context) ForwardToChild(key, value interface{}, index int) error {
 		c.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v:%d, got %v:%v:%d", record.key, record.value, record.index, key, value, index)
 	}
 
+	if c.shouldError {
+		c.shouldError = false
+		return errors.New("test")
+	}
+
 	return nil
 }
 
@@ -63,6 +76,11 @@ func (c *Context) Commit() error {
 		c.t.Error("streams: mock: Unexpected call to Commit")
 	}
 	c.expectCommit = false
+
+	if c.shouldError {
+		c.shouldError = false
+		return errors.New("test")
+	}
 
 	return nil
 }
@@ -73,6 +91,11 @@ func (c *Context) CommitAsync() error {
 	}
 	c.expectCommitAsync = false
 
+	if c.shouldError {
+		c.shouldError = false
+		return errors.New("test")
+	}
+
 	return nil
 }
 
@@ -82,6 +105,10 @@ func (c *Context) Logger() log.Logger {
 
 func (c *Context) Stats() stats.Stats {
 	return stats.Null
+}
+
+func (c *Context) ShouldError() {
+	c.shouldError = true
 }
 
 func (c *Context) ExpectForward(key, value interface{}) {

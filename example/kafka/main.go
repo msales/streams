@@ -18,7 +18,7 @@ func main() {
 	config := sarama.NewConfig()
 	config.Producer.Return.Successes = true
 
-	client, err := stats.NewStatsd("localhost:8125", "streams.example")
+	client, err := stats.NewBufferedStatsd("localhost:8125", "streams.example")
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -44,7 +44,7 @@ func main() {
 	c.Close()
 }
 
-func producerTask(s stats.Stats, brokers []string, c *sarama.Config) (*streams.Task, error) {
+func producerTask(s stats.Stats, brokers []string, c *sarama.Config) (streams.Task, error) {
 	sink, err := kafka.NewKafkaSink("example1", brokers, *c)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func producerTask(s stats.Stats, brokers []string, c *sarama.Config) (*streams.T
 	return task, nil
 }
 
-func consumerTask(s stats.Stats, brokers []string, c *sarama.Config) (*streams.Task, error) {
+func consumerTask(s stats.Stats, brokers []string, c *sarama.Config) (streams.Task, error) {
 	src, err := kafka.NewKafkaSource("example1", "example-consumer", brokers, *c)
 	if err != nil {
 		return nil, err

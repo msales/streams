@@ -9,21 +9,28 @@ import (
 
 type ErrorFunc func(error)
 
-type TaskFunc func(*Task)
+type TaskFunc func(*streamTask)
 
 func WithLogger(logger log.Logger) TaskFunc {
-	return func(t *Task) {
+	return func(t *streamTask) {
 		t.logger = logger
 	}
 }
 
 func WithStats(stats stats.Stats) TaskFunc {
-	return func(t *Task) {
+	return func(t *streamTask) {
 		t.stats = stats
 	}
 }
 
-type Task struct {
+type Task interface {
+	Start()
+	Commit(sync bool) error
+	OnError(fn ErrorFunc)
+	Close()
+}
+
+type streamTask struct {
 	topology *Topology
 
 	logger log.Logger
@@ -34,8 +41,8 @@ type Task struct {
 	wg      sync.WaitGroup
 }
 
-func NewTask(topology *Topology, opts ...TaskFunc) *Task {
-	t := &Task{
+func NewTask(topology *Topology, opts ...TaskFunc) Task {
+	t := &streamTask{
 		topology: topology,
 		logger:   log.Null,
 		stats:    stats.Null,
@@ -49,12 +56,12 @@ func NewTask(topology *Topology, opts ...TaskFunc) *Task {
 	return t
 }
 
-func (t *Task) run() {
+func (t *streamTask) run() {
 	t.running = true
 	t.wg.Add(1)
 	defer t.wg.Done()
 
-	ctx := NewProcessorContext(t)
+	ctx := NewProcessorContext(t, t.logger, t.stats)
 	t.setupTopology(ctx)
 
 	for t.running == true {
@@ -72,13 +79,13 @@ func (t *Task) run() {
 	}
 }
 
-func (t *Task) setupTopology(ctx Context) {
+func (t *streamTask) setupTopology(ctx Context) {
 	for _, n := range t.topology.Processors() {
 		n.WithContext(ctx)
 	}
 }
 
-func (t *Task) closeTopology() {
+func (t *streamTask) closeTopology() {
 	for _, node := range t.topology.Processors() {
 		node.Close()
 	}
@@ -88,17 +95,17 @@ func (t *Task) closeTopology() {
 	}
 }
 
-func (t *Task) handleError(err error) {
+func (t *streamTask) handleError(err error) {
 	t.running = false
 
 	t.errorFn(err)
 }
 
-func (t *Task) Start() {
+func (t *streamTask) Start() {
 	go t.run()
 }
 
-func (t *Task) Commit(sync bool) error {
+func (t *streamTask) Commit(sync bool) error {
 	for source := range t.topology.Sources() {
 		if err := source.Commit(sync); err != nil {
 			return err
@@ -108,11 +115,11 @@ func (t *Task) Commit(sync bool) error {
 	return nil
 }
 
-func (t *Task) OnError(fn ErrorFunc) {
+func (t *streamTask) OnError(fn ErrorFunc) {
 	t.errorFn = fn
 }
 
-func (t *Task) Close() {
+func (t *streamTask) Close() {
 	t.running = false
 
 	t.wg.Wait()

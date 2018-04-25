@@ -1,5 +1,25 @@
 package streams
 
+type StreamBuilder struct {
+	tp *TopologyBuilder
+}
+
+func NewStreamBuilder() *StreamBuilder {
+	return &StreamBuilder{
+		tp: NewTopologyBuilder(),
+	}
+}
+
+func (sb *StreamBuilder) Source(name string, source Source) *Stream {
+	n := sb.tp.AddSource(name, source)
+
+	return newStream(sb.tp, []Node{n})
+}
+
+func (sb *StreamBuilder) Build() *Topology {
+	return sb.tp.Build()
+}
+
 type Stream struct {
 	tp      *TopologyBuilder
 	parents []Node
@@ -59,24 +79,4 @@ func (s *Stream) Process(name string, p Processor) *Stream {
 	n := s.tp.AddProcessor(name, p, s.parents)
 
 	return newStream(s.tp, []Node{n})
-}
-
-type StreamBuilder struct {
-	tp *TopologyBuilder
-}
-
-func NewStreamBuilder() *StreamBuilder {
-	return &StreamBuilder{
-		tp: NewTopologyBuilder(),
-	}
-}
-
-func (sb *StreamBuilder) Source(name string, source Source) *Stream {
-	n := sb.tp.AddSource(name, source)
-
-	return newStream(sb.tp, []Node{n})
-}
-
-func (sb *StreamBuilder) Build() *Topology {
-	return sb.tp.Build()
 }

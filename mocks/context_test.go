@@ -58,6 +58,19 @@ func TestContext_WithWrongExpectationOnForward(t *testing.T) {
 	c.Forward("test", "test")
 }
 
+func TestContext_WithShouldErrorOnForward(t *testing.T) {
+	mockT := new(testing.T)
+	c := NewContext(mockT)
+	c.ExpectForward("test", "test")
+	c.ShouldError()
+
+	err := c.Forward("test", "test")
+
+	if err == nil {
+		t.Error("Expected error but got none")
+	}
+}
+
 func TestContext_WithoutExpectationOnForwardToChild(t *testing.T) {
 	mockT := new(testing.T)
 	defer func() {
@@ -85,6 +98,19 @@ func TestContextWithWrongExpectationOnForwardToChild(t *testing.T) {
 	c.ForwardToChild("test", "test", 1)
 }
 
+func TestContext_WithShouldErrorOnForwardToChild(t *testing.T) {
+	mockT := new(testing.T)
+	c := NewContext(mockT)
+	c.ExpectForwardToChild("test", "test", 1)
+	c.ShouldError()
+
+	err := c.ForwardToChild("test", "test", 1)
+
+	if err == nil {
+		t.Error("Expected error but got none")
+	}
+}
+
 func TestContext_WithoutExpectationOnCommit(t *testing.T) {
 	mockT := new(testing.T)
 	defer func() {
@@ -98,6 +124,19 @@ func TestContext_WithoutExpectationOnCommit(t *testing.T) {
 	c.Commit()
 }
 
+func TestContext_WithErrorOnCommit(t *testing.T) {
+	mockT := new(testing.T)
+	c := NewContext(mockT)
+	c.ExpectCommit()
+	c.ShouldError()
+
+	err := c.Commit()
+
+	if err == nil {
+		t.Error("Expected error but got none")
+	}
+}
+
 func TestContext_WithoutExpectationOnCommitAsync(t *testing.T) {
 	mockT := new(testing.T)
 	defer func() {
@@ -109,6 +148,19 @@ func TestContext_WithoutExpectationOnCommitAsync(t *testing.T) {
 	c := NewContext(mockT)
 
 	c.CommitAsync()
+}
+
+func TestContext_WithErrorOnCommitAsync(t *testing.T) {
+	mockT := new(testing.T)
+	c := NewContext(mockT)
+	c.ExpectCommitAsync()
+	c.ShouldError()
+
+	err := c.CommitAsync()
+
+	if err == nil {
+		t.Error("Expected error but got none")
+	}
 }
 
 func TestContext_WithUnfulfilledExpectationOnForward(t *testing.T) {

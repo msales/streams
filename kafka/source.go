@@ -15,7 +15,6 @@ type KafkaSource struct {
 	state   map[string]map[int32]int64
 	buf     chan *sarama.ConsumerMessage
 	lastErr error
-	lastMsg *sarama.ConsumerMessage
 }
 
 func NewKafkaSource(topic, group string, brokers []string, config sarama.Config) (*KafkaSource, error) {
@@ -57,7 +56,6 @@ func (s *KafkaSource) Consume() (key, value interface{}, err error) {
 
 	select {
 	case msg := <-s.buf:
-		s.lastMsg = msg
 		k, err := s.keyDecoder.Decode(msg.Key)
 		if err != nil {
 			return nil, nil ,err
@@ -78,10 +76,6 @@ func (s *KafkaSource) Consume() (key, value interface{}, err error) {
 }
 
 func (s *KafkaSource) Commit(sync bool) error {
-	if s.lastMsg == nil {
-		return nil
-	}
-
 	for topic, partitions := range s.state {
 		for partition, offset := range partitions {
 			s.consumer.MarkPartitionOffset(topic, partition, offset, "")
