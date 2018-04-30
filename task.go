@@ -25,7 +25,7 @@ func WithStats(stats stats.Stats) TaskFunc {
 
 type Task interface {
 	Start()
-	Commit(sync bool) error
+	Commit() error
 	OnError(fn ErrorFunc)
 	Close()
 }
@@ -105,9 +105,9 @@ func (t *streamTask) Start() {
 	go t.run()
 }
 
-func (t *streamTask) Commit(sync bool) error {
+func (t *streamTask) Commit() error {
 	for source := range t.topology.Sources() {
-		if err := source.Commit(sync); err != nil {
+		if err := source.Commit(); err != nil {
 			return err
 		}
 	}

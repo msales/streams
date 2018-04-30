@@ -22,12 +22,10 @@ func TestContext_HandlesExpectations(t *testing.T) {
 	c.ExpectForward("test", "test")
 	c.ExpectForwardToChild("test", "test", 1)
 	c.ExpectCommit()
-	c.ExpectCommitAsync()
 
 	c.Forward("test", "test")
 	c.ForwardToChild("test", "test", 1)
 	c.Commit()
-	c.CommitAsync()
 	c.AssertExpectations()
 }
 
@@ -137,32 +135,6 @@ func TestContext_WithErrorOnCommit(t *testing.T) {
 	}
 }
 
-func TestContext_WithoutExpectationOnCommitAsync(t *testing.T) {
-	mockT := new(testing.T)
-	defer func() {
-		if !mockT.Failed() {
-			t.Error("Expected error when no expectation on CommitAsync")
-		}
-
-	}()
-	c := NewContext(mockT)
-
-	c.CommitAsync()
-}
-
-func TestContext_WithErrorOnCommitAsync(t *testing.T) {
-	mockT := new(testing.T)
-	c := NewContext(mockT)
-	c.ExpectCommitAsync()
-	c.ShouldError()
-
-	err := c.CommitAsync()
-
-	if err == nil {
-		t.Error("Expected error but got none")
-	}
-}
-
 func TestContext_WithUnfulfilledExpectationOnForward(t *testing.T) {
 	mockT := new(testing.T)
 	defer func() {
@@ -201,20 +173,6 @@ func TestContext_WithUnfulfilledExpectationOnCommit(t *testing.T) {
 	}()
 	c := NewContext(mockT)
 	c.ExpectCommit()
-
-	c.AssertExpectations()
-}
-
-func TestContext_WithUnfulfilledExpectationOnCommitAsync(t *testing.T) {
-	mockT := new(testing.T)
-	defer func() {
-		if !mockT.Failed() {
-			t.Error("Expected error when unforfilled expectation on CommitAsync")
-		}
-
-	}()
-	c := NewContext(mockT)
-	c.ExpectCommitAsync()
 
 	c.AssertExpectations()
 }

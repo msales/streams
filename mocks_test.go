@@ -56,8 +56,8 @@ func (s *MockSource) Consume() (key, value interface{}, err error) {
 	return args.Get(0), args.Get(1), args.Error(2)
 }
 
-func (s *MockSource) Commit(sync bool) error {
-	args := s.Called(sync)
+func (s *MockSource) Commit() error {
+	args := s.Called()
 	return args.Error(0)
 }
 
@@ -74,8 +74,8 @@ func (t *MockTask) Start() {
 	t.Called()
 }
 
-func (t *MockTask) Commit(sync bool) error {
-	args := t.Called(sync)
+func (t *MockTask) Commit() error {
+	args := t.Called()
 	return args.Error(0)
 }
 

@@ -12,6 +12,9 @@ type CacheSink struct {
 
 	cache  cache.Cache
 	expire time.Duration
+
+	batch int
+	count int
 }
 
 // NewCacheSink creates a new cache insert sink.
@@ -19,6 +22,7 @@ func NewCacheSink(cache cache.Cache, expire time.Duration) *CacheSink {
 	return &CacheSink{
 		cache:  cache,
 		expire: expire,
+		batch:  1000,
 	}
 }
 
@@ -32,7 +36,12 @@ func (p *CacheSink) Process(key, value interface{}) error {
 	k := key.(string)
 
 	p.cache.Set(k, value, p.expire)
-	p.ctx.CommitAsync()
+
+	p.count++
+	if p.count >= p.batch {
+		p.count = 0
+		return p.ctx.Commit()
+	}
 
 	return nil
 }

@@ -81,7 +81,7 @@ func TestProcessorContext_ForwardToChildReturnsChildError(t *testing.T) {
 
 func TestProcessorContext_Commit(t *testing.T) {
 	task := new(MockTask)
-	task.On("Commit", true).Return(nil)
+	task.On("Commit").Return(nil)
 	ctx := NewProcessorContext(task, log.Null, stats.Null)
 
 	err := ctx.Commit()
@@ -92,32 +92,10 @@ func TestProcessorContext_Commit(t *testing.T) {
 
 func TestProcessorContext_CommitWithError(t *testing.T) {
 	task := new(MockTask)
-	task.On("Commit", true).Return(errors.New("test"))
+	task.On("Commit").Return(errors.New("test"))
 	ctx := NewProcessorContext(task, log.Null, stats.Null)
 
 	err := ctx.Commit()
-
-	assert.Error(t, err)
-	task.AssertExpectations(t)
-}
-
-func TestProcessorContext_CommitAsync(t *testing.T) {
-	task := new(MockTask)
-	task.On("Commit", false).Return(nil)
-	ctx := NewProcessorContext(task, log.Null, stats.Null)
-
-	err := ctx.CommitAsync()
-
-	assert.NoError(t, err)
-	task.AssertExpectations(t)
-}
-
-func TestProcessorContext_CommitAsyncWithError(t *testing.T) {
-	task := new(MockTask)
-	task.On("Commit", false).Return(errors.New("test"))
-	ctx := NewProcessorContext(task, log.Null, stats.Null)
-
-	err := ctx.CommitAsync()
 
 	assert.Error(t, err)
 	task.AssertExpectations(t)

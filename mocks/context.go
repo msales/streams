@@ -21,7 +21,6 @@ type Context struct {
 
 	expectForward     []record
 	expectCommit      bool
-	expectCommitAsync bool
 }
 
 func NewContext(t *testing.T) *Context {
@@ -85,20 +84,6 @@ func (c *Context) Commit() error {
 	return nil
 }
 
-func (c *Context) CommitAsync() error {
-	if !c.expectCommitAsync {
-		c.t.Error("streams: mock: Unexpected call to CommitAsync")
-	}
-	c.expectCommitAsync = false
-
-	if c.shouldError {
-		c.shouldError = false
-		return errors.New("test")
-	}
-
-	return nil
-}
-
 func (c *Context) Logger() log.Logger {
 	return log.Null
 }
@@ -123,10 +108,6 @@ func (c *Context) ExpectCommit() {
 	c.expectCommit = true
 }
 
-func (c *Context) ExpectCommitAsync() {
-	c.expectCommitAsync = true
-}
-
 func (c *Context) AssertExpectations() {
 	if len(c.expectForward) > 0 {
 		c.t.Error("streams: mock: Expected a call to Forward or ForwardToChild but got none")
@@ -134,9 +115,5 @@ func (c *Context) AssertExpectations() {
 
 	if c.expectCommit {
 		c.t.Error("streams: mock: Expected a call to Commit but got none")
-	}
-
-	if c.expectCommitAsync {
-		c.t.Error("streams: mock: Expected a call to CommitAsync but got none")
 	}
 }

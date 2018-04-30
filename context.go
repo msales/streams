@@ -10,7 +10,6 @@ type Context interface {
 	Forward(key, value interface{}) error
 	ForwardToChild(key, value interface{}, child int) error
 	Commit() error
-	CommitAsync() error
 
 	Logger() log.Logger
 	Stats() stats.Stats
@@ -64,11 +63,7 @@ func (c *ProcessorContext) ForwardToChild(key, value interface{}, index int) err
 }
 
 func (c *ProcessorContext) Commit() error {
-	return c.task.Commit(true)
-}
-
-func (c *ProcessorContext) CommitAsync() error {
-	return c.task.Commit(false)
+	return c.task.Commit()
 }
 
 func (c *ProcessorContext) Logger() log.Logger {

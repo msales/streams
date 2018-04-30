@@ -61,7 +61,7 @@ func (s *RandIntSource) Consume() (key, value interface{}, err error) {
 	return nil, s.rand.Intn(100), nil
 }
 
-func (s *RandIntSource) Commit(sync bool) error {
+func (s *RandIntSource) Commit() error {
 	return nil
 }
 

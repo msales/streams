@@ -75,14 +75,11 @@ func (s *KafkaSource) Consume() (key, value interface{}, err error) {
 	}
 }
 
-func (s *KafkaSource) Commit(sync bool) error {
+func (s *KafkaSource) Commit() error {
 	for topic, partitions := range s.state {
 		for partition, offset := range partitions {
 			s.consumer.MarkPartitionOffset(topic, partition, offset, "")
 		}
-	}
-	if !sync {
-		return nil
 	}
 
 	if err := s.consumer.CommitOffsets(); err != nil {
