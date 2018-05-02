@@ -9,7 +9,7 @@ import (
 )
 
 func TestBranchProcessor_WithContext(t *testing.T) {
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	p := NewBranchProcessor([]Predicate{})
 
 	p.WithContext(ctx)
@@ -24,7 +24,7 @@ func TestBranchProcessor_Process(t *testing.T) {
 	falsePred := func(k, v interface{}) (bool, error) {
 		return false, nil
 	}
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	ctx.ExpectForwardToChild("test", "test", 0)
 	p := NewBranchProcessor([]Predicate{truePred, falsePred})
 	p.WithContext(ctx)
@@ -39,7 +39,7 @@ func TestBranchProcessor_ProcessWithError(t *testing.T) {
 	errPred := func(k, v interface{}) (bool, error) {
 		return true, errors.New("test")
 	}
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	p := NewBranchProcessor([]Predicate{errPred})
 	p.WithContext(ctx)
 
@@ -52,7 +52,7 @@ func TestBranchProcessor_ProcessWithForwardError(t *testing.T) {
 	pred := func(k, v interface{}) (bool, error) {
 		return true, nil
 	}
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	ctx.ExpectForwardToChild("test", "test", 0)
 	ctx.ShouldError()
 	p := NewBranchProcessor([]Predicate{pred})
@@ -72,7 +72,7 @@ func TestBranchProcessor_Close(t *testing.T) {
 }
 
 func TestFilterProcessor_WithContext(t *testing.T) {
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	p := NewFilterProcessor(nil)
 
 	p.WithContext(ctx)
@@ -88,7 +88,7 @@ func TestFilterProcessor_Process(t *testing.T) {
 
 		return false, nil
 	}
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	ctx.ExpectForward("test", "test")
 	p := NewFilterProcessor(pred)
 	p.WithContext(ctx)
@@ -103,7 +103,7 @@ func TestFilterProcessor_ProcessWithError(t *testing.T) {
 	errPred := func(k, v interface{}) (bool, error) {
 		return true, errors.New("test")
 	}
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	p := NewFilterProcessor(errPred)
 	p.WithContext(ctx)
 
@@ -121,7 +121,7 @@ func TestFilterProcessor_Close(t *testing.T) {
 }
 
 func TestMapProcessor_WithContext(t *testing.T) {
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	p := NewMapProcessor(nil)
 
 	p.WithContext(ctx)
@@ -133,7 +133,7 @@ func TestMapProcessor_Process(t *testing.T) {
 	mapper := func(key, value interface{}) (interface{}, interface{}, error) {
 		return 1, 1, nil
 	}
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	ctx.ExpectForward(1, 1)
 	p := NewMapProcessor(mapper)
 	p.WithContext(ctx)
@@ -147,7 +147,7 @@ func TestMapProcessor_ProcessWithError(t *testing.T) {
 	mapper := func(key, value interface{}) (interface{}, interface{}, error) {
 		return nil, nil, errors.New("test")
 	}
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	p := NewMapProcessor(mapper)
 	p.WithContext(ctx)
 
@@ -165,7 +165,7 @@ func TestMapProcessor_Close(t *testing.T) {
 }
 
 func TestMergeProcessor_WithContext(t *testing.T) {
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	p := NewMergeProcessor()
 
 	p.WithContext(ctx)
@@ -174,7 +174,7 @@ func TestMergeProcessor_WithContext(t *testing.T) {
 }
 
 func TestMergeProcessor_Process(t *testing.T) {
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	ctx.ExpectForward("test", "test")
 	p := NewMergeProcessor()
 	p.WithContext(ctx)
@@ -193,7 +193,7 @@ func TestMergeProcessor_Close(t *testing.T) {
 }
 
 func TestPrintProcessor_WithContext(t *testing.T) {
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	p := NewPrintProcessor()
 
 	p.WithContext(ctx)
@@ -202,8 +202,8 @@ func TestPrintProcessor_WithContext(t *testing.T) {
 }
 
 func TestPrintProcessor_Process(t *testing.T) {
-	ctx := &mocks.Context{}
-	ctx.ExpectCommit()
+	ctx := mocks.NewContext(t)
+	ctx.ExpectForward("test", "test")
 	p := NewPrintProcessor()
 	p.WithContext(ctx)
 

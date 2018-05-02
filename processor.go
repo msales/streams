@@ -175,7 +175,7 @@ func (p *PrintProcessor) WithContext(ctx Context) {
 func (p *PrintProcessor) Process(key, value interface{}) error {
 	fmt.Printf("%v:%v\n", key, value)
 
-	return p.ctx.Commit()
+	return p.ctx.Forward(key, value)
 }
 
 // Close closes the processor.

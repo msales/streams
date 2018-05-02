@@ -9,7 +9,7 @@ import (
 )
 
 func TestSourceNode_WithContext(t *testing.T) {
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	n := SourceNode{}
 
 	n.WithContext(ctx)
@@ -63,7 +63,7 @@ func TestSourceNode_Close(t *testing.T) {
 }
 
 func TestProcessorNode_WithContext(t *testing.T) {
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	p := new(MockProcessor)
 	p.On("WithContext", ctx)
 	n := ProcessorNode{processor: p}
@@ -96,7 +96,7 @@ func TestProcessorNode_Children(t *testing.T) {
 }
 
 func TestProcessorNode_Process(t *testing.T) {
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	p := new(MockProcessor)
 	p.On("Process", "test", "test").Return(nil)
 	n := ProcessorNode{processor: p}
@@ -109,7 +109,7 @@ func TestProcessorNode_Process(t *testing.T) {
 }
 
 func TestProcessorNode_ProcessWithError(t *testing.T) {
-	ctx := &mocks.Context{}
+	ctx := mocks.NewContext(t)
 	p := new(MockProcessor)
 	p.On("Process", "test", "test").Return(errors.New("test"))
 	n := ProcessorNode{processor: p}
