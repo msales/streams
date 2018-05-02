@@ -83,6 +83,7 @@ func (t *MockTask) OnError(fn ErrorFunc) {
 	t.Called(fn)
 }
 
-func (t *MockTask) Close() {
-	t.Called()
+func (t *MockTask) Close() error {
+	args := t.Called()
+	return args.Error(0)
 }

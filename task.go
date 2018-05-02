@@ -27,7 +27,7 @@ type Task interface {
 	Start()
 	Commit() error
 	OnError(fn ErrorFunc)
-	Close()
+	Close() error
 }
 
 type streamTask struct {
@@ -57,6 +57,11 @@ func NewTask(topology *Topology, opts ...TaskFunc) Task {
 }
 
 func (t *streamTask) run() {
+	// If we are already running, exit
+	if t.running {
+		return
+	}
+
 	t.running = true
 	t.wg.Add(1)
 	defer t.wg.Done()
@@ -85,14 +90,20 @@ func (t *streamTask) setupTopology(ctx Context) {
 	}
 }
 
-func (t *streamTask) closeTopology() {
+func (t *streamTask) closeTopology() error {
 	for _, node := range t.topology.Processors() {
-		node.Close()
+		if err := node.Close(); err != nil {
+			return err
+		}
 	}
 
 	for source := range t.topology.Sources() {
-		source.Close()
+		if err := source.Close(); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 func (t *streamTask) handleError(err error) {
@@ -119,9 +130,10 @@ func (t *streamTask) OnError(fn ErrorFunc) {
 	t.errorFn = fn
 }
 
-func (t *streamTask) Close() {
+func (t *streamTask) Close() error {
 	t.running = false
 
 	t.wg.Wait()
-	t.closeTopology()
+
+	return t.closeTopology()
 }
