@@ -6,41 +6,41 @@ import (
 	"github.com/msales/streams"
 )
 
-type SqlTxFunc func(*sql.Tx) error
+type TxFunc func(*sql.Tx) error
 
-type SqlInsertFunc func(*sql.Tx, interface{}, interface{}) error
+type InsertFunc func(*sql.Tx, interface{}, interface{}) error
 
-type SqlSinkFunc func(*SqlSink)
+type SinkFunc func(*Sink)
 
-func WithBeginFn(fn SqlTxFunc) SqlSinkFunc {
-	return func(s *SqlSink) {
+func WithBeginFn(fn TxFunc) SinkFunc {
+	return func(s *Sink) {
 		s.beginFn = fn
 	}
 }
 
-func WithCommitFn(fn SqlTxFunc) SqlSinkFunc {
-	return func(s *SqlSink) {
+func WithCommitFn(fn TxFunc) SinkFunc {
+	return func(s *Sink) {
 		s.commitFn = fn
 	}
 }
 
-type SqlSink struct {
+type Sink struct {
 	ctx streams.Context
 
 	db *sql.DB
 	tx *sql.Tx
 
-	beginFn  SqlTxFunc
-	insertFn SqlInsertFunc
-	commitFn SqlTxFunc
+	beginFn  TxFunc
+	insertFn InsertFunc
+	commitFn TxFunc
 
 	batch int
 	count int
 }
 
-// NewSqlSink creates a new batch sql insert sink.
-func NewSqlSink(db *sql.DB, fn SqlInsertFunc, batch int, opts ...SqlSinkFunc) *SqlSink {
-	s := &SqlSink{
+// NewSink creates a new batch sql insert sink.
+func NewSink(db *sql.DB, fn InsertFunc, batch int, opts ...SinkFunc) *Sink {
+	s := &Sink{
 		db:       db,
 		insertFn: fn,
 		batch:    batch,
@@ -55,12 +55,12 @@ func NewSqlSink(db *sql.DB, fn SqlInsertFunc, batch int, opts ...SqlSinkFunc) *S
 }
 
 // WithContext sets the context on the Processor.
-func (p *SqlSink) WithContext(ctx streams.Context) {
+func (p *Sink) WithContext(ctx streams.Context) {
 	p.ctx = ctx
 }
 
 // Process processes the stream record.
-func (p *SqlSink) Process(key, value interface{}) error {
+func (p *Sink) Process(key, value interface{}) error {
 	if err := p.ensureTransaction(); err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (p *SqlSink) Process(key, value interface{}) error {
 	return nil
 }
 
-func (p *SqlSink) ensureTransaction() error {
+func (p *Sink) ensureTransaction() error {
 	var err error
 
 	if p.tx != nil {
@@ -97,7 +97,7 @@ func (p *SqlSink) ensureTransaction() error {
 	return nil
 }
 
-func (p *SqlSink) commitTransaction() error {
+func (p *Sink) commitTransaction() error {
 	if p.tx == nil {
 		return nil
 	}
@@ -118,7 +118,7 @@ func (p *SqlSink) commitTransaction() error {
 }
 
 // Close closes the processor.
-func (p *SqlSink) Close() error {
+func (p *Sink) Close() error {
 	if err := p.commitTransaction(); err != nil {
 		return err
 	}
