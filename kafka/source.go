@@ -6,7 +6,53 @@ import (
 	"github.com/pkg/errors"
 )
 
-type KafkaSource struct {
+type SourceConfig struct {
+	sarama.Config
+
+	Brokers []string
+	Topic   string
+	GroupId string
+
+	KeyDecoder   Decoder
+	ValueDecoder Decoder
+
+	BufferSize int
+}
+
+func NewSourceConfig() *SourceConfig {
+	c := &SourceConfig{
+		Config: *sarama.NewConfig(),
+	}
+
+	c.KeyDecoder = ByteDecoder{}
+	c.ValueDecoder = ByteDecoder{}
+	c.BufferSize = 1000
+
+	return c
+}
+
+// Validate checks a Config instance. It will return a
+// sarama.ConfigurationError if the specified values don't make sense.
+func (c *SourceConfig) Validate() error {
+	if err := c.Config.Validate(); err != nil {
+		return err
+	}
+
+	switch {
+	case c.Brokers == nil || len(c.Brokers) == 0:
+		return sarama.ConfigurationError("Brokers mut have at least one broker")
+	case c.KeyDecoder == nil:
+		return sarama.ConfigurationError("KeyDecoder must be an instance of Decoder")
+	case c.ValueDecoder == nil:
+		return sarama.ConfigurationError("ValueDecoder must be an instance of Decoder")
+	case c.BufferSize <= 0:
+		return sarama.ConfigurationError("BufferSize must be at least 1")
+	}
+
+	return nil
+}
+
+type Source struct {
 	consumer *cluster.Consumer
 
 	keyDecoder   Decoder
@@ -17,21 +63,25 @@ type KafkaSource struct {
 	lastErr error
 }
 
-func NewKafkaSource(topic, group string, brokers []string, config sarama.Config) (*KafkaSource, error) {
+func NewSource(c *SourceConfig) (*Source, error) {
+	if err := c.Validate(); err != nil {
+		return nil, err
+	}
+
 	cc := cluster.NewConfig()
-	cc.Config = config
+	cc.Config = c.Config
 	cc.Consumer.Return.Errors = true
 
-	consumer, err := cluster.NewConsumer(brokers, group, []string{topic}, cc)
+	consumer, err := cluster.NewConsumer(c.Brokers, c.GroupId, []string{c.Topic}, cc)
 	if err != nil {
 		return nil, err
 	}
 
-	s := &KafkaSource{
+	s := &Source{
 		consumer:     consumer,
-		keyDecoder:   ByteDecoder{},
-		valueDecoder: ByteDecoder{},
-		buf:          make(chan *sarama.ConsumerMessage, 1000),
+		keyDecoder:   c.KeyDecoder,
+		valueDecoder: c.ValueDecoder,
+		buf:          make(chan *sarama.ConsumerMessage, c.BufferSize),
 		state:        make(map[string]map[int32]int64),
 	}
 
@@ -41,15 +91,7 @@ func NewKafkaSource(topic, group string, brokers []string, config sarama.Config)
 	return s, nil
 }
 
-func (s *KafkaSource) WithKeyDecoder(d Decoder) {
-	s.keyDecoder = d
-}
-
-func (s *KafkaSource) WithValueDecoder(d Decoder) {
-	s.valueDecoder = d
-}
-
-func (s *KafkaSource) Consume() (key, value interface{}, err error) {
+func (s *Source) Consume() (key, value interface{}, err error) {
 	if s.lastErr != nil {
 		return nil, nil, err
 	}
@@ -75,7 +117,7 @@ func (s *KafkaSource) Consume() (key, value interface{}, err error) {
 	}
 }
 
-func (s *KafkaSource) Commit() error {
+func (s *Source) Commit() error {
 	for topic, partitions := range s.state {
 		for partition, offset := range partitions {
 			s.consumer.MarkPartitionOffset(topic, partition, offset, "")
@@ -89,11 +131,11 @@ func (s *KafkaSource) Commit() error {
 	return nil
 }
 
-func (s *KafkaSource) Close() error {
+func (s *Source) Close() error {
 	return s.consumer.Close()
 }
 
-func (s *KafkaSource) markState(msg *sarama.ConsumerMessage) {
+func (s *Source) markState(msg *sarama.ConsumerMessage) {
 	partitions, ok := s.state[msg.Topic]
 	if !ok {
 		partitions = make(map[int32]int64)
@@ -103,13 +145,13 @@ func (s *KafkaSource) markState(msg *sarama.ConsumerMessage) {
 	partitions[msg.Partition] = msg.Offset
 }
 
-func (s *KafkaSource) readErrors() {
+func (s *Source) readErrors() {
 	for err := range s.consumer.Errors() {
 		s.lastErr = err
 	}
 }
 
-func (s *KafkaSource) readMessages() {
+func (s *Source) readMessages() {
 	for msg := range s.consumer.Messages() {
 		s.buf <- msg
 	}

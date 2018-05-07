@@ -45,11 +45,16 @@ func main() {
 }
 
 func producerTask(s stats.Stats, brokers []string, c *sarama.Config) (streams.Task, error) {
-	sink, err := kafka.NewKafkaSink("example1", brokers, *c)
+	config := kafka.NewSinkConfig()
+	config.Config = *c
+	config.Brokers = brokers
+	config.Topic = "example1"
+	config.ValueEncoder = kafka.StringEncoder{}
+
+	sink, err := kafka.NewSink(config)
 	if err != nil {
 		return nil, err
 	}
-	sink.WithValueEncoder(kafka.StringEncoder{})
 
 	builder := streams.NewStreamBuilder()
 	builder.Source("rand-source", NewRandIntSource()).
@@ -65,16 +70,22 @@ func producerTask(s stats.Stats, brokers []string, c *sarama.Config) (streams.Ta
 }
 
 func consumerTask(s stats.Stats, brokers []string, c *sarama.Config) (streams.Task, error) {
-	src, err := kafka.NewKafkaSource("example1", "example-consumer", brokers, *c)
+	config := kafka.NewSourceConfig()
+	config.Config = *c
+	config.Brokers = brokers
+	config.Topic = "example1"
+	config.GroupId = "example-consumer"
+	config.ValueDecoder = kafka.StringDecoder{}
+
+	src, err := kafka.NewSource(config)
 	if err != nil {
 		return nil, err
 	}
-	src.WithValueDecoder(kafka.StringDecoder{})
 
 	builder := streams.NewStreamBuilder()
 	builder.Source("kafka-source", src).
-		Map("to-int", IntMapper)
-		// Print("print")
+		Map("to-int", IntMapper).
+		Print("print")
 
 	task := streams.NewTask(builder.Build(), streams.WithStats(s))
 	task.OnError(func(err error) {

@@ -7,7 +7,7 @@ import (
 	"github.com/msales/streams"
 )
 
-type CacheSink struct {
+type Sink struct {
 	ctx streams.Context
 
 	cache  cache.Cache
@@ -17,9 +17,9 @@ type CacheSink struct {
 	count int
 }
 
-// NewCacheSink creates a new cache insert sink.
-func NewCacheSink(cache cache.Cache, expire time.Duration) *CacheSink {
-	return &CacheSink{
+// NewSink creates a new cache insert sink.
+func NewSink(cache cache.Cache, expire time.Duration) *Sink {
+	return &Sink{
 		cache:  cache,
 		expire: expire,
 		batch:  1000,
@@ -27,12 +27,12 @@ func NewCacheSink(cache cache.Cache, expire time.Duration) *CacheSink {
 }
 
 // WithContext sets the context on the Processor.
-func (p *CacheSink) WithContext(ctx streams.Context) {
+func (p *Sink) WithContext(ctx streams.Context) {
 	p.ctx = ctx
 }
 
 // Process processes the stream record.
-func (p *CacheSink) Process(key, value interface{}) error {
+func (p *Sink) Process(key, value interface{}) error {
 	k := key.(string)
 
 	p.cache.Set(k, value, p.expire)
@@ -47,6 +47,6 @@ func (p *CacheSink) Process(key, value interface{}) error {
 }
 
 // Close closes the processor.
-func (p *CacheSink) Close() error {
+func (p *Sink) Close() error {
 	return p.ctx.Commit()
 }
