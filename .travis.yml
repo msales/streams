@@ -16,8 +16,8 @@ install:
 
 script:
 #  - golint $(go list ./... | grep -v /vendor/)
-  - go vet $(go list ./... | grep -v /vendor/)
-  - go test -cover $(go list ./... | grep -v /vendor/)
+  - go vet ./...
+  - go test -cover ./...
   - $HOME/gopath/bin/goveralls -service=travis-ci
 
 notifications:
