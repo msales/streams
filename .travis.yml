@@ -18,7 +18,7 @@ script:
 #  - golint $(go list ./... | grep -v /vendor/)
   - go vet ./...
   - go test -cover ./...
-  - $HOME/gopath/bin/goveralls -service=travis-ci
+  - $HOME/gopath/bin/goveralls -service=travis-ci -ignore=example/*
 
 notifications:
   email: false
