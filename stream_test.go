@@ -34,7 +34,6 @@ func TestStream_Filter(t *testing.T) {
 	source := new(MockSource)
 	builder := NewStreamBuilder()
 
-
 	stream := builder.Source("source", source).Filter("test", func(k, v interface{}) (bool, error) {
 		return true, nil
 	})
@@ -93,7 +92,6 @@ func TestStream_Merge(t *testing.T) {
 
 	stream := stream2.Merge("test", stream1)
 
-
 	assert.Len(t, stream.parents, 1)
 	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
 	assert.Equal(t, stream.parents[0].(*ProcessorNode).name, "test")
@@ -103,7 +101,6 @@ func TestStream_Merge(t *testing.T) {
 func TestStream_Print(t *testing.T) {
 	source := new(MockSource)
 	builder := NewStreamBuilder()
-
 
 	stream := builder.Source("source", source).Print("test")
 
@@ -117,7 +114,6 @@ func TestStream_Process(t *testing.T) {
 	proc := new(MockProcessor)
 	source := new(MockSource)
 	builder := NewStreamBuilder()
-
 
 	stream := builder.Source("source", source).Process("test", proc)
 

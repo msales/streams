@@ -2,6 +2,7 @@ package streams
 
 import (
 	"sync"
+	"time"
 
 	"github.com/msales/pkg/log"
 	"github.com/msales/pkg/stats"
@@ -70,16 +71,27 @@ func (t *streamTask) run() {
 	t.setupTopology(ctx)
 
 	for t.running == true {
+		var empty = 0;
 		for source, node := range t.topology.Sources() {
 			k, v, err := source.Consume()
 			if err != nil {
 				t.handleError(err)
 			}
 
+			if k == nil && v == nil {
+				empty++
+				continue
+			}
+
 			ctx.currentNode = node
 			if err := node.Process(k, v); err != nil {
 				t.handleError(err)
 			}
+		}
+
+		// All the sources where empty, wait a short while
+		if empty == len(t.topology.Sources()) {
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }

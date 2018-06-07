@@ -100,12 +100,12 @@ func (s *Source) Consume() (key, value interface{}, err error) {
 	case msg := <-s.buf:
 		k, err := s.keyDecoder.Decode(msg.Key)
 		if err != nil {
-			return nil, nil ,err
+			return nil, nil, err
 		}
 
 		v, err := s.valueDecoder.Decode(msg.Value)
 		if err != nil {
-			return nil, nil ,err
+			return nil, nil, err
 		}
 
 		s.markState(msg)

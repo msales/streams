@@ -19,8 +19,8 @@ type Context struct {
 
 	shouldError bool
 
-	expectForward     []record
-	expectCommit      bool
+	expectForward []record
+	expectCommit  bool
 }
 
 func NewContext(t *testing.T) *Context {

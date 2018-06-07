@@ -16,8 +16,8 @@ type Context interface {
 }
 
 type ProcessorContext struct {
-	task  Task
-	stats stats.Stats
+	task   Task
+	stats  stats.Stats
 	logger log.Logger
 
 	currentNode Node
@@ -25,9 +25,9 @@ type ProcessorContext struct {
 
 func NewProcessorContext(t Task, l log.Logger, s stats.Stats) *ProcessorContext {
 	return &ProcessorContext{
-		task:  t,
+		task:   t,
 		logger: l,
-		stats: s,
+		stats:  s,
 	}
 }
 

@@ -45,7 +45,7 @@ func (n *SourceNode) Close() error {
 
 type ProcessorNode struct {
 	name      string
-	ctx  Context
+	ctx       Context
 	processor Processor
 
 	children []Node
