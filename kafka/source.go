@@ -1,6 +1,8 @@
 package kafka
 
 import (
+	"time"
+
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
 	"github.com/pkg/errors"
@@ -112,7 +114,7 @@ func (s *Source) Consume() (key, value interface{}, err error) {
 
 		return k, v, nil
 
-	default:
+	case <-time.After(100 * time.Millisecond):
 		return nil, nil, nil
 	}
 }

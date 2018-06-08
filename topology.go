@@ -30,10 +30,6 @@ func (n *SourceNode) Children() []Node {
 }
 
 func (n *SourceNode) Process(key, value interface{}) error {
-	if key == nil && value == nil {
-		return nil
-	}
-
 	n.ctx.Stats().Inc("node.throughput", 1, 1.0, map[string]string{"name": n.name})
 
 	return n.ctx.Forward(key, value)

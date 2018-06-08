@@ -48,7 +48,6 @@ func TestSourceNode_Process(t *testing.T) {
 	n := SourceNode{}
 	n.WithContext(ctx)
 
-	n.Process(nil, nil)
 	n.Process(key, value)
 
 	ctx.AssertExpectations()
