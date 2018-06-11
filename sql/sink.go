@@ -6,6 +6,7 @@ import (
 	"github.com/msales/streams"
 )
 
+// TxFunc represents a function that receives a sql transaction.
 type TxFunc func(*sql.Tx) error
 
 type InsertFunc func(*sql.Tx, interface{}, interface{}) error
@@ -24,6 +25,7 @@ func WithCommitFn(fn TxFunc) SinkFunc {
 	}
 }
 
+// Sink represents a SQL sink processor.
 type Sink struct {
 	ctx streams.Context
 

@@ -1,33 +1,30 @@
 package streams
 
 import (
-	"github.com/msales/pkg/log"
-	"github.com/msales/pkg/stats"
+	"context"
+
 	"github.com/pkg/errors"
 )
 
 type Context interface {
+	context.Context
+
 	Forward(key, value interface{}) error
 	ForwardToChild(key, value interface{}, child int) error
 	Commit() error
-
-	Logger() log.Logger
-	Stats() stats.Stats
 }
 
 type ProcessorContext struct {
+	context.Context
 	task   Task
-	stats  stats.Stats
-	logger log.Logger
 
 	currentNode Node
 }
 
-func NewProcessorContext(t Task, l log.Logger, s stats.Stats) *ProcessorContext {
+func NewProcessorContext(t Task, ctx context.Context) *ProcessorContext {
 	return &ProcessorContext{
+		Context: ctx,
 		task:   t,
-		logger: l,
-		stats:  s,
 	}
 }
 
@@ -64,12 +61,4 @@ func (c *ProcessorContext) ForwardToChild(key, value interface{}, index int) err
 
 func (c *ProcessorContext) Commit() error {
 	return c.task.Commit()
-}
-
-func (c *ProcessorContext) Logger() log.Logger {
-	return c.logger
-}
-
-func (c *ProcessorContext) Stats() stats.Stats {
-	return c.stats
 }

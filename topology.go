@@ -1,6 +1,10 @@
 package streams
 
-import "time"
+import (
+	"time"
+
+	"github.com/msales/pkg/stats"
+)
 
 type Node interface {
 	WithContext(ctx Context)
@@ -30,7 +34,7 @@ func (n *SourceNode) Children() []Node {
 }
 
 func (n *SourceNode) Process(key, value interface{}) error {
-	n.ctx.Stats().Inc("node.throughput", 1, 1.0, map[string]string{"name": n.name})
+	stats.Inc(n.ctx, "node.throughput", 1, 1.0, map[string]string{"name": n.name})
 
 	return n.ctx.Forward(key, value)
 }
@@ -63,13 +67,13 @@ func (n *ProcessorNode) Children() []Node {
 func (n *ProcessorNode) Process(key, value interface{}) error {
 	start := time.Now()
 
-	n.ctx.Stats().Inc("node.throughput", 1, 1.0, map[string]string{"name": n.name})
+	stats.Inc(n.ctx, "node.throughput", 1, 1.0, map[string]string{"name": n.name})
 
 	if err := n.processor.Process(key, value); err != nil {
 		return err
 	}
 
-	n.ctx.Stats().Timing("node.latency", time.Since(start), 1.0, map[string]string{"name": n.name})
+	stats.Timing(n.ctx, "node.latency", time.Since(start), 1.0, map[string]string{"name": n.name})
 
 	return nil
 }

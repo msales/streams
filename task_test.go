@@ -1,28 +1,17 @@
 package streams
 
 import (
+	"context"
 	"testing"
 
-	"github.com/msales/pkg/log"
-	stats2 "github.com/msales/pkg/stats"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestWithLogger(t *testing.T) {
-	logger := log.Null
+func TestWithContext(t *testing.T) {
+	ctx := context.Background()
 	task := &streamTask{}
 
-	WithLogger(logger)(task)
+	WithContext(ctx)(task)
 
-	assert.Equal(t, logger, task.logger)
-}
-
-func TestWithStats(t *testing.T) {
-	stats := stats2.Null
-
-	task := &streamTask{}
-
-	WithStats(stats)(task)
-
-	assert.Equal(t, stats, task.stats)
+	assert.Equal(t, ctx, task.ctx)
 }

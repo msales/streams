@@ -3,8 +3,6 @@ package mocks
 import (
 	"testing"
 
-	"github.com/msales/pkg/log"
-	"github.com/msales/pkg/stats"
 	"github.com/msales/streams"
 )
 
@@ -175,20 +173,4 @@ func TestContext_WithUnfulfilledExpectationOnCommit(t *testing.T) {
 	c.ExpectCommit()
 
 	c.AssertExpectations()
-}
-
-func TestContext_Logger(t *testing.T) {
-	c := NewContext(t)
-
-	if c.Logger() != log.Null {
-		t.Error("Expected null logger")
-	}
-}
-
-func TestContext_Stats(t *testing.T) {
-	c := NewContext(t)
-
-	if c.Stats() != stats.Null {
-		t.Error("Expected null stats")
-	}
 }

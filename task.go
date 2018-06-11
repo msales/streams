@@ -1,10 +1,9 @@
 package streams
 
 import (
+	"context"
 	"sync"
 
-	"github.com/msales/pkg/log"
-	"github.com/msales/pkg/stats"
 )
 
 type record struct {
@@ -17,15 +16,9 @@ type ErrorFunc func(error)
 
 type TaskFunc func(*streamTask)
 
-func WithLogger(logger log.Logger) TaskFunc {
+func WithContext(ctx context.Context) TaskFunc {
 	return func(t *streamTask) {
-		t.logger = logger
-	}
-}
-
-func WithStats(stats stats.Stats) TaskFunc {
-	return func(t *streamTask) {
-		t.stats = stats
+		t.ctx = ctx
 	}
 }
 
@@ -39,8 +32,7 @@ type Task interface {
 type streamTask struct {
 	topology *Topology
 
-	logger log.Logger
-	stats  stats.Stats
+	ctx context.Context
 
 	running  bool
 	errorFn  ErrorFunc
@@ -52,8 +44,7 @@ type streamTask struct {
 func NewTask(topology *Topology, opts ...TaskFunc) Task {
 	t := &streamTask{
 		topology: topology,
-		logger:   log.Null,
-		stats:    stats.Null,
+		ctx:      context.Background(),
 		running:  false,
 	}
 
@@ -73,7 +64,7 @@ func (t *streamTask) run() {
 	t.records = make(chan record, 1000)
 	t.running = true
 
-	ctx := NewProcessorContext(t, t.logger, t.stats)
+	ctx := NewProcessorContext(t, t.ctx)
 	t.setupTopology(ctx)
 
 	t.consumeSources()

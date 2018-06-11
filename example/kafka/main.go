@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"os"
@@ -15,6 +16,8 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
+
 	config := sarama.NewConfig()
 	config.Producer.Return.Successes = true
 
@@ -22,13 +25,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+	ctx = stats.WithStats(ctx, client)
 
-	p, err := producerTask(client, []string{"127.0.0.1:9092"}, config)
+	p, err := producerTask(ctx, []string{"127.0.0.1:9092"}, config)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	c, err := consumerTask(client, []string{"127.0.0.1:9092"}, config)
+	c, err := consumerTask(ctx, []string{"127.0.0.1:9092"}, config)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -44,7 +48,7 @@ func main() {
 	c.Close()
 }
 
-func producerTask(s stats.Stats, brokers []string, c *sarama.Config) (streams.Task, error) {
+func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (streams.Task, error) {
 	config := kafka.NewSinkConfig()
 	config.Config = *c
 	config.Brokers = brokers
@@ -61,7 +65,7 @@ func producerTask(s stats.Stats, brokers []string, c *sarama.Config) (streams.Ta
 		Map("to-string", StringMapper).
 		Process("kafka-sink", sink)
 
-	task := streams.NewTask(builder.Build(), streams.WithStats(s))
+	task := streams.NewTask(builder.Build(), streams.WithContext(ctx))
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -69,7 +73,7 @@ func producerTask(s stats.Stats, brokers []string, c *sarama.Config) (streams.Ta
 	return task, nil
 }
 
-func consumerTask(s stats.Stats, brokers []string, c *sarama.Config) (streams.Task, error) {
+func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (streams.Task, error) {
 	config := kafka.NewSourceConfig()
 	config.Config = *c
 	config.Brokers = brokers
@@ -87,7 +91,7 @@ func consumerTask(s stats.Stats, brokers []string, c *sarama.Config) (streams.Ta
 		Map("to-int", IntMapper).
 		Print("print")
 
-	task := streams.NewTask(builder.Build(), streams.WithStats(s))
+	task := streams.NewTask(builder.Build(), streams.WithContext(ctx))
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})

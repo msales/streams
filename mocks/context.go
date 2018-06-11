@@ -1,11 +1,10 @@
 package mocks
 
 import (
+	"context"
 	"errors"
 	"testing"
 
-	"github.com/msales/pkg/log"
-	"github.com/msales/pkg/stats"
 )
 
 type record struct {
@@ -15,6 +14,8 @@ type record struct {
 }
 
 type Context struct {
+	context.Context
+
 	t *testing.T
 
 	shouldError bool
@@ -25,6 +26,7 @@ type Context struct {
 
 func NewContext(t *testing.T) *Context {
 	return &Context{
+		Context:       context.Background(),
 		t:             t,
 		expectForward: []record{},
 	}
@@ -82,14 +84,6 @@ func (c *Context) Commit() error {
 	}
 
 	return nil
-}
-
-func (c *Context) Logger() log.Logger {
-	return log.Null
-}
-
-func (c *Context) Stats() stats.Stats {
-	return stats.Null
 }
 
 func (c *Context) ShouldError() {

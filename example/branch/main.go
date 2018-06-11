@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"os"
@@ -13,6 +14,8 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
+
 	logger := log15.New()
 	logger.SetHandler(log15.LazyHandler(log15.StreamHandler(os.Stderr, log15.LogfmtFormat())))
 
@@ -21,6 +24,7 @@ func main() {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
+	ctx = stats.WithStats(ctx, client)
 
 	builder := streams.NewStreamBuilder()
 
@@ -34,7 +38,7 @@ func main() {
 	s[1].Map("negative-mapper", NegativeMapper).
 		Print("print-negative")
 
-	task := streams.NewTask(builder.Build(), streams.WithStats(client))
+	task := streams.NewTask(builder.Build(), streams.WithContext(ctx))
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
