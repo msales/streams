@@ -21,7 +21,7 @@ type ProcessorContext struct {
 	currentNode Node
 }
 
-func NewProcessorContext(t Task, ctx context.Context) *ProcessorContext {
+func NewProcessorContext(ctx context.Context, t Task) *ProcessorContext {
 	return &ProcessorContext{
 		Context: ctx,
 		task:   t,

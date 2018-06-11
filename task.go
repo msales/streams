@@ -64,10 +64,10 @@ func (t *streamTask) run() {
 	t.records = make(chan record, 1000)
 	t.running = true
 
-	ctx := NewProcessorContext(t, t.ctx)
+	ctx := NewProcessorContext(t.ctx, t)
 	t.setupTopology(ctx)
 
-	t.consumeSources()
+	t.consumeSources(ctx)
 
 	t.runWg.Add(1)
 	defer t.runWg.Done()
@@ -108,8 +108,10 @@ func (t *streamTask) handleError(err error) {
 	t.errorFn(err)
 }
 
-func (t *streamTask) consumeSources() {
+func (t *streamTask) consumeSources(ctx Context) {
 	for source, node := range t.topology.Sources() {
+		source.WithContext(ctx)
+
 		go func(source Source, node Node) {
 			t.sourceWg.Add(1)
 			defer t.sourceWg.Done()

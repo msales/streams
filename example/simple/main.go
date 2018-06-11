@@ -40,6 +40,8 @@ func NewRandIntSource() streams.Source {
 	}
 }
 
+func (s *RandomIntSource) WithContext(ctx streams.Context) {}
+
 func (s *RandomIntSource) Consume() (key, value interface{}, err error) {
 	return nil, s.rand.Intn(100), nil
 }

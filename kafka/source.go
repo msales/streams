@@ -5,9 +5,11 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
+	"github.com/msales/streams"
 	"github.com/pkg/errors"
 )
 
+// SourceConfig represents the configuration for a Kafka stream source.
 type SourceConfig struct {
 	sarama.Config
 
@@ -21,6 +23,7 @@ type SourceConfig struct {
 	BufferSize int
 }
 
+// NewSourceConfig creates a new Kafka source configuration.
 func NewSourceConfig() *SourceConfig {
 	c := &SourceConfig{
 		Config: *sarama.NewConfig(),
@@ -54,6 +57,7 @@ func (c *SourceConfig) Validate() error {
 	return nil
 }
 
+// Source represents a Kafka stream source.
 type Source struct {
 	consumer *cluster.Consumer
 
@@ -65,6 +69,7 @@ type Source struct {
 	lastErr error
 }
 
+// NewSource creates a new Kafka stream source.
 func NewSource(c *SourceConfig) (*Source, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
@@ -93,6 +98,10 @@ func NewSource(c *SourceConfig) (*Source, error) {
 	return s, nil
 }
 
+// WithContext sets the context on the Source.
+func (s *Source) WithContext(ctx streams.Context) {}
+
+// Consume gets the next record from the Source.
 func (s *Source) Consume() (key, value interface{}, err error) {
 	if s.lastErr != nil {
 		return nil, nil, err
@@ -119,6 +128,7 @@ func (s *Source) Consume() (key, value interface{}, err error) {
 	}
 }
 
+// Commit marks the consumed records as processed.
 func (s *Source) Commit() error {
 	for topic, partitions := range s.state {
 		for partition, offset := range partitions {
@@ -133,6 +143,7 @@ func (s *Source) Commit() error {
 	return nil
 }
 
+// Close closes the Source.
 func (s *Source) Close() error {
 	return s.consumer.Close()
 }

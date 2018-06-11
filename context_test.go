@@ -14,7 +14,7 @@ func TestProcessorContext_Forward(t *testing.T) {
 	parent := new(MockNode)
 	parent.On("Children").Return([]Node{child})
 	task := new(MockTask)
-	ctx := NewProcessorContext(task, context.Background())
+	ctx := NewProcessorContext(context.Background(), task)
 	ctx.currentNode = parent
 
 	ctx.Forward("test", "test")
@@ -28,7 +28,7 @@ func TestProcessorContext_ForwardReturnsChildError(t *testing.T) {
 	parent := new(MockNode)
 	parent.On("Children").Return([]Node{child})
 	task := new(MockTask)
-	ctx := NewProcessorContext(task, context.Background())
+	ctx := NewProcessorContext(context.Background(), task)
 	ctx.currentNode = parent
 
 	err := ctx.Forward("test", "test")
@@ -43,7 +43,7 @@ func TestProcessorContext_ForwardToChild(t *testing.T) {
 	parent := new(MockNode)
 	parent.On("Children").Return([]Node{nil, child})
 	task := new(MockTask)
-	ctx := NewProcessorContext(task, context.Background())
+	ctx := NewProcessorContext(context.Background(), task)
 	ctx.currentNode = parent
 
 	ctx.ForwardToChild("test", "test", 1)
@@ -55,7 +55,7 @@ func TestProcessorContext_ForwardToChildIndexError(t *testing.T) {
 	parent := new(MockNode)
 	parent.On("Children").Return([]Node{})
 	task := new(MockTask)
-	ctx := NewProcessorContext(task, context.Background())
+	ctx := NewProcessorContext(context.Background(), task)
 	ctx.currentNode = parent
 
 	err := ctx.ForwardToChild("test", "test", 1)
@@ -69,7 +69,7 @@ func TestProcessorContext_ForwardToChildReturnsChildError(t *testing.T) {
 	parent := new(MockNode)
 	parent.On("Children").Return([]Node{nil, child})
 	task := new(MockTask)
-	ctx := NewProcessorContext(task, context.Background())
+	ctx := NewProcessorContext(context.Background(), task)
 	ctx.currentNode = parent
 
 	err := ctx.ForwardToChild("test", "test", 1)
@@ -81,7 +81,7 @@ func TestProcessorContext_ForwardToChildReturnsChildError(t *testing.T) {
 func TestProcessorContext_Commit(t *testing.T) {
 	task := new(MockTask)
 	task.On("Commit").Return(nil)
-	ctx := NewProcessorContext(task, context.Background())
+	ctx := NewProcessorContext(context.Background(), task)
 
 	err := ctx.Commit()
 
@@ -92,7 +92,7 @@ func TestProcessorContext_Commit(t *testing.T) {
 func TestProcessorContext_CommitWithError(t *testing.T) {
 	task := new(MockTask)
 	task.On("Commit").Return(errors.New("test"))
-	ctx := NewProcessorContext(task, context.Background())
+	ctx := NewProcessorContext(context.Background(), task)
 
 	err := ctx.Commit()
 
