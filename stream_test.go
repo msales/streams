@@ -1,6 +1,7 @@
 package streams
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,7 +35,7 @@ func TestStream_Filter(t *testing.T) {
 	source := new(MockSource)
 	builder := NewStreamBuilder()
 
-	stream := builder.Source("source", source).Filter("test", func(k, v interface{}) (bool, error) {
+	stream := builder.Source("source", source).Filter("test", func(ctx context.Context, k, v interface{}) (bool, error) {
 		return true, nil
 	})
 
@@ -50,10 +51,10 @@ func TestStream_Branch(t *testing.T) {
 
 	streams := builder.Source("source", source).Branch(
 		"test",
-		func(k, v interface{}) (bool, error) {
+		func(ctx context.Context, k, v interface{}) (bool, error) {
 			return true, nil
 		},
-		func(k, v interface{}) (bool, error) {
+		func(ctx context.Context, k, v interface{}) (bool, error) {
 			return true, nil
 		},
 	)
@@ -73,8 +74,8 @@ func TestStream_Map(t *testing.T) {
 	source := new(MockSource)
 	builder := NewStreamBuilder()
 
-	stream := builder.Source("source", source).Map("test", func(k, v interface{}) (interface{}, interface{}, error) {
-		return nil, nil, nil
+	stream := builder.Source("source", source).Map("test", func(ctx context.Context, k, v interface{}) (context.Context, interface{}, interface{}, error) {
+		return nil, nil, nil, nil
 	})
 
 	assert.Len(t, stream.parents, 1)

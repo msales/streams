@@ -1,6 +1,7 @@
 package streams
 
 import (
+	"context"
 	"time"
 
 	"github.com/msales/pkg/stats"
@@ -10,7 +11,7 @@ type Node interface {
 	WithContext(ctx Context)
 	AddChild(n Node)
 	Children() []Node
-	Process(key, value interface{}) error
+	Process(context.Context, interface{}, interface{}) error
 	Close() error
 }
 
@@ -33,10 +34,10 @@ func (n *SourceNode) Children() []Node {
 	return n.children
 }
 
-func (n *SourceNode) Process(key, value interface{}) error {
-	stats.Inc(n.ctx, "node.throughput", 1, 1.0, map[string]string{"name": n.name})
+func (n *SourceNode) Process(ctx context.Context, k, v interface{}) error {
+	stats.Inc(ctx, "node.throughput", 1, 1.0, map[string]string{"name": n.name})
 
-	return n.ctx.Forward(key, value)
+	return n.ctx.Forward(ctx, k, v)
 }
 
 func (n *SourceNode) Close() error {
@@ -64,16 +65,16 @@ func (n *ProcessorNode) Children() []Node {
 	return n.children
 }
 
-func (n *ProcessorNode) Process(key, value interface{}) error {
+func (n *ProcessorNode) Process(ctx context.Context, k, v interface{}) error {
 	start := time.Now()
 
-	stats.Inc(n.ctx, "node.throughput", 1, 1.0, map[string]string{"name": n.name})
+	stats.Inc(ctx, "node.throughput", 1, 1.0, map[string]string{"name": n.name})
 
-	if err := n.processor.Process(key, value); err != nil {
+	if err := n.processor.Process(ctx, k, v); err != nil {
 		return err
 	}
 
-	stats.Timing(n.ctx, "node.latency", time.Since(start), 1.0, map[string]string{"name": n.name})
+	stats.Timing(ctx, "node.latency", time.Since(start), 1.0, map[string]string{"name": n.name})
 
 	return nil
 }

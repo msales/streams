@@ -7,20 +7,13 @@ import (
 )
 
 type record struct {
-	Node  Node
-	Key   interface{}
-	Value interface{}
+	ctx   context.Context
+	key   interface{}
+	value interface{}
+	node  Node
 }
 
 type ErrorFunc func(error)
-
-type TaskFunc func(*streamTask)
-
-func WithContext(ctx context.Context) TaskFunc {
-	return func(t *streamTask) {
-		t.ctx = ctx
-	}
-}
 
 type Task interface {
 	Start()
@@ -41,18 +34,12 @@ type streamTask struct {
 	sourceWg sync.WaitGroup
 }
 
-func NewTask(topology *Topology, opts ...TaskFunc) Task {
-	t := &streamTask{
+func NewTask(topology *Topology) Task {
+	return &streamTask{
 		topology: topology,
 		ctx:      context.Background(),
 		running:  false,
 	}
-
-	for _, opt := range opts {
-		opt(t)
-	}
-
-	return t
 }
 
 func (t *streamTask) run() {
@@ -64,17 +51,17 @@ func (t *streamTask) run() {
 	t.records = make(chan record, 1000)
 	t.running = true
 
-	ctx := NewProcessorContext(t.ctx, t)
+	ctx := NewProcessorContext(t)
 	t.setupTopology(ctx)
 
-	t.consumeSources(ctx)
+	t.consumeSources()
 
 	t.runWg.Add(1)
 	defer t.runWg.Done()
 
 	for r := range t.records {
-		ctx.currentNode = r.Node
-		if err := r.Node.Process(r.Key, r.Value); err != nil {
+		ctx.currentNode = r.node
+		if err := r.node.Process(r.ctx, r.key, r.value); err != nil {
 			t.handleError(err)
 		}
 	}
@@ -108,16 +95,14 @@ func (t *streamTask) handleError(err error) {
 	t.errorFn(err)
 }
 
-func (t *streamTask) consumeSources(ctx Context) {
+func (t *streamTask) consumeSources() {
 	for source, node := range t.topology.Sources() {
-		source.WithContext(ctx)
-
 		go func(source Source, node Node) {
 			t.sourceWg.Add(1)
 			defer t.sourceWg.Done()
 
 			for t.running {
-				k, v, err := source.Consume()
+				ctx, k, v, err := source.Consume()
 				if err != nil {
 					t.handleError(err)
 				}
@@ -127,9 +112,10 @@ func (t *streamTask) consumeSources(ctx Context) {
 				}
 
 				t.records <- record{
-					Node:  node,
-					Key:   k,
-					Value: v,
+					ctx:   ctx,
+					key:   k,
+					value: v,
+					node:  node,
 				}
 			}
 		}(source, node)

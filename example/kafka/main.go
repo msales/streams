@@ -61,11 +61,11 @@ func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 	}
 
 	builder := streams.NewStreamBuilder()
-	builder.Source("rand-source", NewRandIntSource()).
+	builder.Source("rand-source", NewRandIntSource(ctx)).
 		Map("to-string", StringMapper).
 		Process("kafka-sink", sink)
 
-	task := streams.NewTask(builder.Build(), streams.WithContext(ctx))
+	task := streams.NewTask(builder.Build())
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -91,7 +91,7 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 		Map("to-int", IntMapper).
 		Print("print")
 
-	task := streams.NewTask(builder.Build(), streams.WithContext(ctx))
+	task := streams.NewTask(builder.Build())
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -100,19 +100,19 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 }
 
 type RandIntSource struct {
+	ctx  context.Context
 	rand *rand.Rand
 }
 
-func NewRandIntSource() streams.Source {
+func NewRandIntSource(ctx context.Context) streams.Source {
 	return &RandIntSource{
+		ctx:  ctx,
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
-func (s *RandIntSource) WithContext(ctx streams.Context) {}
-
-func (s *RandIntSource) Consume() (key, value interface{}, err error) {
-	return nil, s.rand.Intn(100), nil
+func (s *RandIntSource) Consume() (context.Context, interface{}, interface{}, error) {
+	return s.ctx, nil, s.rand.Intn(100), nil
 }
 
 func (s *RandIntSource) Commit() error {
@@ -123,20 +123,20 @@ func (s *RandIntSource) Close() error {
 	return nil
 }
 
-func StringMapper(key, value interface{}) (interface{}, interface{}, error) {
-	i := value.(int)
+func StringMapper(ctx context.Context, k, v interface{}) (context.Context, interface{}, interface{}, error) {
+	i := v.(int)
 
-	return key, strconv.Itoa(i), nil
+	return ctx, k, strconv.Itoa(i), nil
 }
 
-func IntMapper(key, value interface{}) (interface{}, interface{}, error) {
-	s := value.(string)
+func IntMapper(ctx context.Context, k, v interface{}) (context.Context, interface{}, interface{}, error) {
+	s := v.(string)
 	i, err := strconv.Atoi(s)
 	if err != nil {
-		return nil, nil, err
+		return ctx, nil, nil, err
 	}
 
-	return key, i, nil
+	return ctx, k, i, nil
 }
 
 func listenForSignals() chan bool {

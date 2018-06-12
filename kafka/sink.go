@@ -1,6 +1,8 @@
 package kafka
 
 import (
+	"context"
+
 	"github.com/Shopify/sarama"
 	"github.com/msales/streams"
 )
@@ -92,21 +94,21 @@ func (p *Sink) WithContext(ctx streams.Context) {
 }
 
 // Process processes the stream record.
-func (p *Sink) Process(key, value interface{}) error {
-	k, err := p.keyEncoder.Encode(key)
+func (p *Sink) Process(ctx context.Context, k, v interface{}) error {
+	ek, err := p.keyEncoder.Encode(k)
 	if err != nil {
 		return err
 	}
 
-	v, err := p.valueEncoder.Encode(value)
+	ev, err := p.valueEncoder.Encode(v)
 	if err != nil {
 		return err
 	}
 
 	msg := &sarama.ProducerMessage{
 		Topic: p.topic,
-		Key:   sarama.ByteEncoder(k),
-		Value: sarama.ByteEncoder(v),
+		Key:   sarama.ByteEncoder(ek),
+		Value: sarama.ByteEncoder(ev),
 	}
 	p.buf = append(p.buf, msg)
 	p.count++

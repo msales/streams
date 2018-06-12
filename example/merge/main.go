@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"os"
@@ -45,10 +46,8 @@ func NewRandIntSource() streams.Source {
 	}
 }
 
-func (s *RandIntSource) WithContext(ctx streams.Context) {}
-
-func (s *RandIntSource) Consume() (key, value interface{}, err error) {
-	return nil, s.rand.Intn(100), nil
+func (s *RandIntSource) Consume() (context.Context, interface{}, interface{}, error) {
+	return context.Background(), nil, s.rand.Intn(100), nil
 }
 
 func (s *RandIntSource) Commit() error {
@@ -59,22 +58,22 @@ func (s *RandIntSource) Close() error {
 	return nil
 }
 
-func LowNumberFilter(k, v interface{}) (bool, error) {
+func LowNumberFilter(ctx context.Context, k, v interface{}) (bool, error) {
 	num := v.(int)
 
 	return num < 50, nil
 }
 
-func HighNumberFilter(k, v interface{}) (bool, error) {
+func HighNumberFilter(ctx context.Context, k, v interface{}) (bool, error) {
 	num := v.(int)
 
 	return num >= 50, nil
 }
 
-func AddHundredMapper(k, v interface{}) (interface{}, interface{}, error) {
+func AddHundredMapper(ctx context.Context, k, v interface{}) (context.Context, interface{}, interface{}, error) {
 	num := v.(int)
 
-	return k, num + 100, nil
+	return ctx, k, num + 100, nil
 }
 
 func listenForSignals() chan bool {

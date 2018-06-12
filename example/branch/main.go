@@ -28,7 +28,7 @@ func main() {
 
 	builder := streams.NewStreamBuilder()
 
-	s := builder.Source("rand-source", NewRandIntSource()).
+	s := builder.Source("rand-source", NewRandIntSource(ctx)).
 		Branch("branch", BranchEvenNumberFilter, BranchOddNumberFilter)
 
 	// Event numbers
@@ -38,7 +38,7 @@ func main() {
 	s[1].Map("negative-mapper", NegativeMapper).
 		Print("print-negative")
 
-	task := streams.NewTask(builder.Build(), streams.WithContext(ctx))
+	task := streams.NewTask(builder.Build())
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -52,19 +52,19 @@ func main() {
 }
 
 type RandIntSource struct {
+	ctx  context.Context
 	rand *rand.Rand
 }
 
-func NewRandIntSource() streams.Source {
+func NewRandIntSource(ctx context.Context) streams.Source {
 	return &RandIntSource{
+		ctx:  ctx,
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
-func (s *RandIntSource) WithContext(ctx streams.Context) {}
-
-func (s *RandIntSource) Consume() (key, value interface{}, err error) {
-	return nil, s.rand.Intn(100), nil
+func (s *RandIntSource) Consume() (context.Context, interface{}, interface{}, error) {
+	return s.ctx, nil, s.rand.Intn(100), nil
 }
 
 func (s *RandIntSource) Commit() error {
@@ -75,22 +75,22 @@ func (s *RandIntSource) Close() error {
 	return nil
 }
 
-func BranchOddNumberFilter(k, v interface{}) (bool, error) {
+func BranchOddNumberFilter(ctx context.Context, k, v interface{}) (bool, error) {
 	num := v.(int)
 
 	return num%2 == 1, nil
 }
 
-func BranchEvenNumberFilter(k, v interface{}) (bool, error) {
+func BranchEvenNumberFilter(ctx context.Context, k, v interface{}) (bool, error) {
 	num := v.(int)
 
 	return num%2 == 0, nil
 }
 
-func NegativeMapper(k, v interface{}) (interface{}, interface{}, error) {
+func NegativeMapper(ctx context.Context, k, v interface{}) (context.Context, interface{}, interface{}, error) {
 	num := v.(int)
 
-	return k, num * -1, nil
+	return ctx, k, num * -1, nil
 }
 
 func listenForSignals() chan bool {

@@ -14,8 +14,6 @@ type record struct {
 }
 
 type Context struct {
-	context.Context
-
 	t *testing.T
 
 	shouldError bool
@@ -26,13 +24,12 @@ type Context struct {
 
 func NewContext(t *testing.T) *Context {
 	return &Context{
-		Context:       context.Background(),
 		t:             t,
 		expectForward: []record{},
 	}
 }
 
-func (c *Context) Forward(key, value interface{}) error {
+func (c *Context) Forward(ctx context.Context, k, v interface{}) error {
 	if len(c.expectForward) == 0 {
 		c.t.Error("streams: mock: Unexpected call to Forward")
 		return nil
@@ -40,8 +37,8 @@ func (c *Context) Forward(key, value interface{}) error {
 	record := c.expectForward[0]
 	c.expectForward = c.expectForward[1:]
 
-	if key != record.key || value != record.value {
-		c.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v, got %v:%v", record.key, record.value, key, value)
+	if k != record.key || v != record.value {
+		c.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v, got %v:%v", record.key, record.value, k, v)
 	}
 
 	if c.shouldError {
@@ -52,7 +49,7 @@ func (c *Context) Forward(key, value interface{}) error {
 	return nil
 }
 
-func (c *Context) ForwardToChild(key, value interface{}, index int) error {
+func (c *Context) ForwardToChild(ctx context.Context, k, v interface{}, index int) error {
 	if len(c.expectForward) == 0 {
 		c.t.Error("streams: mock: Unexpected call to ForwardToChild")
 		return nil
@@ -60,8 +57,8 @@ func (c *Context) ForwardToChild(key, value interface{}, index int) error {
 	record := c.expectForward[0]
 	c.expectForward = c.expectForward[1:]
 
-	if key != record.key || value != record.value || index != record.index {
-		c.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v:%d, got %v:%v:%d", record.key, record.value, record.index, key, value, index)
+	if k != record.key || v != record.value || index != record.index {
+		c.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v:%d, got %v:%v:%d", record.key, record.value, record.index, k, v, index)
 	}
 
 	if c.shouldError {
@@ -90,12 +87,12 @@ func (c *Context) ShouldError() {
 	c.shouldError = true
 }
 
-func (c *Context) ExpectForward(key, value interface{}) {
-	c.expectForward = append(c.expectForward, record{key, value, -1})
+func (c *Context) ExpectForward(k, v interface{}) {
+	c.expectForward = append(c.expectForward, record{k, v, -1})
 }
 
-func (c *Context) ExpectForwardToChild(key, value interface{}, index int) {
-	c.expectForward = append(c.expectForward, record{key, value, index})
+func (c *Context) ExpectForwardToChild(k, v interface{}, index int) {
+	c.expectForward = append(c.expectForward, record{k, v, index})
 }
 
 func (c *Context) ExpectCommit() {

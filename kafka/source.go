@@ -1,11 +1,11 @@
 package kafka
 
 import (
+	"context"
 	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
-	"github.com/msales/streams"
 	"github.com/pkg/errors"
 )
 
@@ -17,6 +17,7 @@ type SourceConfig struct {
 	Topic   string
 	GroupId string
 
+	Ctx          context.Context
 	KeyDecoder   Decoder
 	ValueDecoder Decoder
 
@@ -29,6 +30,7 @@ func NewSourceConfig() *SourceConfig {
 		Config: *sarama.NewConfig(),
 	}
 
+	c.Ctx = context.Background()
 	c.KeyDecoder = ByteDecoder{}
 	c.ValueDecoder = ByteDecoder{}
 	c.BufferSize = 1000
@@ -61,6 +63,7 @@ func (c *SourceConfig) Validate() error {
 type Source struct {
 	consumer *cluster.Consumer
 
+	ctx          context.Context
 	keyDecoder   Decoder
 	valueDecoder Decoder
 
@@ -86,6 +89,7 @@ func NewSource(c *SourceConfig) (*Source, error) {
 
 	s := &Source{
 		consumer:     consumer,
+		ctx:          c.Ctx,
 		keyDecoder:   c.KeyDecoder,
 		valueDecoder: c.ValueDecoder,
 		buf:          make(chan *sarama.ConsumerMessage, c.BufferSize),
@@ -98,33 +102,30 @@ func NewSource(c *SourceConfig) (*Source, error) {
 	return s, nil
 }
 
-// WithContext sets the context on the Source.
-func (s *Source) WithContext(ctx streams.Context) {}
-
 // Consume gets the next record from the Source.
-func (s *Source) Consume() (key, value interface{}, err error) {
+func (s *Source) Consume() (context.Context, interface{}, interface{}, error) {
 	if s.lastErr != nil {
-		return nil, nil, err
+		return s.ctx, nil, nil, nil
 	}
 
 	select {
 	case msg := <-s.buf:
 		k, err := s.keyDecoder.Decode(msg.Key)
 		if err != nil {
-			return nil, nil, err
+			return s.ctx, nil, nil, err
 		}
 
 		v, err := s.valueDecoder.Decode(msg.Value)
 		if err != nil {
-			return nil, nil, err
+			return s.ctx, nil, nil, err
 		}
 
 		s.markState(msg)
 
-		return k, v, nil
+		return s.ctx, k, v, nil
 
 	case <-time.After(100 * time.Millisecond):
-		return nil, nil, nil
+		return s.ctx, nil, nil, nil
 	}
 }
 

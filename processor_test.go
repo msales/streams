@@ -1,6 +1,7 @@
 package streams
 
 import (
+	"context"
 	"testing"
 
 	"github.com/msales/streams/mocks"
@@ -18,10 +19,10 @@ func TestBranchProcessor_WithContext(t *testing.T) {
 }
 
 func TestBranchProcessor_Process(t *testing.T) {
-	truePred := func(k, v interface{}) (bool, error) {
+	truePred := func(ctx context.Context, k, v interface{}) (bool, error) {
 		return true, nil
 	}
-	falsePred := func(k, v interface{}) (bool, error) {
+	falsePred := func(ctx context.Context, k, v interface{}) (bool, error) {
 		return false, nil
 	}
 	ctx := mocks.NewContext(t)
@@ -29,27 +30,27 @@ func TestBranchProcessor_Process(t *testing.T) {
 	p := NewBranchProcessor([]Predicate{truePred, falsePred})
 	p.WithContext(ctx)
 
-	err := p.Process("test", "test")
+	err := p.Process(nil, "test", "test")
 
 	assert.NoError(t, err)
 	ctx.AssertExpectations()
 }
 
 func TestBranchProcessor_ProcessWithError(t *testing.T) {
-	errPred := func(k, v interface{}) (bool, error) {
+	errPred := func(ctx context.Context, k, v interface{}) (bool, error) {
 		return true, errors.New("test")
 	}
 	ctx := mocks.NewContext(t)
 	p := NewBranchProcessor([]Predicate{errPred})
 	p.WithContext(ctx)
 
-	err := p.Process("test", "test")
+	err := p.Process(nil, "test", "test")
 
 	assert.Error(t, err)
 }
 
 func TestBranchProcessor_ProcessWithForwardError(t *testing.T) {
-	pred := func(k, v interface{}) (bool, error) {
+	pred := func(ctx context.Context, k, v interface{}) (bool, error) {
 		return true, nil
 	}
 	ctx := mocks.NewContext(t)
@@ -58,7 +59,7 @@ func TestBranchProcessor_ProcessWithForwardError(t *testing.T) {
 	p := NewBranchProcessor([]Predicate{pred})
 	p.WithContext(ctx)
 
-	err := p.Process("test", "test")
+	err := p.Process(nil, "test", "test")
 
 	assert.Error(t, err)
 }
@@ -81,7 +82,7 @@ func TestFilterProcessor_WithContext(t *testing.T) {
 }
 
 func TestFilterProcessor_Process(t *testing.T) {
-	pred := func(k, v interface{}) (bool, error) {
+	pred := func(ctx context.Context, k, v interface{}) (bool, error) {
 		if _, ok := k.(string); ok {
 			return true, nil
 		}
@@ -93,21 +94,21 @@ func TestFilterProcessor_Process(t *testing.T) {
 	p := NewFilterProcessor(pred)
 	p.WithContext(ctx)
 
-	p.Process(1, 1)
-	p.Process("test", "test")
+	p.Process(nil, 1, 1)
+	p.Process(nil, "test", "test")
 
 	ctx.AssertExpectations()
 }
 
 func TestFilterProcessor_ProcessWithError(t *testing.T) {
-	errPred := func(k, v interface{}) (bool, error) {
+	errPred := func(ctx context.Context, k, v interface{}) (bool, error) {
 		return true, errors.New("test")
 	}
 	ctx := mocks.NewContext(t)
 	p := NewFilterProcessor(errPred)
 	p.WithContext(ctx)
 
-	err := p.Process("test", "test")
+	err := p.Process(nil, "test", "test")
 
 	assert.Error(t, err)
 }
@@ -130,28 +131,28 @@ func TestMapProcessor_WithContext(t *testing.T) {
 }
 
 func TestMapProcessor_Process(t *testing.T) {
-	mapper := func(key, value interface{}) (interface{}, interface{}, error) {
-		return 1, 1, nil
+	mapper := func(ctx context.Context, key, value interface{}) (context.Context, interface{}, interface{}, error) {
+		return nil, 1, 1, nil
 	}
 	ctx := mocks.NewContext(t)
 	ctx.ExpectForward(1, 1)
 	p := NewMapProcessor(mapper)
 	p.WithContext(ctx)
 
-	p.Process("test", "test")
+	p.Process(nil, "test", "test")
 
 	ctx.AssertExpectations()
 }
 
 func TestMapProcessor_ProcessWithError(t *testing.T) {
-	mapper := func(key, value interface{}) (interface{}, interface{}, error) {
-		return nil, nil, errors.New("test")
+	mapper := func(ctx context.Context, key, value interface{}) (context.Context, interface{}, interface{}, error) {
+		return nil, nil, nil, errors.New("test")
 	}
 	ctx := mocks.NewContext(t)
 	p := NewMapProcessor(mapper)
 	p.WithContext(ctx)
 
-	err := p.Process("test", "test")
+	err := p.Process(nil, "test", "test")
 
 	assert.Error(t, err)
 }
@@ -179,7 +180,7 @@ func TestMergeProcessor_Process(t *testing.T) {
 	p := NewMergeProcessor()
 	p.WithContext(ctx)
 
-	p.Process("test", "test")
+	p.Process(nil, "test", "test")
 
 	ctx.AssertExpectations()
 }
@@ -207,7 +208,7 @@ func TestPrintProcessor_Process(t *testing.T) {
 	p := NewPrintProcessor()
 	p.WithContext(ctx)
 
-	p.Process("test", "test")
+	p.Process(nil, "test", "test")
 
 	ctx.AssertExpectations()
 }

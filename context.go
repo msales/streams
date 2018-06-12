@@ -7,34 +7,30 @@ import (
 )
 
 type Context interface {
-	context.Context
-
-	Forward(key, value interface{}) error
-	ForwardToChild(key, value interface{}, child int) error
+	Forward(context.Context, interface{}, interface{}) error
+	ForwardToChild(context.Context, interface{}, interface{}, int) error
 	Commit() error
 }
 
 type ProcessorContext struct {
-	context.Context
 	task   Task
 
 	currentNode Node
 }
 
-func NewProcessorContext(ctx context.Context, t Task) *ProcessorContext {
+func NewProcessorContext(t Task) *ProcessorContext {
 	return &ProcessorContext{
-		Context: ctx,
 		task:   t,
 	}
 }
 
-func (c *ProcessorContext) Forward(key, value interface{}) error {
+func (c *ProcessorContext) Forward(ctx context.Context, k, v interface{}) error {
 	previousNode := c.currentNode
 	defer func() { c.currentNode = previousNode }()
 
 	for _, child := range c.currentNode.Children() {
 		c.currentNode = child
-		if err := child.Process(key, value); err != nil {
+		if err := child.Process(ctx, k, v); err != nil {
 			return err
 		}
 	}
@@ -42,7 +38,7 @@ func (c *ProcessorContext) Forward(key, value interface{}) error {
 	return nil
 }
 
-func (c *ProcessorContext) ForwardToChild(key, value interface{}, index int) error {
+func (c *ProcessorContext) ForwardToChild(ctx context.Context, k, v interface{}, index int) error {
 	previousNode := c.currentNode
 	defer func() { c.currentNode = previousNode }()
 
@@ -52,7 +48,7 @@ func (c *ProcessorContext) ForwardToChild(key, value interface{}, index int) err
 
 	child := c.currentNode.Children()[index]
 	c.currentNode = child
-	if err := child.Process(key, value); err != nil {
+	if err := child.Process(ctx, k, v); err != nil {
 		return err
 	}
 

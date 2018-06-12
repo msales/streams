@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"time"
 
 	"github.com/msales/pkg/cache"
@@ -32,10 +33,10 @@ func (p *Sink) WithContext(ctx streams.Context) {
 }
 
 // Process processes the stream record.
-func (p *Sink) Process(key, value interface{}) error {
-	k := key.(string)
+func (p *Sink) Process(ctx context.Context, k, v interface{}) error {
+	str := k.(string)
 
-	p.cache.Set(k, value, p.expire)
+	p.cache.Set(str, v, p.expire)
 
 	p.count++
 	if p.count >= p.batch {
