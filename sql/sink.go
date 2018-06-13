@@ -27,7 +27,7 @@ func WithCommitFn(fn TxFunc) SinkFunc {
 
 // Sink represents a SQL sink processor.
 type Sink struct {
-	ctx streams.Context
+	pipe streams.Pipe
 
 	db *sql.DB
 	tx *sql.Tx
@@ -56,9 +56,9 @@ func NewSink(db *sql.DB, fn InsertFunc, batch int, opts ...SinkFunc) *Sink {
 	return s
 }
 
-// WithContext sets the context on the Processor.
-func (p *Sink) WithContext(ctx streams.Context) {
-	p.ctx = ctx
+// WithPipe sets the pipe on the Processor.
+func (p *Sink) WithPipe(pipe streams.Pipe) {
+	p.pipe = pipe
 }
 
 // Process processes the stream record.
@@ -116,7 +116,7 @@ func (p *Sink) commitTransaction() error {
 	}
 	p.tx = nil
 
-	return p.ctx.Commit()
+	return p.pipe.Commit()
 }
 
 // Close closes the processor.

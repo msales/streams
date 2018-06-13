@@ -51,7 +51,7 @@ func (c *SinkConfig) Validate() error {
 }
 
 type Sink struct {
-	ctx streams.Context
+	pipe streams.Pipe
 
 	keyEncoder   Encoder
 	valueEncoder Encoder
@@ -86,9 +86,9 @@ func NewSink(c *SinkConfig) (*Sink, error) {
 	return s, nil
 }
 
-// WithContext sets the context on the Processor.
-func (p *Sink) WithContext(ctx streams.Context) {
-	p.ctx = ctx
+// WithPipe sets the pipe on the Processor.
+func (p *Sink) WithPipe(pipe streams.Pipe) {
+	p.pipe = pipe
 }
 
 // Process processes the stream record.
@@ -119,7 +119,7 @@ func (p *Sink) Process(msg *streams.Message) error {
 		p.count = 0
 		p.buf = make([]*sarama.ProducerMessage, 0, p.batch)
 
-		return p.ctx.Commit()
+		return p.pipe.Commit()
 	}
 
 	return nil

@@ -14,8 +14,8 @@ func (mn *MockNode) Name() string {
 	return args.String(0)
 }
 
-func (mn *MockNode) WithContext(ctx streams.Context) {
-	mn.Called(ctx)
+func (mn *MockNode) WithPipe(pipe streams.Pipe) {
+	mn.Called(pipe)
 }
 
 func (mn *MockNode) AddChild(n streams.Node) {
@@ -41,8 +41,8 @@ type MockProcessor struct {
 	mock.Mock
 }
 
-func (p *MockProcessor) WithContext(ctx streams.Context) {
-	p.Called(ctx)
+func (p *MockProcessor) WithPipe(pipe streams.Pipe) {
+	p.Called(pipe)
 }
 
 func (p *MockProcessor) Process(msg *streams.Message) error {

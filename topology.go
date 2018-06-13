@@ -8,7 +8,7 @@ import (
 
 type Node interface {
 	Name() string
-	WithContext(ctx Context)
+	WithPipe(Pipe)
 	AddChild(n Node)
 	Children() []Node
 	Process(*Message) error
@@ -17,7 +17,7 @@ type Node interface {
 
 type SourceNode struct {
 	name string
-	ctx  Context
+	pipe Pipe
 
 	children []Node
 }
@@ -32,8 +32,8 @@ func (n *SourceNode) Name() string {
 	return n.name
 }
 
-func (n *SourceNode) WithContext(ctx Context) {
-	n.ctx = ctx
+func (n *SourceNode) WithPipe(pipe Pipe) {
+	n.pipe = pipe
 }
 
 func (n *SourceNode) AddChild(node Node) {
@@ -47,7 +47,7 @@ func (n *SourceNode) Children() []Node {
 func (n *SourceNode) Process(msg *Message) error {
 	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, map[string]string{"name": n.name})
 
-	return n.ctx.Forward(msg)
+	return n.pipe.Forward(msg)
 }
 
 func (n *SourceNode) Close() error {
@@ -56,7 +56,7 @@ func (n *SourceNode) Close() error {
 
 type ProcessorNode struct {
 	name      string
-	ctx       Context
+	pipe      Pipe
 	processor Processor
 
 	children []Node
@@ -73,9 +73,9 @@ func (n *ProcessorNode) Name() string {
 	return n.name
 }
 
-func (n *ProcessorNode) WithContext(ctx Context) {
-	n.ctx = ctx
-	n.processor.WithContext(ctx)
+func (n *ProcessorNode) WithPipe(pipe Pipe) {
+	n.pipe = pipe
+	n.processor.WithPipe(pipe)
 }
 
 func (n *ProcessorNode) AddChild(node Node) {

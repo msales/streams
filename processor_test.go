@@ -16,10 +16,10 @@ func TestBranchProcessor_Process(t *testing.T) {
 	falsePred := func(msg *streams.Message) (bool, error) {
 		return false, nil
 	}
-	ctx := mocks.NewContext(t)
+	ctx := mocks.NewPipe(t)
 	ctx.ExpectForwardToChild("test", "test", 0)
 	p := streams.NewBranchProcessor([]streams.Predicate{truePred, falsePred})
-	p.WithContext(ctx)
+	p.WithPipe(ctx)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
@@ -31,9 +31,9 @@ func TestBranchProcessor_ProcessWithError(t *testing.T) {
 	errPred := func(msg *streams.Message) (bool, error) {
 		return true, errors.New("test")
 	}
-	ctx := mocks.NewContext(t)
+	ctx := mocks.NewPipe(t)
 	p := streams.NewBranchProcessor([]streams.Predicate{errPred})
-	p.WithContext(ctx)
+	p.WithPipe(ctx)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
@@ -44,11 +44,11 @@ func TestBranchProcessor_ProcessWithForwardError(t *testing.T) {
 	pred := func(msg *streams.Message) (bool, error) {
 		return true, nil
 	}
-	ctx := mocks.NewContext(t)
+	ctx := mocks.NewPipe(t)
 	ctx.ExpectForwardToChild("test", "test", 0)
 	ctx.ShouldError()
 	p := streams.NewBranchProcessor([]streams.Predicate{pred})
-	p.WithContext(ctx)
+	p.WithPipe(ctx)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
@@ -71,10 +71,10 @@ func TestFilterProcessor_Process(t *testing.T) {
 
 		return false, nil
 	}
-	ctx := mocks.NewContext(t)
+	ctx := mocks.NewPipe(t)
 	ctx.ExpectForward("test", "test")
 	p := streams.NewFilterProcessor(pred)
-	p.WithContext(ctx)
+	p.WithPipe(ctx)
 
 	p.Process(streams.NewMessage(1, 1))
 	p.Process(streams.NewMessage("test", "test"))
@@ -86,9 +86,9 @@ func TestFilterProcessor_ProcessWithError(t *testing.T) {
 	errPred := func(msg *streams.Message) (bool, error) {
 		return true, errors.New("test")
 	}
-	ctx := mocks.NewContext(t)
+	ctx := mocks.NewPipe(t)
 	p := streams.NewFilterProcessor(errPred)
-	p.WithContext(ctx)
+	p.WithPipe(ctx)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
@@ -107,10 +107,10 @@ func TestMapProcessor_Process(t *testing.T) {
 	mapper := func(msg *streams.Message) (*streams.Message, error) {
 		return streams.NewMessage(1, 1), nil
 	}
-	ctx := mocks.NewContext(t)
+	ctx := mocks.NewPipe(t)
 	ctx.ExpectForward(1, 1)
 	p := streams.NewMapProcessor(mapper)
-	p.WithContext(ctx)
+	p.WithPipe(ctx)
 
 	p.Process(streams.NewMessage("test", "test"))
 
@@ -121,9 +121,9 @@ func TestMapProcessor_ProcessWithError(t *testing.T) {
 	mapper := func(msg *streams.Message) (*streams.Message, error) {
 		return nil, errors.New("test")
 	}
-	ctx := mocks.NewContext(t)
+	ctx := mocks.NewPipe(t)
 	p := streams.NewMapProcessor(mapper)
-	p.WithContext(ctx)
+	p.WithPipe(ctx)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
@@ -139,10 +139,10 @@ func TestMapProcessor_Close(t *testing.T) {
 }
 
 func TestMergeProcessor_Process(t *testing.T) {
-	ctx := mocks.NewContext(t)
+	ctx := mocks.NewPipe(t)
 	ctx.ExpectForward("test", "test")
 	p := streams.NewMergeProcessor()
-	p.WithContext(ctx)
+	p.WithPipe(ctx)
 
 	p.Process(streams.NewMessage("test", "test"))
 
@@ -158,10 +158,10 @@ func TestMergeProcessor_Close(t *testing.T) {
 }
 
 func TestPrintProcessor_Process(t *testing.T) {
-	ctx := mocks.NewContext(t)
+	ctx := mocks.NewPipe(t)
 	ctx.ExpectForward("test", "test")
 	p := streams.NewPrintProcessor()
-	p.WithContext(ctx)
+	p.WithPipe(ctx)
 
 	p.Process(streams.NewMessage("test", "test"))
 

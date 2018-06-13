@@ -140,7 +140,7 @@ func (s streamSource) Close() error {
 
 type streamProcessor struct{}
 
-func (p streamProcessor) WithContext(Context) {}
+func (p streamProcessor) WithPipe(Pipe) {}
 
 func (p streamProcessor) Process(msg *Message) error {
 	return nil

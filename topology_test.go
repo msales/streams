@@ -40,15 +40,15 @@ func TestSourceNode_Process(t *testing.T) {
 	key := "test"
 	value := "test"
 
-	ctx := mocks.NewContext(t)
-	ctx.ExpectForward(key, value)
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForward(key, value)
 
 	n := streams.SourceNode{}
-	n.WithContext(ctx)
+	n.WithPipe(pipe)
 
 	n.Process(streams.NewMessage(key, value))
 
-	ctx.AssertExpectations()
+	pipe.AssertExpectations()
 }
 
 func TestSourceNode_Close(t *testing.T) {
@@ -89,12 +89,12 @@ func TestProcessorNode_Children(t *testing.T) {
 
 func TestProcessorNode_Process(t *testing.T) {
 	msg := streams.NewMessage("test", "test")
-	ctx := mocks.NewContext(t)
+	pipe := mocks.NewPipe(t)
 	p := new(MockProcessor)
-	p.On("WithContext", ctx).Return(nil)
+	p.On("WithPipe", pipe).Return(nil)
 	p.On("Process", msg).Return(nil)
 	n := streams.NewProcessorNode("test", p)
-	n.WithContext(ctx)
+	n.WithPipe(pipe)
 
 	err := n.Process(msg)
 
@@ -104,12 +104,12 @@ func TestProcessorNode_Process(t *testing.T) {
 
 func TestProcessorNode_ProcessWithError(t *testing.T) {
 	msg := streams.NewMessage("test", "test")
-	ctx := mocks.NewContext(t)
+	pipe := mocks.NewPipe(t)
 	p := new(MockProcessor)
-	p.On("WithContext", ctx).Return(nil)
+	p.On("WithPipe", pipe).Return(nil)
 	p.On("Process", msg).Return(errors.New("test"))
 	n := streams.NewProcessorNode("test", p)
-	n.WithContext(ctx)
+	n.WithPipe(pipe)
 
 	err := n.Process(msg)
 

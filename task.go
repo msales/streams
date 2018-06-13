@@ -44,7 +44,7 @@ func (t *streamTask) run() {
 	t.records = make(chan record, 1000)
 	t.running = true
 
-	ctx := NewProcessorContext(t)
+	ctx := NewProcessorPipe(t)
 	t.setupTopology(ctx)
 
 	t.consumeSources()
@@ -60,9 +60,9 @@ func (t *streamTask) run() {
 	}
 }
 
-func (t *streamTask) setupTopology(ctx Context) {
+func (t *streamTask) setupTopology(ctx Pipe) {
 	for _, n := range t.topology.Processors() {
-		n.WithContext(ctx)
+		n.WithPipe(ctx)
 	}
 }
 
