@@ -63,8 +63,8 @@ func NewRandIntSource(ctx context.Context) streams.Source {
 	}
 }
 
-func (s *RandIntSource) Consume() (context.Context, interface{}, interface{}, error) {
-	return s.ctx, nil, s.rand.Intn(100), nil
+func (s *RandIntSource) Consume() (*streams.Message, error) {
+	return streams.NewMessageWithContext(s.ctx, nil, s.rand.Intn(100)), nil
 }
 
 func (s *RandIntSource) Commit() error {
@@ -75,22 +75,23 @@ func (s *RandIntSource) Close() error {
 	return nil
 }
 
-func BranchOddNumberFilter(ctx context.Context, k, v interface{}) (bool, error) {
-	num := v.(int)
+func BranchOddNumberFilter(msg *streams.Message) (bool, error) {
+	num := msg.Value.(int)
 
 	return num%2 == 1, nil
 }
 
-func BranchEvenNumberFilter(ctx context.Context, k, v interface{}) (bool, error) {
-	num := v.(int)
+func BranchEvenNumberFilter(msg *streams.Message) (bool, error) {
+	num := msg.Value.(int)
 
 	return num%2 == 0, nil
 }
 
-func NegativeMapper(ctx context.Context, k, v interface{}) (context.Context, interface{}, interface{}, error) {
-	num := v.(int)
+func NegativeMapper(msg *streams.Message) (*streams.Message, error) {
+	num := msg.Value.(int)
+	msg.Value = num * -1
 
-	return ctx, k, num * -1, nil
+	return msg, nil
 }
 
 func listenForSignals() chan bool {

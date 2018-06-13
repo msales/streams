@@ -1,7 +1,6 @@
 package streams
 
 import (
-	"context"
 	"fmt"
 )
 
@@ -10,16 +9,16 @@ type Processor interface {
 	// WithContext sets the context on the Processor.
 	WithContext(Context)
 	// Process processes the stream record.
-	Process(context.Context, interface{}, interface{}) error
+	Process(*Message) error
 	// Close closes the processor.
 	Close() error
 }
 
 // Mapper represents a mapping function
-type Mapper func(context.Context, interface{}, interface{}) (context.Context, interface{}, interface{}, error)
+type Mapper func(*Message) (*Message, error)
 
 // Predicate represents a stream filter function.
-type Predicate func(context.Context, interface{}, interface{}) (bool, error)
+type Predicate func(*Message) (bool, error)
 
 // BranchProcessor is a processor that branches into one or more streams
 //  based on the results of the predicates.
@@ -41,9 +40,9 @@ func (p *BranchProcessor) WithContext(ctx Context) {
 }
 
 // Process processes the stream record.
-func (p *BranchProcessor) Process(ctx context.Context, k, v interface{}) error {
+func (p *BranchProcessor) Process(msg *Message) error {
 	for i, fn := range p.fns {
-		ok, err := fn(ctx, k, v)
+		ok, err := fn(msg)
 		if err != nil {
 			return err
 		}
@@ -52,7 +51,7 @@ func (p *BranchProcessor) Process(ctx context.Context, k, v interface{}) error {
 			continue
 		}
 
-		if err := p.ctx.ForwardToChild(ctx, k, v, i); err != nil {
+		if err := p.ctx.ForwardToChild(msg, i); err != nil {
 			return err
 		}
 	}
@@ -84,14 +83,14 @@ func (p *FilterProcessor) WithContext(ctx Context) {
 }
 
 // Process processes the stream record.
-func (p *FilterProcessor) Process(ctx context.Context, k, v interface{}) error {
-	ok, err := p.fn(ctx, k, v)
+func (p *FilterProcessor) Process(msg *Message) error {
+	ok, err := p.fn(msg)
 	if err != nil {
 		return err
 	}
 
 	if ok {
-		return p.ctx.Forward(ctx, k, v)
+		return p.ctx.Forward(msg)
 	}
 	return nil
 }
@@ -120,13 +119,13 @@ func (p *MapProcessor) WithContext(ctx Context) {
 }
 
 // Process processes the stream record.
-func (p *MapProcessor) Process(ctx context.Context, k, v interface{}) error {
-	ctx, k, v, err := p.fn(ctx, k, v)
+func (p *MapProcessor) Process(msg *Message) error {
+	msg, err := p.fn(msg)
 	if err != nil {
 		return err
 	}
 
-	return p.ctx.Forward(ctx, k, v)
+	return p.ctx.Forward(msg)
 }
 
 // Close closes the processor.
@@ -150,8 +149,8 @@ func (p *MergeProcessor) WithContext(ctx Context) {
 }
 
 // Process processes the stream record.
-func (p *MergeProcessor) Process(ctx context.Context, k, v interface{}) error {
-	return p.ctx.Forward(ctx, k, v)
+func (p *MergeProcessor) Process(msg *Message) error {
+	return p.ctx.Forward(msg)
 }
 
 // Close closes the processor.
@@ -175,10 +174,10 @@ func (p *PrintProcessor) WithContext(ctx Context) {
 }
 
 // Process processes the stream record.
-func (p *PrintProcessor) Process(ctx context.Context, k, v interface{}) error {
-	fmt.Printf("%v:%v\n", k, v)
+func (p *PrintProcessor) Process(msg *Message) error {
+	fmt.Printf("%v:%v\n", msg.Key, msg.Value)
 
-	return p.ctx.Forward(ctx, k, v)
+	return p.ctx.Forward(msg)
 }
 
 // Close closes the processor.

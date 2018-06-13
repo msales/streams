@@ -1,10 +1,10 @@
 package mocks
 
 import (
-	"context"
 	"errors"
 	"testing"
 
+	"github.com/msales/streams"
 )
 
 type record struct {
@@ -29,7 +29,7 @@ func NewContext(t *testing.T) *Context {
 	}
 }
 
-func (c *Context) Forward(ctx context.Context, k, v interface{}) error {
+func (c *Context) Forward(msg *streams.Message) error {
 	if len(c.expectForward) == 0 {
 		c.t.Error("streams: mock: Unexpected call to Forward")
 		return nil
@@ -37,8 +37,8 @@ func (c *Context) Forward(ctx context.Context, k, v interface{}) error {
 	record := c.expectForward[0]
 	c.expectForward = c.expectForward[1:]
 
-	if k != record.key || v != record.value {
-		c.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v, got %v:%v", record.key, record.value, k, v)
+	if msg.Key != record.key || msg.Value != record.value {
+		c.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v, got %v:%v", record.key, record.value, msg.Key, msg.Value)
 	}
 
 	if c.shouldError {
@@ -49,7 +49,7 @@ func (c *Context) Forward(ctx context.Context, k, v interface{}) error {
 	return nil
 }
 
-func (c *Context) ForwardToChild(ctx context.Context, k, v interface{}, index int) error {
+func (c *Context) ForwardToChild(msg *streams.Message, index int) error {
 	if len(c.expectForward) == 0 {
 		c.t.Error("streams: mock: Unexpected call to ForwardToChild")
 		return nil
@@ -57,8 +57,8 @@ func (c *Context) ForwardToChild(ctx context.Context, k, v interface{}, index in
 	record := c.expectForward[0]
 	c.expectForward = c.expectForward[1:]
 
-	if k != record.key || v != record.value || index != record.index {
-		c.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v:%d, got %v:%v:%d", record.key, record.value, record.index, k, v, index)
+	if msg.Key != record.key || msg.Value != record.value || index != record.index {
+		c.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v:%d, got %v:%v:%d", record.key, record.value, record.index, msg.Key, msg.Value, index)
 	}
 
 	if c.shouldError {

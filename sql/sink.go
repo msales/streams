@@ -1,7 +1,6 @@
 package sql
 
 import (
-	"context"
 	"database/sql"
 
 	"github.com/msales/streams"
@@ -10,7 +9,7 @@ import (
 // TxFunc represents a function that receives a sql transaction.
 type TxFunc func(*sql.Tx) error
 
-type InsertFunc func(*sql.Tx, context.Context, interface{}, interface{}) error
+type InsertFunc func(*sql.Tx, *streams.Message) error
 
 type SinkFunc func(*Sink)
 
@@ -63,12 +62,12 @@ func (p *Sink) WithContext(ctx streams.Context) {
 }
 
 // Process processes the stream record.
-func (p *Sink) Process(ctx context.Context, k, v interface{}) error {
+func (p *Sink) Process(msg *streams.Message) error {
 	if err := p.ensureTransaction(); err != nil {
 		return err
 	}
 
-	if err := p.insertFn(p.tx, ctx, k, v); err != nil {
+	if err := p.insertFn(p.tx, msg); err != nil {
 		return err
 	}
 

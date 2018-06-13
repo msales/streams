@@ -1,15 +1,12 @@
 package streams
 
 import (
-	"context"
 	"sync"
 )
 
 type record struct {
-	ctx   context.Context
-	key   interface{}
-	value interface{}
-	node  Node
+	msg  *Message
+	node Node
 }
 
 type ErrorFunc func(error)
@@ -57,7 +54,7 @@ func (t *streamTask) run() {
 
 	for r := range t.records {
 		ctx.SetNode(r.node)
-		if err := r.node.Process(r.ctx, r.key, r.value); err != nil {
+		if err := r.node.Process(r.msg); err != nil {
 			t.handleError(err)
 		}
 	}
@@ -98,20 +95,18 @@ func (t *streamTask) consumeSources() {
 			defer t.sourceWg.Done()
 
 			for t.running {
-				ctx, k, v, err := source.Consume()
+				msg, err := source.Consume()
 				if err != nil {
 					t.handleError(err)
 				}
 
-				if k == nil && v == nil {
+				if msg.Empty() {
 					continue
 				}
 
 				t.records <- record{
-					ctx:   ctx,
-					key:   k,
-					value: v,
-					node:  node,
+					msg:  msg,
+					node: node,
 				}
 			}
 		}(source, node)

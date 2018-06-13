@@ -1,7 +1,6 @@
 package streams
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,7 +34,7 @@ func TestStream_Filter(t *testing.T) {
 	source := &streamSource{}
 	builder := NewStreamBuilder()
 
-	stream := builder.Source("source", source).Filter("test", func(ctx context.Context, k, v interface{}) (bool, error) {
+	stream := builder.Source("source", source).Filter("test", func(msg *Message) (bool, error) {
 		return true, nil
 	})
 
@@ -51,10 +50,10 @@ func TestStream_Branch(t *testing.T) {
 
 	streams := builder.Source("source", source).Branch(
 		"test",
-		func(ctx context.Context, k, v interface{}) (bool, error) {
+		func(msg *Message) (bool, error) {
 			return true, nil
 		},
-		func(ctx context.Context, k, v interface{}) (bool, error) {
+		func(msg *Message) (bool, error) {
 			return true, nil
 		},
 	)
@@ -75,9 +74,9 @@ func TestStream_Map(t *testing.T) {
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("source", source).
-		Map("test", func(ctx context.Context, k, v interface{}) (context.Context, interface{}, interface{}, error) {
-		return nil, nil, nil, nil
-	})
+		Map("test", func(msg *Message) (*Message, error) {
+			return nil, nil
+		})
 
 	assert.Len(t, stream.parents, 1)
 	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
@@ -125,10 +124,10 @@ func TestStream_Process(t *testing.T) {
 	assert.Equal(t, stream.parents[0].(*ProcessorNode).processor, proc)
 }
 
-type streamSource struct {}
+type streamSource struct{}
 
-func (s streamSource) Consume() (context.Context, interface{}, interface{}, error) {
-	return nil, nil, nil, nil
+func (s streamSource) Consume() (*Message, error) {
+	return nil, nil
 }
 
 func (s streamSource) Commit() error {
@@ -139,11 +138,11 @@ func (s streamSource) Close() error {
 	return nil
 }
 
-type streamProcessor struct {}
+type streamProcessor struct{}
 
 func (p streamProcessor) WithContext(Context) {}
 
-func (p streamProcessor) Process(context.Context, interface{}, interface{}) error {
+func (p streamProcessor) Process(msg *Message) error {
 	return nil
 }
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"math/rand"
 	"os"
@@ -41,8 +40,8 @@ func NewRandIntSource() streams.Source {
 	}
 }
 
-func (s *RandomIntSource) Consume() (ctx context.Context, key, value interface{}, err error) {
-	return context.Background(), nil, s.rand.Intn(100), nil
+func (s *RandomIntSource) Consume() (*streams.Message, error) {
+	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
 func (s *RandomIntSource) Commit() error {
@@ -53,16 +52,17 @@ func (s *RandomIntSource) Close() error {
 	return nil
 }
 
-func OddNumberFilter(ctx context.Context, k, v interface{}) (bool, error) {
-	num := v.(int)
+func OddNumberFilter(msg *streams.Message) (bool, error) {
+	num := msg.Value.(int)
 
 	return num%2 == 1, nil
 }
 
-func DoubleMapper(ctx context.Context, k, v interface{}) (context.Context, interface{}, interface{}, error) {
-	num := v.(int)
+func DoubleMapper(msg *streams.Message) (*streams.Message, error) {
+	num := msg.Value.(int)
+	msg.Value = num * 2
 
-	return context.Background(), k, num * 2, nil
+	return msg, nil
 }
 
 func listenForSignals() chan bool {

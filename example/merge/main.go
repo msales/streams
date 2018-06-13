@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"math/rand"
 	"os"
@@ -46,8 +45,8 @@ func NewRandIntSource() streams.Source {
 	}
 }
 
-func (s *RandIntSource) Consume() (context.Context, interface{}, interface{}, error) {
-	return context.Background(), nil, s.rand.Intn(100), nil
+func (s *RandIntSource) Consume() (*streams.Message, error) {
+	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
 func (s *RandIntSource) Commit() error {
@@ -58,22 +57,23 @@ func (s *RandIntSource) Close() error {
 	return nil
 }
 
-func LowNumberFilter(ctx context.Context, k, v interface{}) (bool, error) {
-	num := v.(int)
+func LowNumberFilter(msg *streams.Message) (bool, error) {
+	num := msg.Value.(int)
 
 	return num < 50, nil
 }
 
-func HighNumberFilter(ctx context.Context, k, v interface{}) (bool, error) {
-	num := v.(int)
+func HighNumberFilter(msg *streams.Message) (bool, error) {
+	num := msg.Value.(int)
 
 	return num >= 50, nil
 }
 
-func AddHundredMapper(ctx context.Context, k, v interface{}) (context.Context, interface{}, interface{}, error) {
-	num := v.(int)
+func AddHundredMapper(msg *streams.Message) (*streams.Message, error) {
+	num := msg.Value.(int)
+	msg.Value = num + 100
 
-	return ctx, k, num + 100, nil
+	return msg, nil
 }
 
 func listenForSignals() chan bool {

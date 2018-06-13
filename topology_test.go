@@ -1,7 +1,6 @@
 package streams_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/msales/streams"
@@ -47,7 +46,7 @@ func TestSourceNode_Process(t *testing.T) {
 	n := streams.SourceNode{}
 	n.WithContext(ctx)
 
-	n.Process(context.Background(), key, value)
+	n.Process(streams.NewMessage(key, value))
 
 	ctx.AssertExpectations()
 }
@@ -89,28 +88,30 @@ func TestProcessorNode_Children(t *testing.T) {
 }
 
 func TestProcessorNode_Process(t *testing.T) {
+	msg := streams.NewMessage("test", "test")
 	ctx := mocks.NewContext(t)
 	p := new(MockProcessor)
 	p.On("WithContext", ctx).Return(nil)
-	p.On("Process", context.Background(), "test", "test").Return(nil)
+	p.On("Process", msg).Return(nil)
 	n := streams.NewProcessorNode("test", p)
 	n.WithContext(ctx)
 
-	err := n.Process(context.Background(), "test", "test")
+	err := n.Process(msg)
 
 	assert.NoError(t, err)
 	p.AssertExpectations(t)
 }
 
 func TestProcessorNode_ProcessWithError(t *testing.T) {
+	msg := streams.NewMessage("test", "test")
 	ctx := mocks.NewContext(t)
 	p := new(MockProcessor)
 	p.On("WithContext", ctx).Return(nil)
-	p.On("Process", context.Background(), "test", "test").Return(errors.New("test"))
+	p.On("Process", msg).Return(errors.New("test"))
 	n := streams.NewProcessorNode("test", p)
 	n.WithContext(ctx)
 
-	err := n.Process(context.Background(), "test", "test")
+	err := n.Process(msg)
 
 	assert.Error(t, err)
 	p.AssertExpectations(t)

@@ -111,8 +111,8 @@ func NewRandIntSource(ctx context.Context) streams.Source {
 	}
 }
 
-func (s *RandIntSource) Consume() (context.Context, interface{}, interface{}, error) {
-	return s.ctx, nil, s.rand.Intn(100), nil
+func (s *RandIntSource) Consume() (*streams.Message, error) {
+	return streams.NewMessageWithContext(s.ctx, nil, s.rand.Intn(100)), nil
 }
 
 func (s *RandIntSource) Commit() error {
@@ -123,20 +123,23 @@ func (s *RandIntSource) Close() error {
 	return nil
 }
 
-func StringMapper(ctx context.Context, k, v interface{}) (context.Context, interface{}, interface{}, error) {
-	i := v.(int)
+func StringMapper(msg *streams.Message) (*streams.Message, error) {
+	i := msg.Value.(int)
+	msg.Value = strconv.Itoa(i)
 
-	return ctx, k, strconv.Itoa(i), nil
+	return msg, nil
 }
 
-func IntMapper(ctx context.Context, k, v interface{}) (context.Context, interface{}, interface{}, error) {
-	s := v.(string)
+func IntMapper(msg *streams.Message) (*streams.Message, error) {
+	s := msg.Value.(string)
 	i, err := strconv.Atoi(s)
 	if err != nil {
-		return ctx, nil, nil, err
+		return nil, err
 	}
 
-	return ctx, k, i, nil
+	msg.Value = i
+
+	return msg, nil
 }
 
 func listenForSignals() chan bool {

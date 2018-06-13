@@ -21,8 +21,8 @@ func TestContext_HandlesExpectations(t *testing.T) {
 	c.ExpectForwardToChild("test", "test", 1)
 	c.ExpectCommit()
 
-	c.Forward(nil, "test", "test")
-	c.ForwardToChild(nil, "test", "test", 1)
+	c.Forward(streams.NewMessage("test", "test"))
+	c.ForwardToChild(streams.NewMessage("test", "test"), 1)
 	c.Commit()
 	c.AssertExpectations()
 }
@@ -37,7 +37,7 @@ func TestContext_WithoutExpectationOnForward(t *testing.T) {
 	}()
 	c := NewContext(mockT)
 
-	c.Forward(nil, "test", "test")
+	c.Forward(streams.NewMessage("test", "test"))
 }
 
 func TestContext_WithWrongExpectationOnForward(t *testing.T) {
@@ -51,7 +51,7 @@ func TestContext_WithWrongExpectationOnForward(t *testing.T) {
 	c := NewContext(mockT)
 	c.ExpectForward(1, 1)
 
-	c.Forward(nil, "test", "test")
+	c.Forward(streams.NewMessage("test", "test"))
 }
 
 func TestContext_WithShouldErrorOnForward(t *testing.T) {
@@ -60,7 +60,7 @@ func TestContext_WithShouldErrorOnForward(t *testing.T) {
 	c.ExpectForward("test", "test")
 	c.ShouldError()
 
-	err := c.Forward(nil, "test", "test")
+	err := c.Forward(streams.NewMessage("test", "test"))
 
 	if err == nil {
 		t.Error("Expected error but got none")
@@ -77,7 +77,7 @@ func TestContext_WithoutExpectationOnForwardToChild(t *testing.T) {
 	}()
 	c := NewContext(mockT)
 
-	c.ForwardToChild(nil, "test", "test", 1)
+	c.ForwardToChild(streams.NewMessage("test", "test"), 1)
 }
 
 func TestContextWithWrongExpectationOnForwardToChild(t *testing.T) {
@@ -91,7 +91,7 @@ func TestContextWithWrongExpectationOnForwardToChild(t *testing.T) {
 	c := NewContext(mockT)
 	c.ExpectForwardToChild(1, 1, 3)
 
-	c.ForwardToChild(nil, "test", "test", 1)
+	c.ForwardToChild(streams.NewMessage("test", "test"), 1)
 }
 
 func TestContext_WithShouldErrorOnForwardToChild(t *testing.T) {
@@ -100,7 +100,7 @@ func TestContext_WithShouldErrorOnForwardToChild(t *testing.T) {
 	c.ExpectForwardToChild("test", "test", 1)
 	c.ShouldError()
 
-	err := c.ForwardToChild(nil, "test", "test", 1)
+	err := c.ForwardToChild(streams.NewMessage("test", "test"), 1)
 
 	if err == nil {
 		t.Error("Expected error but got none")

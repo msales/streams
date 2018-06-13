@@ -12,5 +12,3 @@ func TestNewTask(t *testing.T) {
 
 	assert.Implements(t, (*streams.Task)(nil), task)
 }
-
-

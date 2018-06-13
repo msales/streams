@@ -1,19 +1,17 @@
 package streams
 
 import (
-	"context"
-
 	"github.com/pkg/errors"
 )
 
 type Context interface {
-	Forward(context.Context, interface{}, interface{}) error
-	ForwardToChild(context.Context, interface{}, interface{}, int) error
+	Forward(*Message) error
+	ForwardToChild(*Message, int) error
 	Commit() error
 }
 
 type ProcessorContext struct {
-	task   Task
+	task Task
 
 	currentNode Node
 }
@@ -21,7 +19,7 @@ type ProcessorContext struct {
 // NewProcessorContext create a new ProcessorContext instance.
 func NewProcessorContext(t Task) *ProcessorContext {
 	return &ProcessorContext{
-		task:   t,
+		task: t,
 	}
 }
 
@@ -34,13 +32,13 @@ func (c *ProcessorContext) SetNode(n Node) {
 }
 
 // Forward passes the data to all processor children in the topology.
-func (c *ProcessorContext) Forward(ctx context.Context, k, v interface{}) error {
+func (c *ProcessorContext) Forward(msg *Message) error {
 	previousNode := c.currentNode
 	defer func() { c.currentNode = previousNode }()
 
 	for _, child := range c.currentNode.Children() {
 		c.currentNode = child
-		if err := child.Process(ctx, k, v); err != nil {
+		if err := child.Process(msg); err != nil {
 			return err
 		}
 	}
@@ -49,7 +47,7 @@ func (c *ProcessorContext) Forward(ctx context.Context, k, v interface{}) error 
 }
 
 // Forward passes the data to the the given processor(s) child in the topology.
-func (c *ProcessorContext) ForwardToChild(ctx context.Context, k, v interface{}, index int) error {
+func (c *ProcessorContext) ForwardToChild(msg *Message, index int) error {
 	previousNode := c.currentNode
 	defer func() { c.currentNode = previousNode }()
 
@@ -59,7 +57,7 @@ func (c *ProcessorContext) ForwardToChild(ctx context.Context, k, v interface{},
 
 	child := c.currentNode.Children()[index]
 	c.currentNode = child
-	if err := child.Process(ctx, k, v); err != nil {
+	if err := child.Process(msg); err != nil {
 		return err
 	}
 
