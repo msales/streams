@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-type record struct {
+type nodeMessage struct {
 	msg  *Message
 	node Node
 }
@@ -23,7 +23,7 @@ type streamTask struct {
 
 	running  bool
 	errorFn  ErrorFunc
-	records  chan record
+	stream   chan nodeMessage
 	runWg    sync.WaitGroup
 	sourceWg sync.WaitGroup
 }
@@ -41,7 +41,7 @@ func (t *streamTask) run() {
 		return
 	}
 
-	t.records = make(chan record, 1000)
+	t.stream = make(chan nodeMessage, 1000)
 	t.running = true
 
 	ctx := NewProcessorPipe(t)
@@ -52,7 +52,7 @@ func (t *streamTask) run() {
 	t.runWg.Add(1)
 	defer t.runWg.Done()
 
-	for r := range t.records {
+	for r := range t.stream {
 		ctx.SetNode(r.node)
 		if err := r.node.Process(r.msg); err != nil {
 			t.handleError(err)
@@ -104,7 +104,7 @@ func (t *streamTask) consumeSources() {
 					continue
 				}
 
-				t.records <- record{
+				t.stream <- nodeMessage{
 					msg:  msg,
 					node: node,
 				}
@@ -135,7 +135,7 @@ func (t *streamTask) Close() error {
 	t.running = false
 	t.sourceWg.Wait()
 
-	close(t.records)
+	close(t.stream)
 	t.runWg.Wait()
 
 	return t.closeTopology()

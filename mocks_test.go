@@ -61,7 +61,7 @@ type MockSource struct {
 
 func (s *MockSource) Consume() (*streams.Message, error) {
 	args := s.Called()
-	return args.Get(0).(*streams.Message), args.Error(3)
+	return args.Get(0).(*streams.Message), args.Error(1)
 }
 
 func (s *MockSource) Commit() error {

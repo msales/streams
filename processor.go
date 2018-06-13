@@ -8,7 +8,7 @@ import (
 type Processor interface {
 	// WithPipe sets the pipe on the Processor.
 	WithPipe(Pipe)
-	// Process processes the stream record.
+	// Process processes the stream Message.
 	Process(*Message) error
 	// Close closes the processor.
 	Close() error
@@ -39,7 +39,7 @@ func (p *BranchProcessor) WithPipe(pipe Pipe) {
 	p.pipe = pipe
 }
 
-// Process processes the stream record.
+// Process processes the stream nodeMessage.
 func (p *BranchProcessor) Process(msg *Message) error {
 	for i, fn := range p.fns {
 		ok, err := fn(msg)
@@ -82,7 +82,7 @@ func (p *FilterProcessor) WithPipe(pipe Pipe) {
 	p.pipe = pipe
 }
 
-// Process processes the stream record.
+// Process processes the stream Message.
 func (p *FilterProcessor) Process(msg *Message) error {
 	ok, err := p.fn(msg)
 	if err != nil {
@@ -118,7 +118,7 @@ func (p *MapProcessor) WithPipe(pipe Pipe) {
 	p.pipe = pipe
 }
 
-// Process processes the stream record.
+// Process processes the stream Message.
 func (p *MapProcessor) Process(msg *Message) error {
 	msg, err := p.fn(msg)
 	if err != nil {
@@ -148,7 +148,7 @@ func (p *MergeProcessor) WithPipe(pipe Pipe) {
 	p.pipe = pipe
 }
 
-// Process processes the stream record.
+// Process processes the stream Message.
 func (p *MergeProcessor) Process(msg *Message) error {
 	return p.pipe.Forward(msg)
 }
@@ -173,7 +173,7 @@ func (p *PrintProcessor) WithPipe(pipe Pipe) {
 	p.pipe = pipe
 }
 
-// Process processes the stream record.
+// Process processes the stream Message.
 func (p *PrintProcessor) Process(msg *Message) error {
 	fmt.Printf("%v:%v\n", msg.Key, msg.Value)
 
