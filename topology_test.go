@@ -1,35 +1,33 @@
-package streams
+package streams_test
 
 import (
 	"testing"
 
+	"github.com/msales/streams"
 	"github.com/msales/streams/mocks"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSourceNode_WithContext(t *testing.T) {
-	ctx := mocks.NewContext(t)
-	n := SourceNode{}
+func TestNewSourceNode(t *testing.T) {
+	n := streams.NewSourceNode("test")
 
-	n.WithContext(ctx)
-
-	assert.Equal(t, ctx, n.ctx)
+	assert.Equal(t, "test", n.Name())
 }
 
 func TestSourceNode_AddChild(t *testing.T) {
-	child := &ProcessorNode{}
-	n := SourceNode{}
+	child := &streams.ProcessorNode{}
+	n := streams.SourceNode{}
 
 	n.AddChild(child)
 
-	assert.Len(t, n.children, 1)
-	assert.Equal(t, child, n.children[0])
+	assert.Len(t, n.Children(), 1)
+	assert.Equal(t, child, n.Children()[0])
 }
 
 func TestSourceNode_Children(t *testing.T) {
-	child := &ProcessorNode{}
-	n := SourceNode{}
+	child := &streams.ProcessorNode{}
+	n := streams.SourceNode{}
 	n.AddChild(child)
 
 	children := n.Children()
@@ -42,50 +40,45 @@ func TestSourceNode_Process(t *testing.T) {
 	key := "test"
 	value := "test"
 
-	ctx := mocks.NewContext(t)
-	ctx.ExpectForward(key, value)
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForward(key, value)
 
-	n := SourceNode{}
-	n.WithContext(ctx)
+	n := streams.SourceNode{}
+	n.WithPipe(pipe)
 
-	n.Process(key, value)
+	n.Process(streams.NewMessage(key, value))
 
-	ctx.AssertExpectations()
+	pipe.AssertExpectations()
 }
 
 func TestSourceNode_Close(t *testing.T) {
-	n := SourceNode{}
+	n := streams.SourceNode{}
 
 	err := n.Close()
 
 	assert.NoError(t, err)
 }
 
-func TestProcessorNode_WithContext(t *testing.T) {
-	ctx := mocks.NewContext(t)
+func TestNewProcessorNode(t *testing.T) {
 	p := new(MockProcessor)
-	p.On("WithContext", ctx)
-	n := ProcessorNode{processor: p}
+	n := streams.NewProcessorNode("test", p)
 
-	n.WithContext(ctx)
-
-	p.AssertExpectations(t)
-	assert.Equal(t, ctx, n.ctx)
+	assert.Equal(t, "test", n.Name())
 }
 
 func TestProcessorNode_AddChild(t *testing.T) {
-	child := &ProcessorNode{}
-	n := ProcessorNode{}
+	child := &streams.ProcessorNode{}
+	n := streams.ProcessorNode{}
 
 	n.AddChild(child)
 
-	assert.Len(t, n.children, 1)
-	assert.Equal(t, child, n.children[0])
+	assert.Len(t, n.Children(), 1)
+	assert.Equal(t, child, n.Children()[0])
 }
 
 func TestProcessorNode_Children(t *testing.T) {
-	child := &ProcessorNode{}
-	n := ProcessorNode{}
+	child := &streams.ProcessorNode{}
+	n := streams.ProcessorNode{}
 	n.AddChild(child)
 
 	children := n.Children()
@@ -95,26 +88,30 @@ func TestProcessorNode_Children(t *testing.T) {
 }
 
 func TestProcessorNode_Process(t *testing.T) {
-	ctx := mocks.NewContext(t)
+	msg := streams.NewMessage("test", "test")
+	pipe := mocks.NewPipe(t)
 	p := new(MockProcessor)
-	p.On("Process", "test", "test").Return(nil)
-	n := ProcessorNode{processor: p}
-	n.ctx = ctx
+	p.On("WithPipe", pipe).Return(nil)
+	p.On("Process", msg).Return(nil)
+	n := streams.NewProcessorNode("test", p)
+	n.WithPipe(pipe)
 
-	err := n.Process("test", "test")
+	err := n.Process(msg)
 
 	assert.NoError(t, err)
 	p.AssertExpectations(t)
 }
 
 func TestProcessorNode_ProcessWithError(t *testing.T) {
-	ctx := mocks.NewContext(t)
+	msg := streams.NewMessage("test", "test")
+	pipe := mocks.NewPipe(t)
 	p := new(MockProcessor)
-	p.On("Process", "test", "test").Return(errors.New("test"))
-	n := ProcessorNode{processor: p}
-	n.ctx = ctx
+	p.On("WithPipe", pipe).Return(nil)
+	p.On("Process", msg).Return(errors.New("test"))
+	n := streams.NewProcessorNode("test", p)
+	n.WithPipe(pipe)
 
-	err := n.Process("test", "test")
+	err := n.Process(msg)
 
 	assert.Error(t, err)
 	p.AssertExpectations(t)
@@ -123,7 +120,7 @@ func TestProcessorNode_ProcessWithError(t *testing.T) {
 func TestProcessorNode_Close(t *testing.T) {
 	p := new(MockProcessor)
 	p.On("Close").Return(nil)
-	n := ProcessorNode{processor: p}
+	n := streams.NewProcessorNode("test", p)
 
 	err := n.Close()
 
@@ -131,40 +128,15 @@ func TestProcessorNode_Close(t *testing.T) {
 	p.AssertExpectations(t)
 }
 
-func TestTopology_Sources(t *testing.T) {
-	s := new(MockSource)
-	n := &SourceNode{}
-	to := &Topology{
-		sources: map[Source]Node{s: n},
-	}
-
-	sources := to.Sources()
-
-	assert.Len(t, sources, 1)
-	assert.Equal(t, n, sources[s])
-}
-
-func TestTopology_Processors(t *testing.T) {
-	n := &SourceNode{}
-	to := &Topology{
-		processors: []Node{n},
-	}
-
-	processors := to.Processors()
-
-	assert.Len(t, processors, 1)
-	assert.Equal(t, n, processors[0])
-}
-
 func TestTopologyBuilder_AddSource(t *testing.T) {
 	s := new(MockSource)
-	tb := NewTopologyBuilder()
+	tb := streams.NewTopologyBuilder()
 
 	n := tb.AddSource("test", s)
 	to := tb.Build()
 
-	assert.IsType(t, &SourceNode{}, n)
-	assert.Equal(t, "test", n.(*SourceNode).name)
+	assert.IsType(t, &streams.SourceNode{}, n)
+	assert.Equal(t, "test", n.(*streams.SourceNode).Name())
 	assert.Len(t, to.Sources(), 1)
 	assert.Equal(t, n, to.Sources()[s])
 	assert.Len(t, to.Processors(), 1)
@@ -173,16 +145,40 @@ func TestTopologyBuilder_AddSource(t *testing.T) {
 
 func TestTopologyBuilder_AddProcessor(t *testing.T) {
 	p := new(MockProcessor)
-	pn := &ProcessorNode{}
-	tb := NewTopologyBuilder()
+	pn := &streams.ProcessorNode{}
+	tb := streams.NewTopologyBuilder()
 
-	n := tb.AddProcessor("test", p, []Node{pn})
+	n := tb.AddProcessor("test", p, []streams.Node{pn})
 	to := tb.Build()
 
-	assert.IsType(t, &ProcessorNode{}, n)
-	assert.Equal(t, "test", n.(*ProcessorNode).name)
+	assert.IsType(t, &streams.ProcessorNode{}, n)
+	assert.Equal(t, "test", n.(*streams.ProcessorNode).Name())
 	assert.Len(t, pn.Children(), 1)
 	assert.Equal(t, n, pn.Children()[0])
 	assert.Len(t, to.Processors(), 1)
 	assert.Equal(t, n, to.Processors()[0])
+}
+
+func TestTopology_Sources(t *testing.T) {
+	s := new(MockSource)
+	tb := streams.NewTopologyBuilder()
+	sn := tb.AddSource("test", s)
+	to := tb.Build()
+
+	sources := to.Sources()
+
+	assert.Len(t, sources, 1)
+	assert.Equal(t, sn, sources[s])
+}
+
+func TestTopology_Processors(t *testing.T) {
+	p := new(MockProcessor)
+	tb := streams.NewTopologyBuilder()
+	pn := tb.AddProcessor("test2", p, []streams.Node{})
+	to := tb.Build()
+
+	processors := to.Processors()
+
+	assert.Len(t, processors, 1)
+	assert.Equal(t, pn, processors[0])
 }

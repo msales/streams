@@ -8,7 +8,7 @@ import (
 )
 
 type Sink struct {
-	ctx streams.Context
+	pipe streams.Pipe
 
 	cache  cache.Cache
 	expire time.Duration
@@ -26,21 +26,21 @@ func NewSink(cache cache.Cache, expire time.Duration) *Sink {
 	}
 }
 
-// WithContext sets the context on the Processor.
-func (p *Sink) WithContext(ctx streams.Context) {
-	p.ctx = ctx
+// WithPipe sets the pipe on the Processor.
+func (p *Sink) WithPipe(pipe streams.Pipe) {
+	p.pipe = pipe
 }
 
 // Process processes the stream record.
-func (p *Sink) Process(key, value interface{}) error {
-	k := key.(string)
+func (p *Sink) Process(msg *streams.Message) error {
+	str := msg.Key.(string)
 
-	p.cache.Set(k, value, p.expire)
+	p.cache.Set(str, msg.Value, p.expire)
 
 	p.count++
 	if p.count >= p.batch {
 		p.count = 0
-		return p.ctx.Commit()
+		return p.pipe.Commit()
 	}
 
 	return nil
@@ -48,5 +48,5 @@ func (p *Sink) Process(key, value interface{}) error {
 
 // Close closes the processor.
 func (p *Sink) Close() error {
-	return p.ctx.Commit()
+	return p.pipe.Commit()
 }

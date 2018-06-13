@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"os"
@@ -13,6 +14,8 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
+
 	logger := log15.New()
 	logger.SetHandler(log15.LazyHandler(log15.StreamHandler(os.Stderr, log15.LogfmtFormat())))
 
@@ -21,10 +24,11 @@ func main() {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
+	ctx = stats.WithStats(ctx, client)
 
 	builder := streams.NewStreamBuilder()
 
-	s := builder.Source("rand-source", NewRandIntSource()).
+	s := builder.Source("rand-source", NewRandIntSource(ctx)).
 		Branch("branch", BranchEvenNumberFilter, BranchOddNumberFilter)
 
 	// Event numbers
@@ -34,7 +38,7 @@ func main() {
 	s[1].Map("negative-mapper", NegativeMapper).
 		Print("print-negative")
 
-	task := streams.NewTask(builder.Build(), streams.WithStats(client))
+	task := streams.NewTask(builder.Build())
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -48,17 +52,19 @@ func main() {
 }
 
 type RandIntSource struct {
+	ctx  context.Context
 	rand *rand.Rand
 }
 
-func NewRandIntSource() streams.Source {
+func NewRandIntSource(ctx context.Context) streams.Source {
 	return &RandIntSource{
+		ctx:  ctx,
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
-func (s *RandIntSource) Consume() (key, value interface{}, err error) {
-	return nil, s.rand.Intn(100), nil
+func (s *RandIntSource) Consume() (*streams.Message, error) {
+	return streams.NewMessageWithContext(s.ctx, nil, s.rand.Intn(100)), nil
 }
 
 func (s *RandIntSource) Commit() error {
@@ -69,22 +75,23 @@ func (s *RandIntSource) Close() error {
 	return nil
 }
 
-func BranchOddNumberFilter(k, v interface{}) (bool, error) {
-	num := v.(int)
+func BranchOddNumberFilter(msg *streams.Message) (bool, error) {
+	num := msg.Value.(int)
 
 	return num%2 == 1, nil
 }
 
-func BranchEvenNumberFilter(k, v interface{}) (bool, error) {
-	num := v.(int)
+func BranchEvenNumberFilter(msg *streams.Message) (bool, error) {
+	num := msg.Value.(int)
 
 	return num%2 == 0, nil
 }
 
-func NegativeMapper(k, v interface{}) (interface{}, interface{}, error) {
-	num := v.(int)
+func NegativeMapper(msg *streams.Message) (*streams.Message, error) {
+	num := msg.Value.(int)
+	msg.Value = num * -1
 
-	return k, num * -1, nil
+	return msg, nil
 }
 
 func listenForSignals() chan bool {

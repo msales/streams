@@ -1,24 +1,39 @@
 package streams
 
-import "time"
+import (
+	"time"
+
+	"github.com/msales/pkg/stats"
+)
 
 type Node interface {
-	WithContext(ctx Context)
+	Name() string
+	WithPipe(Pipe)
 	AddChild(n Node)
 	Children() []Node
-	Process(key, value interface{}) error
+	Process(*Message) error
 	Close() error
 }
 
 type SourceNode struct {
 	name string
-	ctx  Context
+	pipe Pipe
 
 	children []Node
 }
 
-func (n *SourceNode) WithContext(ctx Context) {
-	n.ctx = ctx
+func NewSourceNode(name string) *SourceNode {
+	return &SourceNode{
+		name: name,
+	}
+}
+
+func (n *SourceNode) Name() string {
+	return n.name
+}
+
+func (n *SourceNode) WithPipe(pipe Pipe) {
+	n.pipe = pipe
 }
 
 func (n *SourceNode) AddChild(node Node) {
@@ -29,10 +44,10 @@ func (n *SourceNode) Children() []Node {
 	return n.children
 }
 
-func (n *SourceNode) Process(key, value interface{}) error {
-	n.ctx.Stats().Inc("node.throughput", 1, 1.0, map[string]string{"name": n.name})
+func (n *SourceNode) Process(msg *Message) error {
+	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, map[string]string{"name": n.name})
 
-	return n.ctx.Forward(key, value)
+	return n.pipe.Forward(msg)
 }
 
 func (n *SourceNode) Close() error {
@@ -41,15 +56,26 @@ func (n *SourceNode) Close() error {
 
 type ProcessorNode struct {
 	name      string
-	ctx       Context
+	pipe      Pipe
 	processor Processor
 
 	children []Node
 }
 
-func (n *ProcessorNode) WithContext(ctx Context) {
-	n.ctx = ctx
-	n.processor.WithContext(ctx)
+func NewProcessorNode(name string, p Processor) *ProcessorNode {
+	return &ProcessorNode{
+		name:      name,
+		processor: p,
+	}
+}
+
+func (n *ProcessorNode) Name() string {
+	return n.name
+}
+
+func (n *ProcessorNode) WithPipe(pipe Pipe) {
+	n.pipe = pipe
+	n.processor.WithPipe(pipe)
 }
 
 func (n *ProcessorNode) AddChild(node Node) {
@@ -60,16 +86,16 @@ func (n *ProcessorNode) Children() []Node {
 	return n.children
 }
 
-func (n *ProcessorNode) Process(key, value interface{}) error {
+func (n *ProcessorNode) Process(msg *Message) error {
 	start := time.Now()
 
-	n.ctx.Stats().Inc("node.throughput", 1, 1.0, map[string]string{"name": n.name})
+	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, map[string]string{"name": n.name})
 
-	if err := n.processor.Process(key, value); err != nil {
+	if err := n.processor.Process(msg); err != nil {
 		return err
 	}
 
-	n.ctx.Stats().Timing("node.latency", time.Since(start), 1.0, map[string]string{"name": n.name})
+	stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, map[string]string{"name": n.name})
 
 	return nil
 }

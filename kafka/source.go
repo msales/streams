@@ -1,13 +1,16 @@
 package kafka
 
 import (
+	"context"
 	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
+	"github.com/msales/streams"
 	"github.com/pkg/errors"
 )
 
+// SourceConfig represents the configuration for a Kafka stream source.
 type SourceConfig struct {
 	sarama.Config
 
@@ -15,17 +18,20 @@ type SourceConfig struct {
 	Topic   string
 	GroupId string
 
+	Ctx          context.Context
 	KeyDecoder   Decoder
 	ValueDecoder Decoder
 
 	BufferSize int
 }
 
+// NewSourceConfig creates a new Kafka source configuration.
 func NewSourceConfig() *SourceConfig {
 	c := &SourceConfig{
 		Config: *sarama.NewConfig(),
 	}
 
+	c.Ctx = context.Background()
 	c.KeyDecoder = ByteDecoder{}
 	c.ValueDecoder = ByteDecoder{}
 	c.BufferSize = 1000
@@ -54,9 +60,11 @@ func (c *SourceConfig) Validate() error {
 	return nil
 }
 
+// Source represents a Kafka stream source.
 type Source struct {
 	consumer *cluster.Consumer
 
+	ctx          context.Context
 	keyDecoder   Decoder
 	valueDecoder Decoder
 
@@ -65,6 +73,7 @@ type Source struct {
 	lastErr error
 }
 
+// NewSource creates a new Kafka stream source.
 func NewSource(c *SourceConfig) (*Source, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
@@ -81,6 +90,7 @@ func NewSource(c *SourceConfig) (*Source, error) {
 
 	s := &Source{
 		consumer:     consumer,
+		ctx:          c.Ctx,
 		keyDecoder:   c.KeyDecoder,
 		valueDecoder: c.ValueDecoder,
 		buf:          make(chan *sarama.ConsumerMessage, c.BufferSize),
@@ -93,32 +103,34 @@ func NewSource(c *SourceConfig) (*Source, error) {
 	return s, nil
 }
 
-func (s *Source) Consume() (key, value interface{}, err error) {
+// Consume gets the next record from the Source.
+func (s *Source) Consume() (*streams.Message, error) {
 	if s.lastErr != nil {
-		return nil, nil, err
+		return nil, s.lastErr
 	}
 
 	select {
 	case msg := <-s.buf:
 		k, err := s.keyDecoder.Decode(msg.Key)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		v, err := s.valueDecoder.Decode(msg.Value)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		s.markState(msg)
 
-		return k, v, nil
+		return streams.NewMessageWithContext(s.ctx, k, v), nil
 
 	case <-time.After(100 * time.Millisecond):
-		return nil, nil, nil
+		return streams.NewMessage(nil, nil), nil
 	}
 }
 
+// Commit marks the consumed records as processed.
 func (s *Source) Commit() error {
 	for topic, partitions := range s.state {
 		for partition, offset := range partitions {
@@ -133,6 +145,7 @@ func (s *Source) Commit() error {
 	return nil
 }
 
+// Close closes the Source.
 func (s *Source) Close() error {
 	return s.consumer.Close()
 }

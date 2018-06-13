@@ -23,9 +23,11 @@ go get github.com/msales/streams
 
 Streams breaks processing into two basic parts.
 
+* **Message** is a message in the system, consisting of a key, value and context.
+
 * **Sources** reads and handles position from a data source.
 
 * **Processor** processes the data, optionally passing it on or marking the sources position. A sink is just a processor
   the does not forward the data on.
   
-* **Context** gives processors an abstract view of the current state.
+* **Pipe** gives processors an abstract view of the current state, allowing Messages to flow through the system.

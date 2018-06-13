@@ -1,26 +1,34 @@
-package streams
+package streams_test
 
-import "github.com/stretchr/testify/mock"
+import (
+	"github.com/msales/streams"
+	"github.com/stretchr/testify/mock"
+)
 
 type MockNode struct {
 	mock.Mock
 }
 
-func (mn *MockNode) WithContext(ctx Context) {
-	mn.Called(ctx)
+func (mn *MockNode) Name() string {
+	args := mn.Called()
+	return args.String(0)
 }
 
-func (mn *MockNode) AddChild(n Node) {
+func (mn *MockNode) WithPipe(pipe streams.Pipe) {
+	mn.Called(pipe)
+}
+
+func (mn *MockNode) AddChild(n streams.Node) {
 	mn.Called(n)
 }
 
-func (mn *MockNode) Children() []Node {
+func (mn *MockNode) Children() []streams.Node {
 	args := mn.Called()
-	return args.Get(0).([]Node)
+	return args.Get(0).([]streams.Node)
 }
 
-func (mn *MockNode) Process(key, value interface{}) error {
-	args := mn.Called(key, value)
+func (mn *MockNode) Process(msg *streams.Message) error {
+	args := mn.Called(msg)
 	return args.Error(0)
 }
 
@@ -33,12 +41,12 @@ type MockProcessor struct {
 	mock.Mock
 }
 
-func (p *MockProcessor) WithContext(ctx Context) {
-	p.Called(ctx)
+func (p *MockProcessor) WithPipe(pipe streams.Pipe) {
+	p.Called(pipe)
 }
 
-func (p *MockProcessor) Process(key, value interface{}) error {
-	args := p.Called(key, value)
+func (p *MockProcessor) Process(msg *streams.Message) error {
+	args := p.Called(msg)
 	return args.Error(0)
 }
 
@@ -51,9 +59,9 @@ type MockSource struct {
 	mock.Mock
 }
 
-func (s *MockSource) Consume() (key, value interface{}, err error) {
+func (s *MockSource) Consume() (*streams.Message, error) {
 	args := s.Called()
-	return args.Get(0), args.Get(1), args.Error(2)
+	return args.Get(0).(*streams.Message), args.Error(1)
 }
 
 func (s *MockSource) Commit() error {
@@ -79,7 +87,7 @@ func (t *MockTask) Commit() error {
 	return args.Error(0)
 }
 
-func (t *MockTask) OnError(fn ErrorFunc) {
+func (t *MockTask) OnError(fn streams.ErrorFunc) {
 	t.Called(fn)
 }
 

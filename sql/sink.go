@@ -6,9 +6,10 @@ import (
 	"github.com/msales/streams"
 )
 
+// TxFunc represents a function that receives a sql transaction.
 type TxFunc func(*sql.Tx) error
 
-type InsertFunc func(*sql.Tx, interface{}, interface{}) error
+type InsertFunc func(*sql.Tx, *streams.Message) error
 
 type SinkFunc func(*Sink)
 
@@ -24,8 +25,9 @@ func WithCommitFn(fn TxFunc) SinkFunc {
 	}
 }
 
+// Sink represents a SQL sink processor.
 type Sink struct {
-	ctx streams.Context
+	pipe streams.Pipe
 
 	db *sql.DB
 	tx *sql.Tx
@@ -54,18 +56,18 @@ func NewSink(db *sql.DB, fn InsertFunc, batch int, opts ...SinkFunc) *Sink {
 	return s
 }
 
-// WithContext sets the context on the Processor.
-func (p *Sink) WithContext(ctx streams.Context) {
-	p.ctx = ctx
+// WithPipe sets the pipe on the Processor.
+func (p *Sink) WithPipe(pipe streams.Pipe) {
+	p.pipe = pipe
 }
 
 // Process processes the stream record.
-func (p *Sink) Process(key, value interface{}) error {
+func (p *Sink) Process(msg *streams.Message) error {
 	if err := p.ensureTransaction(); err != nil {
 		return err
 	}
 
-	if err := p.insertFn(p.tx, key, value); err != nil {
+	if err := p.insertFn(p.tx, msg); err != nil {
 		return err
 	}
 
@@ -114,7 +116,7 @@ func (p *Sink) commitTransaction() error {
 	}
 	p.tx = nil
 
-	return p.ctx.Commit()
+	return p.pipe.Commit()
 }
 
 // Close closes the processor.

@@ -2,32 +2,14 @@ package streams
 
 import (
 	"sync"
-
-	"github.com/msales/pkg/log"
-	"github.com/msales/pkg/stats"
 )
 
-type record struct {
-	Node  Node
-	Key   interface{}
-	Value interface{}
+type nodeMessage struct {
+	msg  *Message
+	node Node
 }
 
 type ErrorFunc func(error)
-
-type TaskFunc func(*streamTask)
-
-func WithLogger(logger log.Logger) TaskFunc {
-	return func(t *streamTask) {
-		t.logger = logger
-	}
-}
-
-func WithStats(stats stats.Stats) TaskFunc {
-	return func(t *streamTask) {
-		t.stats = stats
-	}
-}
 
 type Task interface {
 	Start()
@@ -39,29 +21,18 @@ type Task interface {
 type streamTask struct {
 	topology *Topology
 
-	logger log.Logger
-	stats  stats.Stats
-
 	running  bool
 	errorFn  ErrorFunc
-	records  chan record
+	stream   chan nodeMessage
 	runWg    sync.WaitGroup
 	sourceWg sync.WaitGroup
 }
 
-func NewTask(topology *Topology, opts ...TaskFunc) Task {
-	t := &streamTask{
+func NewTask(topology *Topology) Task {
+	return &streamTask{
 		topology: topology,
-		logger:   log.Null,
-		stats:    stats.Null,
 		running:  false,
 	}
-
-	for _, opt := range opts {
-		opt(t)
-	}
-
-	return t
 }
 
 func (t *streamTask) run() {
@@ -70,10 +41,10 @@ func (t *streamTask) run() {
 		return
 	}
 
-	t.records = make(chan record, 1000)
+	t.stream = make(chan nodeMessage, 1000)
 	t.running = true
 
-	ctx := NewProcessorContext(t, t.logger, t.stats)
+	ctx := NewProcessorPipe(t)
 	t.setupTopology(ctx)
 
 	t.consumeSources()
@@ -81,17 +52,17 @@ func (t *streamTask) run() {
 	t.runWg.Add(1)
 	defer t.runWg.Done()
 
-	for r := range t.records {
-		ctx.currentNode = r.Node
-		if err := r.Node.Process(r.Key, r.Value); err != nil {
+	for r := range t.stream {
+		ctx.SetNode(r.node)
+		if err := r.node.Process(r.msg); err != nil {
 			t.handleError(err)
 		}
 	}
 }
 
-func (t *streamTask) setupTopology(ctx Context) {
+func (t *streamTask) setupTopology(ctx Pipe) {
 	for _, n := range t.topology.Processors() {
-		n.WithContext(ctx)
+		n.WithPipe(ctx)
 	}
 }
 
@@ -124,19 +95,18 @@ func (t *streamTask) consumeSources() {
 			defer t.sourceWg.Done()
 
 			for t.running {
-				k, v, err := source.Consume()
+				msg, err := source.Consume()
 				if err != nil {
 					t.handleError(err)
 				}
 
-				if k == nil && v == nil {
+				if msg.Empty() {
 					continue
 				}
 
-				t.records <- record{
-					Node:  node,
-					Key:   k,
-					Value: v,
+				t.stream <- nodeMessage{
+					msg:  msg,
+					node: node,
 				}
 			}
 		}(source, node)
@@ -165,7 +135,7 @@ func (t *streamTask) Close() error {
 	t.running = false
 	t.sourceWg.Wait()
 
-	close(t.records)
+	close(t.stream)
 	t.runWg.Wait()
 
 	return t.closeTopology()

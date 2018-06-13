@@ -7,19 +7,19 @@ import (
 )
 
 func TestStreamBuilder_Source(t *testing.T) {
-	source := new(MockSource)
+	source := &streamSource{}
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("test", source)
 
 	assert.Len(t, stream.parents, 1)
 	assert.IsType(t, &SourceNode{}, stream.parents[0])
-	assert.IsType(t, stream.parents[0].(*SourceNode).name, "test")
+	assert.IsType(t, stream.parents[0].(*SourceNode).Name(), "test")
 }
 
 func TestStreamBuilder_Build(t *testing.T) {
-	proc := new(MockProcessor)
-	source := new(MockSource)
+	proc := &streamProcessor{}
+	source := &streamSource{}
 	builder := NewStreamBuilder()
 	builder.Source("test", source).Process("test1", proc)
 
@@ -31,10 +31,10 @@ func TestStreamBuilder_Build(t *testing.T) {
 }
 
 func TestStream_Filter(t *testing.T) {
-	source := new(MockSource)
+	source := &streamSource{}
 	builder := NewStreamBuilder()
 
-	stream := builder.Source("source", source).Filter("test", func(k, v interface{}) (bool, error) {
+	stream := builder.Source("source", source).Filter("test", func(msg *Message) (bool, error) {
 		return true, nil
 	})
 
@@ -45,15 +45,15 @@ func TestStream_Filter(t *testing.T) {
 }
 
 func TestStream_Branch(t *testing.T) {
-	source := new(MockSource)
+	source := &streamSource{}
 	builder := NewStreamBuilder()
 
 	streams := builder.Source("source", source).Branch(
 		"test",
-		func(k, v interface{}) (bool, error) {
+		func(msg *Message) (bool, error) {
 			return true, nil
 		},
-		func(k, v interface{}) (bool, error) {
+		func(msg *Message) (bool, error) {
 			return true, nil
 		},
 	)
@@ -70,12 +70,13 @@ func TestStream_Branch(t *testing.T) {
 }
 
 func TestStream_Map(t *testing.T) {
-	source := new(MockSource)
+	source := &streamSource{}
 	builder := NewStreamBuilder()
 
-	stream := builder.Source("source", source).Map("test", func(k, v interface{}) (interface{}, interface{}, error) {
-		return nil, nil, nil
-	})
+	stream := builder.Source("source", source).
+		Map("test", func(msg *Message) (*Message, error) {
+			return nil, nil
+		})
 
 	assert.Len(t, stream.parents, 1)
 	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
@@ -84,7 +85,7 @@ func TestStream_Map(t *testing.T) {
 }
 
 func TestStream_Merge(t *testing.T) {
-	source := new(MockSource)
+	source := &streamSource{}
 	builder := NewStreamBuilder()
 
 	stream1 := builder.Source("source1", source)
@@ -99,7 +100,7 @@ func TestStream_Merge(t *testing.T) {
 }
 
 func TestStream_Print(t *testing.T) {
-	source := new(MockSource)
+	source := &streamSource{}
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("source", source).Print("test")
@@ -111,8 +112,8 @@ func TestStream_Print(t *testing.T) {
 }
 
 func TestStream_Process(t *testing.T) {
-	proc := new(MockProcessor)
-	source := new(MockSource)
+	proc := &streamProcessor{}
+	source := &streamSource{}
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("source", source).Process("test", proc)
@@ -121,4 +122,30 @@ func TestStream_Process(t *testing.T) {
 	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
 	assert.Equal(t, stream.parents[0].(*ProcessorNode).name, "test")
 	assert.Equal(t, stream.parents[0].(*ProcessorNode).processor, proc)
+}
+
+type streamSource struct{}
+
+func (s streamSource) Consume() (*Message, error) {
+	return nil, nil
+}
+
+func (s streamSource) Commit() error {
+	return nil
+}
+
+func (s streamSource) Close() error {
+	return nil
+}
+
+type streamProcessor struct{}
+
+func (p streamProcessor) WithPipe(Pipe) {}
+
+func (p streamProcessor) Process(msg *Message) error {
+	return nil
+}
+
+func (p streamProcessor) Close() error {
+	return nil
 }

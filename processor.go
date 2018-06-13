@@ -1,28 +1,30 @@
 package streams
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Processor represents a stream processor.
 type Processor interface {
-	// WithContext sets the context on the Processor.
-	WithContext(ctx Context)
-	// Process processes the stream record.
-	Process(key, value interface{}) error
+	// WithPipe sets the pipe on the Processor.
+	WithPipe(Pipe)
+	// Process processes the stream Message.
+	Process(*Message) error
 	// Close closes the processor.
 	Close() error
 }
 
 // Mapper represents a mapping function
-type Mapper func(key, value interface{}) (interface{}, interface{}, error)
+type Mapper func(*Message) (*Message, error)
 
 // Predicate represents a stream filter function.
-type Predicate func(k, v interface{}) (bool, error)
+type Predicate func(*Message) (bool, error)
 
 // BranchProcessor is a processor that branches into one or more streams
 //  based on the results of the predicates.
 type BranchProcessor struct {
-	ctx Context
-	fns []Predicate
+	pipe Pipe
+	fns  []Predicate
 }
 
 // NewBranchProcessor creates a new BranchProcessor instance.
@@ -32,15 +34,15 @@ func NewBranchProcessor(fns []Predicate) Processor {
 	}
 }
 
-// WithContext sets the context on the Processor.
-func (p *BranchProcessor) WithContext(ctx Context) {
-	p.ctx = ctx
+// WithPipe sets the pipe on the Processor.
+func (p *BranchProcessor) WithPipe(pipe Pipe) {
+	p.pipe = pipe
 }
 
-// Process processes the stream record.
-func (p *BranchProcessor) Process(key, value interface{}) error {
+// Process processes the stream nodeMessage.
+func (p *BranchProcessor) Process(msg *Message) error {
 	for i, fn := range p.fns {
-		ok, err := fn(key, value)
+		ok, err := fn(msg)
 		if err != nil {
 			return err
 		}
@@ -49,7 +51,7 @@ func (p *BranchProcessor) Process(key, value interface{}) error {
 			continue
 		}
 
-		if err := p.ctx.ForwardToChild(key, value, i); err != nil {
+		if err := p.pipe.ForwardToChild(msg, i); err != nil {
 			return err
 		}
 	}
@@ -64,8 +66,8 @@ func (p *BranchProcessor) Close() error {
 
 // FilterProcessor is a processor that filters a stream using a predicate function.
 type FilterProcessor struct {
-	ctx Context
-	fn  Predicate
+	pipe Pipe
+	fn   Predicate
 }
 
 // NewFilterProcessor creates a new FilterProcessor instance.
@@ -75,20 +77,20 @@ func NewFilterProcessor(fn Predicate) Processor {
 	}
 }
 
-// WithContext sets the context on the Processor.
-func (p *FilterProcessor) WithContext(ctx Context) {
-	p.ctx = ctx
+// WithPipe sets the pipe on the Processor.
+func (p *FilterProcessor) WithPipe(pipe Pipe) {
+	p.pipe = pipe
 }
 
-// Process processes the stream record.
-func (p *FilterProcessor) Process(key, value interface{}) error {
-	ok, err := p.fn(key, value)
+// Process processes the stream Message.
+func (p *FilterProcessor) Process(msg *Message) error {
+	ok, err := p.fn(msg)
 	if err != nil {
 		return err
 	}
 
 	if ok {
-		return p.ctx.Forward(key, value)
+		return p.pipe.Forward(msg)
 	}
 	return nil
 }
@@ -100,8 +102,8 @@ func (p *FilterProcessor) Close() error {
 
 // MapProcessor is a processor that maps a stream using a mapping function.
 type MapProcessor struct {
-	ctx Context
-	fn  Mapper
+	pipe Pipe
+	fn   Mapper
 }
 
 // NewMapProcessor creates a new MapProcessor instance.
@@ -111,19 +113,19 @@ func NewMapProcessor(fn Mapper) Processor {
 	}
 }
 
-// WithContext sets the context on the Processor.
-func (p *MapProcessor) WithContext(ctx Context) {
-	p.ctx = ctx
+// WithPipe sets the pipe on the Processor.
+func (p *MapProcessor) WithPipe(pipe Pipe) {
+	p.pipe = pipe
 }
 
-// Process processes the stream record.
-func (p *MapProcessor) Process(key, value interface{}) error {
-	key, value, err := p.fn(key, value)
+// Process processes the stream Message.
+func (p *MapProcessor) Process(msg *Message) error {
+	msg, err := p.fn(msg)
 	if err != nil {
 		return err
 	}
 
-	return p.ctx.Forward(key, value)
+	return p.pipe.Forward(msg)
 }
 
 // Close closes the processor.
@@ -133,7 +135,7 @@ func (p *MapProcessor) Close() error {
 
 // MergeProcessor is a processor that merges multiple streams.
 type MergeProcessor struct {
-	ctx Context
+	pipe Pipe
 }
 
 // NewMergeProcessor creates a new MergeProcessor instance.
@@ -141,14 +143,14 @@ func NewMergeProcessor() Processor {
 	return &MergeProcessor{}
 }
 
-// WithContext sets the context on the Processor.
-func (p *MergeProcessor) WithContext(ctx Context) {
-	p.ctx = ctx
+// WithPipe sets the pipe on the Processor.
+func (p *MergeProcessor) WithPipe(pipe Pipe) {
+	p.pipe = pipe
 }
 
-// Process processes the stream record.
-func (p *MergeProcessor) Process(key, value interface{}) error {
-	return p.ctx.Forward(key, value)
+// Process processes the stream Message.
+func (p *MergeProcessor) Process(msg *Message) error {
+	return p.pipe.Forward(msg)
 }
 
 // Close closes the processor.
@@ -158,7 +160,7 @@ func (p *MergeProcessor) Close() error {
 
 // PrintProcessor is a processor that prints the stream to stdout.
 type PrintProcessor struct {
-	ctx Context
+	pipe Pipe
 }
 
 // NewPrintProcessor creates a new PrintProcessor instance.
@@ -166,16 +168,16 @@ func NewPrintProcessor() Processor {
 	return &PrintProcessor{}
 }
 
-// WithContext sets the context on the Processor.
-func (p *PrintProcessor) WithContext(ctx Context) {
-	p.ctx = ctx
+// WithPipe sets the pipe on the Processor.
+func (p *PrintProcessor) WithPipe(pipe Pipe) {
+	p.pipe = pipe
 }
 
-// Process processes the stream record.
-func (p *PrintProcessor) Process(key, value interface{}) error {
-	fmt.Printf("%v:%v\n", key, value)
+// Process processes the stream Message.
+func (p *PrintProcessor) Process(msg *Message) error {
+	fmt.Printf("%v:%v\n", msg.Key, msg.Value)
 
-	return p.ctx.Forward(key, value)
+	return p.pipe.Forward(msg)
 }
 
 // Close closes the processor.

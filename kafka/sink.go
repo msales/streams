@@ -51,7 +51,7 @@ func (c *SinkConfig) Validate() error {
 }
 
 type Sink struct {
-	ctx streams.Context
+	pipe streams.Pipe
 
 	keyEncoder   Encoder
 	valueEncoder Encoder
@@ -86,29 +86,29 @@ func NewSink(c *SinkConfig) (*Sink, error) {
 	return s, nil
 }
 
-// WithContext sets the context on the Processor.
-func (p *Sink) WithContext(ctx streams.Context) {
-	p.ctx = ctx
+// WithPipe sets the pipe on the Processor.
+func (p *Sink) WithPipe(pipe streams.Pipe) {
+	p.pipe = pipe
 }
 
 // Process processes the stream record.
-func (p *Sink) Process(key, value interface{}) error {
-	k, err := p.keyEncoder.Encode(key)
+func (p *Sink) Process(msg *streams.Message) error {
+	k, err := p.keyEncoder.Encode(msg.Key)
 	if err != nil {
 		return err
 	}
 
-	v, err := p.valueEncoder.Encode(value)
+	v, err := p.valueEncoder.Encode(msg.Value)
 	if err != nil {
 		return err
 	}
 
-	msg := &sarama.ProducerMessage{
+	pm := &sarama.ProducerMessage{
 		Topic: p.topic,
 		Key:   sarama.ByteEncoder(k),
 		Value: sarama.ByteEncoder(v),
 	}
-	p.buf = append(p.buf, msg)
+	p.buf = append(p.buf, pm)
 	p.count++
 
 	if p.count >= p.batch {
@@ -119,7 +119,7 @@ func (p *Sink) Process(key, value interface{}) error {
 		p.count = 0
 		p.buf = make([]*sarama.ProducerMessage, 0, p.batch)
 
-		return p.ctx.Commit()
+		return p.pipe.Commit()
 	}
 
 	return nil
