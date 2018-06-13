@@ -8,6 +8,7 @@ import (
 )
 
 type Node interface {
+	Name() string
 	WithContext(ctx Context)
 	AddChild(n Node)
 	Children() []Node
@@ -20,6 +21,16 @@ type SourceNode struct {
 	ctx  Context
 
 	children []Node
+}
+
+func NewSourceNode(name string) *SourceNode {
+	return &SourceNode{
+		name: name,
+	}
+}
+
+func (n *SourceNode) Name() string {
+	return n.name
 }
 
 func (n *SourceNode) WithContext(ctx Context) {
@@ -50,6 +61,17 @@ type ProcessorNode struct {
 	processor Processor
 
 	children []Node
+}
+
+func NewProcessorNode(name string, p Processor) *ProcessorNode {
+	return &ProcessorNode{
+		name:      name,
+		processor: p,
+	}
+}
+
+func (n *ProcessorNode) Name() string {
+	return n.name
 }
 
 func (n *ProcessorNode) WithContext(ctx Context) {

@@ -3,7 +3,6 @@ package streams
 import (
 	"context"
 	"sync"
-
 )
 
 type record struct {
@@ -25,8 +24,6 @@ type Task interface {
 type streamTask struct {
 	topology *Topology
 
-	ctx context.Context
-
 	running  bool
 	errorFn  ErrorFunc
 	records  chan record
@@ -37,7 +34,6 @@ type streamTask struct {
 func NewTask(topology *Topology) Task {
 	return &streamTask{
 		topology: topology,
-		ctx:      context.Background(),
 		running:  false,
 	}
 }
@@ -60,7 +56,7 @@ func (t *streamTask) run() {
 	defer t.runWg.Done()
 
 	for r := range t.records {
-		ctx.currentNode = r.node
+		ctx.SetNode(r.node)
 		if err := r.node.Process(r.ctx, r.key, r.value); err != nil {
 			t.handleError(err)
 		}

@@ -1,8 +1,9 @@
-package streams
+package streams_test
 
 import (
 	"context"
 
+	"github.com/msales/streams"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -10,17 +11,22 @@ type MockNode struct {
 	mock.Mock
 }
 
-func (mn *MockNode) WithContext(ctx Context) {
+func (mn *MockNode) Name() string {
+	args := mn.Called()
+	return args.String(0)
+}
+
+func (mn *MockNode) WithContext(ctx streams.Context) {
 	mn.Called(ctx)
 }
 
-func (mn *MockNode) AddChild(n Node) {
+func (mn *MockNode) AddChild(n streams.Node) {
 	mn.Called(n)
 }
 
-func (mn *MockNode) Children() []Node {
+func (mn *MockNode) Children() []streams.Node {
 	args := mn.Called()
-	return args.Get(0).([]Node)
+	return args.Get(0).([]streams.Node)
 }
 
 func (mn *MockNode) Process(ctx context.Context, k, v interface{}) error {
@@ -37,7 +43,7 @@ type MockProcessor struct {
 	mock.Mock
 }
 
-func (p *MockProcessor) WithContext(ctx Context) {
+func (p *MockProcessor) WithContext(ctx streams.Context) {
 	p.Called(ctx)
 }
 
@@ -83,7 +89,7 @@ func (t *MockTask) Commit() error {
 	return args.Error(0)
 }
 
-func (t *MockTask) OnError(fn ErrorFunc) {
+func (t *MockTask) OnError(fn streams.ErrorFunc) {
 	t.Called(fn)
 }
 

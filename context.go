@@ -18,12 +18,22 @@ type ProcessorContext struct {
 	currentNode Node
 }
 
+// NewProcessorContext create a new ProcessorContext instance.
 func NewProcessorContext(t Task) *ProcessorContext {
 	return &ProcessorContext{
 		task:   t,
 	}
 }
 
+// SetNode sets the topology node that is being processed.
+//
+// The is only needed by the task and should not be used
+// directly. Doing so can have some unexpected results.
+func (c *ProcessorContext) SetNode(n Node) {
+	c.currentNode = n
+}
+
+// Forward passes the data to all processor children in the topology.
 func (c *ProcessorContext) Forward(ctx context.Context, k, v interface{}) error {
 	previousNode := c.currentNode
 	defer func() { c.currentNode = previousNode }()
@@ -38,6 +48,7 @@ func (c *ProcessorContext) Forward(ctx context.Context, k, v interface{}) error 
 	return nil
 }
 
+// Forward passes the data to the the given processor(s) child in the topology.
 func (c *ProcessorContext) ForwardToChild(ctx context.Context, k, v interface{}, index int) error {
 	previousNode := c.currentNode
 	defer func() { c.currentNode = previousNode }()
@@ -55,6 +66,7 @@ func (c *ProcessorContext) ForwardToChild(ctx context.Context, k, v interface{},
 	return nil
 }
 
+// Commit commits the current state in the sources.
 func (c *ProcessorContext) Commit() error {
 	return c.task.Commit()
 }

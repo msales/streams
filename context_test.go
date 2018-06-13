@@ -1,8 +1,9 @@
-package streams
+package streams_test
 
 import (
 	"testing"
 
+	"github.com/msales/streams"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -11,10 +12,10 @@ func TestProcessorContext_Forward(t *testing.T) {
 	child := new(MockNode)
 	child.On("Process", nil, "test", "test").Return(nil)
 	parent := new(MockNode)
-	parent.On("Children").Return([]Node{child})
+	parent.On("Children").Return([]streams.Node{child})
 	task := new(MockTask)
-	ctx := NewProcessorContext(task)
-	ctx.currentNode = parent
+	ctx := streams.NewProcessorContext(task)
+	ctx.SetNode(parent)
 
 	ctx.Forward(nil, "test", "test")
 
@@ -25,10 +26,10 @@ func TestProcessorContext_ForwardReturnsChildError(t *testing.T) {
 	child := new(MockNode)
 	child.On("Process", nil, "test", "test").Return(errors.New("test"))
 	parent := new(MockNode)
-	parent.On("Children").Return([]Node{child})
+	parent.On("Children").Return([]streams.Node{child})
 	task := new(MockTask)
-	ctx := NewProcessorContext(task)
-	ctx.currentNode = parent
+	ctx := streams.NewProcessorContext(task)
+	ctx.SetNode(parent)
 
 	err := ctx.Forward(nil, "test", "test")
 
@@ -40,10 +41,10 @@ func TestProcessorContext_ForwardToChild(t *testing.T) {
 	child := new(MockNode)
 	child.On("Process", nil, "test", "test").Return(nil)
 	parent := new(MockNode)
-	parent.On("Children").Return([]Node{nil, child})
+	parent.On("Children").Return([]streams.Node{nil, child})
 	task := new(MockTask)
-	ctx := NewProcessorContext(task)
-	ctx.currentNode = parent
+	ctx := streams.NewProcessorContext(task)
+	ctx.SetNode(parent)
 
 	ctx.ForwardToChild(nil, "test", "test", 1)
 
@@ -52,10 +53,10 @@ func TestProcessorContext_ForwardToChild(t *testing.T) {
 
 func TestProcessorContext_ForwardToChildIndexError(t *testing.T) {
 	parent := new(MockNode)
-	parent.On("Children").Return([]Node{})
+	parent.On("Children").Return([]streams.Node{})
 	task := new(MockTask)
-	ctx := NewProcessorContext(task)
-	ctx.currentNode = parent
+	ctx := streams.NewProcessorContext(task)
+	ctx.SetNode(parent)
 
 	err := ctx.ForwardToChild(nil, "test", "test", 1)
 
@@ -66,10 +67,10 @@ func TestProcessorContext_ForwardToChildReturnsChildError(t *testing.T) {
 	child := new(MockNode)
 	child.On("Process", nil, "test", "test").Return(errors.New("test"))
 	parent := new(MockNode)
-	parent.On("Children").Return([]Node{nil, child})
+	parent.On("Children").Return([]streams.Node{nil, child})
 	task := new(MockTask)
-	ctx := NewProcessorContext(task)
-	ctx.currentNode = parent
+	ctx := streams.NewProcessorContext(task)
+	ctx.SetNode(parent)
 
 	err := ctx.ForwardToChild(nil, "test", "test", 1)
 
@@ -80,7 +81,7 @@ func TestProcessorContext_ForwardToChildReturnsChildError(t *testing.T) {
 func TestProcessorContext_Commit(t *testing.T) {
 	task := new(MockTask)
 	task.On("Commit").Return(nil)
-	ctx := NewProcessorContext(task)
+	ctx := streams.NewProcessorContext(task)
 
 	err := ctx.Commit()
 
@@ -91,7 +92,7 @@ func TestProcessorContext_Commit(t *testing.T) {
 func TestProcessorContext_CommitWithError(t *testing.T) {
 	task := new(MockTask)
 	task.On("Commit").Return(errors.New("test"))
-	ctx := NewProcessorContext(task)
+	ctx :=streams.NewProcessorContext(task)
 
 	err := ctx.Commit()
 
