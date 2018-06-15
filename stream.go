@@ -57,6 +57,13 @@ func (s *Stream) Map(name string, mapper Mapper) *Stream {
 	return newStream(s.tp, []Node{n})
 }
 
+func (s *Stream) FlatMap(name string, mapper FlatMapper) *Stream {
+	p := NewFlatMapProcessor(mapper)
+	n := s.tp.AddProcessor(name, p, s.parents)
+
+	return newStream(s.tp, []Node{n})
+}
+
 func (s *Stream) Merge(name string, streams ...*Stream) *Stream {
 	parents := []Node{}
 	parents = append(parents, s.parents...)
@@ -64,7 +71,7 @@ func (s *Stream) Merge(name string, streams ...*Stream) *Stream {
 		parents = append(parents, stream.parents...)
 	}
 
-	p := NewMergeProcessor()
+	p := NewPassThroughProcessor()
 
 	n := s.tp.AddProcessor(name, p, parents)
 
