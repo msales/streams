@@ -14,8 +14,11 @@ type Processor interface {
 	Close() error
 }
 
-// Mapper represents a mapping function
+// Mapper represents a mapping function.
 type Mapper func(*Message) (*Message, error)
+
+// FlatMapper represents a mapping function that return multiple messages.
+type FlatMapper func(*Message) ([]*Message, error)
 
 // Predicate represents a stream filter function.
 type Predicate func(*Message) (bool, error)
@@ -100,6 +103,45 @@ func (p *FilterProcessor) Close() error {
 	return nil
 }
 
+// FlatMapProcessor is a processor that maps a stream using a flat mapping function.
+type FlatMapProcessor struct {
+	pipe Pipe
+	fn   FlatMapper
+}
+
+// NewFlatMapProcessor creates a new FlatMapProcessor instance.
+func NewFlatMapProcessor(fn FlatMapper) Processor {
+	return &FlatMapProcessor{
+		fn: fn,
+	}
+}
+
+// WithPipe sets the pipe on the Processor.
+func (p *FlatMapProcessor) WithPipe(pipe Pipe) {
+	p.pipe = pipe
+}
+
+// Process processes the stream Message.
+func (p *FlatMapProcessor) Process(msg *Message) error {
+	msgs, err := p.fn(msg)
+	if err != nil {
+		return err
+	}
+
+	for _, msg := range msgs {
+		if err := p.pipe.Forward(msg); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Close closes the processor.
+func (p *FlatMapProcessor) Close() error {
+	return nil
+}
+
 // MapProcessor is a processor that maps a stream using a mapping function.
 type MapProcessor struct {
 	pipe Pipe
@@ -133,28 +175,28 @@ func (p *MapProcessor) Close() error {
 	return nil
 }
 
-// MergeProcessor is a processor that merges multiple streams.
-type MergeProcessor struct {
+// PassThroughProcessor is a processor that passes the message on.
+type PassThroughProcessor struct {
 	pipe Pipe
 }
 
-// NewMergeProcessor creates a new MergeProcessor instance.
-func NewMergeProcessor() Processor {
-	return &MergeProcessor{}
+// NewPassThroughProcessor creates a new PassThroughProcessor instance.
+func NewPassThroughProcessor() Processor {
+	return &PassThroughProcessor{}
 }
 
 // WithPipe sets the pipe on the Processor.
-func (p *MergeProcessor) WithPipe(pipe Pipe) {
+func (p *PassThroughProcessor) WithPipe(pipe Pipe) {
 	p.pipe = pipe
 }
 
 // Process processes the stream Message.
-func (p *MergeProcessor) Process(msg *Message) error {
+func (p *PassThroughProcessor) Process(msg *Message) error {
 	return p.pipe.Forward(msg)
 }
 
 // Close closes the processor.
-func (p *MergeProcessor) Close() error {
+func (p *PassThroughProcessor) Close() error {
 	return nil
 }
 
