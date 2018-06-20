@@ -21,7 +21,7 @@ go get github.com/msales/streams
 
 ## Concepts
 
-Streams breaks processing the following basic parts.
+Streams breaks processing into the following basic parts.
 
 * **Message** is a message in the system, consisting of a key, value and context.
 
