@@ -84,6 +84,21 @@ func TestStream_Map(t *testing.T) {
 	assert.IsType(t, &MapProcessor{}, stream.parents[0].(*ProcessorNode).processor)
 }
 
+func TestStream_FlatMap(t *testing.T) {
+	source := &streamSource{}
+	builder := NewStreamBuilder()
+
+	stream := builder.Source("source", source).
+		FlatMap("test", func(msg *Message) ([]*Message, error) {
+		return nil, nil
+	})
+
+	assert.Len(t, stream.parents, 1)
+	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
+	assert.Equal(t, stream.parents[0].(*ProcessorNode).name, "test")
+	assert.IsType(t, &FlatMapProcessor{}, stream.parents[0].(*ProcessorNode).processor)
+}
+
 func TestStream_Merge(t *testing.T) {
 	source := &streamSource{}
 	builder := NewStreamBuilder()
@@ -96,7 +111,7 @@ func TestStream_Merge(t *testing.T) {
 	assert.Len(t, stream.parents, 1)
 	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
 	assert.Equal(t, stream.parents[0].(*ProcessorNode).name, "test")
-	assert.IsType(t, &MergeProcessor{}, stream.parents[0].(*ProcessorNode).processor)
+	assert.IsType(t, &PassThroughProcessor{}, stream.parents[0].(*ProcessorNode).processor)
 }
 
 func TestStream_Print(t *testing.T) {

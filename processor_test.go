@@ -138,10 +138,17 @@ func TestMapProcessor_Close(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestMergeProcessor_Process(t *testing.T) {
+func TestFlatMapProcessor_Process(t *testing.T) {
+	mapper := func(msg *streams.Message) ([]*streams.Message, error) {
+		return []*streams.Message{
+			streams.NewMessage(1, 1),
+			streams.NewMessage(2, 2),
+		}, nil
+	}
 	ctx := mocks.NewPipe(t)
-	ctx.ExpectForward("test", "test")
-	p := streams.NewMergeProcessor()
+	ctx.ExpectForward(1, 1)
+	ctx.ExpectForward(2, 2)
+	p := streams.NewFlatMapProcessor(mapper)
 	p.WithPipe(ctx)
 
 	p.Process(streams.NewMessage("test", "test"))
@@ -149,8 +156,59 @@ func TestMergeProcessor_Process(t *testing.T) {
 	ctx.AssertExpectations()
 }
 
-func TestMergeProcessor_Close(t *testing.T) {
-	p := streams.NewMergeProcessor()
+func TestFlatMapProcessor_ProcessWithError(t *testing.T) {
+	mapper := func(msg *streams.Message) ([]*streams.Message, error) {
+		return nil, errors.New("test")
+	}
+	ctx := mocks.NewPipe(t)
+	p := streams.NewFlatMapProcessor(mapper)
+	p.WithPipe(ctx)
+
+	err := p.Process(streams.NewMessage("test", "test"))
+
+	assert.Error(t, err)
+}
+
+func TestFlatMapProcessor_ProcessWithForawrdError(t *testing.T) {
+	mapper := func(msg *streams.Message) ([]*streams.Message, error) {
+		return []*streams.Message{
+			streams.NewMessage(1, 1),
+			streams.NewMessage(2, 2),
+		}, nil
+	}
+	ctx := mocks.NewPipe(t)
+	ctx.ExpectForward(1, 1)
+	ctx.ShouldError()
+	p := streams.NewFlatMapProcessor(mapper)
+	p.WithPipe(ctx)
+
+	err := p.Process(streams.NewMessage("test", "test"))
+
+	assert.Error(t, err)
+	ctx.AssertExpectations()
+}
+
+func TestFlatMapProcessor_Close(t *testing.T) {
+	p := streams.NewFlatMapProcessor(nil)
+
+	err := p.Close()
+
+	assert.NoError(t, err)
+}
+
+func TestPassThroughProcessor_Process(t *testing.T) {
+	ctx := mocks.NewPipe(t)
+	ctx.ExpectForward("test", "test")
+	p := streams.NewPassThroughProcessor()
+	p.WithPipe(ctx)
+
+	p.Process(streams.NewMessage("test", "test"))
+
+	ctx.AssertExpectations()
+}
+
+func TestPassThroughProcessor_Close(t *testing.T) {
+	p := streams.NewPassThroughProcessor()
 
 	err := p.Close()
 
