@@ -177,8 +177,6 @@ func TestSink_ProcessWithCommitFuncError(t *testing.T) {
 }
 
 func TestSink_ProcessWithCommit(t *testing.T) {
-	insertCalled := false
-
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
 	defer db.Close()
@@ -190,7 +188,6 @@ func TestSink_ProcessWithCommit(t *testing.T) {
 	pipe.ExpectCommit()
 
 	s := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		insertCalled = true
 		return nil
 	}, 2)
 	s.WithPipe(pipe)
@@ -206,8 +203,6 @@ func TestSink_ProcessWithCommit(t *testing.T) {
 }
 
 func TestSink_ProcessWithCommitError(t *testing.T) {
-	insertCalled := false
-
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
 	defer db.Close()
@@ -217,7 +212,6 @@ func TestSink_ProcessWithCommitError(t *testing.T) {
 
 	pipe := mocks.NewPipe(t)
 	s := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		insertCalled = true
 		return nil
 	}, 1)
 	s.WithPipe(pipe)
