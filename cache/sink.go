@@ -18,11 +18,11 @@ type Sink struct {
 }
 
 // NewSink creates a new cache insert sink.
-func NewSink(cache cache.Cache, expire time.Duration) *Sink {
+func NewSink(cache cache.Cache, expire time.Duration, batch int) *Sink {
 	return &Sink{
 		cache:  cache,
 		expire: expire,
-		batch:  1000,
+		batch:  batch,
 	}
 }
 
@@ -35,7 +35,9 @@ func (p *Sink) WithPipe(pipe streams.Pipe) {
 func (p *Sink) Process(msg *streams.Message) error {
 	str := msg.Key.(string)
 
-	p.cache.Set(str, msg.Value, p.expire)
+	if err := p.cache.Set(str, msg.Value, p.expire); err != nil {
+		return err
+	}
 
 	p.count++
 	if p.count >= p.batch {
