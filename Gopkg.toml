@@ -1,6 +1,6 @@
 [[constraint]]
   name = "github.com/msales/pkg"
-  version = "1.*"
+  version = "2.*"
 
 [[constraint]]
   name = "gopkg.in/inconshreveable/log15.v2"

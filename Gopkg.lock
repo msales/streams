@@ -95,8 +95,8 @@
     "log",
     "stats"
   ]
-  revision = "d56ddd256cd8243f55a13209b7dc9951d3fff5a0"
-  version = "v1.8.0"
+  revision = "17f08a8e63b432dc9a202d4fdf7479e7a6b7e31c"
+  version = "v2.0.0"
 
 [[projects]]
   name = "github.com/pierrec/lz4"
@@ -161,6 +161,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "84499c6d060f746d62105e48b9f423a328a80f3efaaa46b0b213803957212e08"
+  inputs-digest = "a6dfa9e8160703799b9b27efae90f28e240c3145fd7b889b04d2e95f54204dc1"
   solver-name = "gps-cdcl"
   solver-version = 1

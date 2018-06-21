@@ -45,7 +45,7 @@ func (n *SourceNode) Children() []Node {
 }
 
 func (n *SourceNode) Process(msg *Message) error {
-	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, map[string]string{"name": n.name})
+	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", n.name)
 
 	return n.pipe.Forward(msg)
 }
@@ -89,13 +89,13 @@ func (n *ProcessorNode) Children() []Node {
 func (n *ProcessorNode) Process(msg *Message) error {
 	start := time.Now()
 
-	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, map[string]string{"name": n.name})
+	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", n.name)
 
 	if err := n.processor.Process(msg); err != nil {
 		return err
 	}
 
-	stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, map[string]string{"name": n.name})
+	stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", n.name)
 
 	return nil
 }
