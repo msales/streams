@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -68,7 +69,9 @@ type Source struct {
 	keyDecoder   Decoder
 	valueDecoder Decoder
 
-	state   map[string]map[int32]int64
+	state     map[string]map[int32]int64
+	stateLock sync.Mutex
+
 	buf     chan *sarama.ConsumerMessage
 	lastErr error
 }
@@ -132,11 +135,15 @@ func (s *Source) Consume() (*streams.Message, error) {
 
 // Commit marks the consumed records as processed.
 func (s *Source) Commit() error {
+	s.stateLock.Lock()
+
 	for topic, partitions := range s.state {
 		for partition, offset := range partitions {
 			s.consumer.MarkPartitionOffset(topic, partition, offset, "")
 		}
 	}
+
+	s.stateLock.Unlock()
 
 	if err := s.consumer.CommitOffsets(); err != nil {
 		return errors.Wrap(err, "streams: could not commit kafka offset")
@@ -151,6 +158,8 @@ func (s *Source) Close() error {
 }
 
 func (s *Source) markState(msg *sarama.ConsumerMessage) {
+	s.stateLock.Lock()
+
 	partitions, ok := s.state[msg.Topic]
 	if !ok {
 		partitions = make(map[int32]int64)
@@ -158,6 +167,8 @@ func (s *Source) markState(msg *sarama.ConsumerMessage) {
 	}
 
 	partitions[msg.Partition] = msg.Offset
+
+	s.stateLock.Unlock()
 }
 
 func (s *Source) readErrors() {
