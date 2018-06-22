@@ -145,7 +145,7 @@ func (s streamSource) Consume() (*Message, error) {
 	return nil, nil
 }
 
-func (s streamSource) Commit() error {
+func (s streamSource) Commit(v interface{}) error {
 	return nil
 }
 

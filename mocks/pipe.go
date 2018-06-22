@@ -13,8 +13,12 @@ type record struct {
 	index int
 }
 
+type ForwardFunc func(message *streams.Message)
+
 type Pipe struct {
 	t *testing.T
+
+	fn ForwardFunc
 
 	shouldError bool
 
@@ -30,6 +34,12 @@ func NewPipe(t *testing.T) *Pipe {
 }
 
 func (p *Pipe) Forward(msg *streams.Message) error {
+	if p.fn != nil {
+		p.fn(msg)
+
+		return nil
+	}
+
 	if len(p.expectForward) == 0 {
 		p.t.Error("streams: mock: Unexpected call to Forward")
 		return nil
@@ -50,6 +60,12 @@ func (p *Pipe) Forward(msg *streams.Message) error {
 }
 
 func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
+	if p.fn != nil {
+		p.fn(msg)
+
+		return nil
+	}
+
 	if len(p.expectForward) == 0 {
 		p.t.Error("streams: mock: Unexpected call to ForwardToChild")
 		return nil
@@ -69,7 +85,7 @@ func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
 	return nil
 }
 
-func (p *Pipe) Commit() error {
+func (p *Pipe) Commit(msg *streams.Message) error {
 	if !p.expectCommit {
 		p.t.Error("streams: mock: Unexpected call to Commit")
 	}
@@ -85,6 +101,10 @@ func (p *Pipe) Commit() error {
 
 func (p *Pipe) ShouldError() {
 	p.shouldError = true
+}
+
+func (p *Pipe) OnForward(fn ForwardFunc) {
+	p.fn = fn
 }
 
 func (p *Pipe) ExpectForward(k, v interface{}) {

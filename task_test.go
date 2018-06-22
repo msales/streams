@@ -100,34 +100,6 @@ func TestStreamTask_HandleProcessorError(t *testing.T) {
 	assert.True(t, gotError)
 }
 
-func TestStreamTask_HandleCommit(t *testing.T) {
-	s := new(MockSource)
-	s.On("Commit").Return(nil)
-
-	b := streams.NewStreamBuilder()
-	b.Source("src", s)
-
-	task := streams.NewTask(b.Build())
-
-	task.Commit()
-
-	s.AssertExpectations(t)
-}
-
-func TestStreamTask_HandleCommitWithError(t *testing.T) {
-	s := new(MockSource)
-	s.On("Commit").Return(errors.New("test error"))
-
-	b := streams.NewStreamBuilder()
-	b.Source("src", s)
-
-	task := streams.NewTask(b.Build())
-
-	err := task.Commit()
-
-	assert.Error(t, err)
-}
-
 func TestStreamTask_HandleCloseWithProcessorError(t *testing.T) {
 	s := new(MockSource)
 	s.On("Consume").Return(streams.NewMessage(nil, nil), nil)
@@ -184,7 +156,7 @@ func (s *chanSource) Consume() (*streams.Message, error) {
 	}
 }
 
-func (s *chanSource) Commit() error {
+func (s *chanSource) Commit(v interface{}) error {
 	return nil
 }
 

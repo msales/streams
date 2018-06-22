@@ -42,3 +42,12 @@ func TestNewMessageWithContext(t *testing.T) {
 	assert.Equal(t, "test", msg.Key)
 	assert.Equal(t, "test", msg.Value)
 }
+
+func TestMessage_Metadata(t *testing.T) {
+	msg := NewMessage("test", "test")
+
+	msg.WithMetadata(nil, "test")
+
+	assert.Len(t, msg.Metadata(), 1)
+	assert.Equal(t, "test", msg.Metadata()[nil])
+}
