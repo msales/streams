@@ -44,7 +44,7 @@ func (s *RandomIntSource) Consume() (*streams.Message, error) {
 	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
-func (s *RandomIntSource) Commit() error {
+func (s *RandomIntSource) Commit(v interface{}) error {
 	return nil
 }
 

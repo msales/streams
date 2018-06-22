@@ -64,7 +64,7 @@ func (p *ProcessorPipe) ForwardToChild(msg *Message, index int) error {
 
 // Commit commits the current state in the sources.
 func (p *ProcessorPipe) Commit(msg *Message) error {
-	for s, v := range msg.metadata {
+	for s, v := range msg.Metadata() {
 		if err := s.Commit(v); err != nil {
 			return err
 		}

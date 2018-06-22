@@ -49,7 +49,7 @@ func (s *RandIntSource) Consume() (*streams.Message, error) {
 	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
-func (s *RandIntSource) Commit() error {
+func (s *RandIntSource) Commit(v interface{}) error {
 	return nil
 }
 

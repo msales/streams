@@ -178,12 +178,16 @@ func (p *MapProcessor) Close() error {
 // MergeProcessor is a processor that passes the message on,
 // keeping track of seen metadata.
 type MergeProcessor struct {
+	metadata map[Source]interface{}
+
 	pipe Pipe
 }
 
 // NewMergeProcessor creates a new MergeProcessor instance.
 func NewMergeProcessor() Processor {
-	return &MergeProcessor{}
+	return &MergeProcessor{
+		metadata: map[Source]interface{}{},
+	}
 }
 
 // WithPipe sets the pipe on the Processor.
@@ -193,7 +197,15 @@ func (p *MergeProcessor) WithPipe(pipe Pipe) {
 
 // Process processes the stream Message.
 func (p *MergeProcessor) Process(msg *Message) error {
-	//TODO: Merge metadata
+	// Update the internal metadata state
+	for s, v := range msg.Metadata() {
+		p.metadata[s] = v
+	}
+
+	// Attach metadata to the message
+	for s, v := range p.metadata {
+		msg.WithMetadata(s, v)
+	}
 
 	return p.pipe.Forward(msg)
 }
