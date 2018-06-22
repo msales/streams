@@ -196,10 +196,10 @@ func TestFlatMapProcessor_Close(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPassThroughProcessor_Process(t *testing.T) {
+func TestMergeProcessor_Process(t *testing.T) {
 	ctx := mocks.NewPipe(t)
 	ctx.ExpectForward("test", "test")
-	p := streams.NewPassThroughProcessor()
+	p := streams.NewMergeProcessor()
 	p.WithPipe(ctx)
 
 	p.Process(streams.NewMessage("test", "test"))
@@ -207,8 +207,8 @@ func TestPassThroughProcessor_Process(t *testing.T) {
 	ctx.AssertExpectations()
 }
 
-func TestPassThroughProcessor_Close(t *testing.T) {
-	p := streams.NewPassThroughProcessor()
+func TestMergeProcessor_Close(t *testing.T) {
+	p := streams.NewMergeProcessor()
 
 	err := p.Close()
 

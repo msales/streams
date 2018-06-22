@@ -64,8 +64,8 @@ func (s *MockSource) Consume() (*streams.Message, error) {
 	return args.Get(0).(*streams.Message), args.Error(1)
 }
 
-func (s *MockSource) Commit() error {
-	args := s.Called()
+func (s *MockSource) Commit(v interface{}) error {
+	args := s.Called(v)
 	return args.Error(0)
 }
 

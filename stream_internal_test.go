@@ -111,7 +111,7 @@ func TestStream_Merge(t *testing.T) {
 	assert.Len(t, stream.parents, 1)
 	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
 	assert.Equal(t, stream.parents[0].(*ProcessorNode).name, "test")
-	assert.IsType(t, &PassThroughProcessor{}, stream.parents[0].(*ProcessorNode).processor)
+	assert.IsType(t, &MergeProcessor{}, stream.parents[0].(*ProcessorNode).processor)
 }
 
 func TestStream_Print(t *testing.T) {

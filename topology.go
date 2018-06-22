@@ -56,7 +56,6 @@ func (n *SourceNode) Close() error {
 
 type ProcessorNode struct {
 	name      string
-	pipe      Pipe
 	processor Processor
 
 	children []Node
@@ -74,7 +73,6 @@ func (n *ProcessorNode) Name() string {
 }
 
 func (n *ProcessorNode) WithPipe(pipe Pipe) {
-	n.pipe = pipe
 	n.processor.WithPipe(pipe)
 }
 

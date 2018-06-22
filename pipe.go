@@ -8,21 +8,17 @@ import (
 type Pipe interface {
 	Forward(*Message) error
 	ForwardToChild(*Message, int) error
-	Commit() error
+	Commit(*Message) error
 }
 
 // ProcessorPipe represents the pipe for processors.
 type ProcessorPipe struct {
-	task Task
-
 	currentNode Node
 }
 
 // NewProcessorPipe create a new ProcessorPipe instance.
-func NewProcessorPipe(t Task) *ProcessorPipe {
-	return &ProcessorPipe{
-		task: t,
-	}
+func NewProcessorPipe() *ProcessorPipe {
+	return &ProcessorPipe{}
 }
 
 // SetNode sets the topology node that is being processed.
@@ -67,6 +63,12 @@ func (p *ProcessorPipe) ForwardToChild(msg *Message, index int) error {
 }
 
 // Commit commits the current state in the sources.
-func (p *ProcessorPipe) Commit() error {
-	return p.task.Commit()
+func (p *ProcessorPipe) Commit(msg *Message) error {
+	for s, v := range msg.metadata {
+		if err := s.Commit(v); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

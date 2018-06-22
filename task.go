@@ -13,7 +13,6 @@ type ErrorFunc func(error)
 
 type Task interface {
 	Start()
-	Commit() error
 	OnError(fn ErrorFunc)
 	Close() error
 }
@@ -44,7 +43,7 @@ func (t *streamTask) run() {
 	t.stream = make(chan nodeMessage, 1000)
 	t.running = true
 
-	ctx := NewProcessorPipe(t)
+	ctx := NewProcessorPipe()
 	t.setupTopology(ctx)
 
 	t.consumeSources()
@@ -115,16 +114,6 @@ func (t *streamTask) consumeSources() {
 
 func (t *streamTask) Start() {
 	go t.run()
-}
-
-func (t *streamTask) Commit() error {
-	for source := range t.topology.Sources() {
-		if err := source.Commit(); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (t *streamTask) OnError(fn ErrorFunc) {
