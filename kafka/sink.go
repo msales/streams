@@ -119,7 +119,7 @@ func (p *Sink) Process(msg *streams.Message) error {
 		p.count = 0
 		p.buf = make([]*sarama.ProducerMessage, 0, p.batch)
 
-		return p.pipe.Commit()
+		return p.pipe.Commit(msg)
 	}
 
 	return nil

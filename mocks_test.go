@@ -64,34 +64,12 @@ func (s *MockSource) Consume() (*streams.Message, error) {
 	return args.Get(0).(*streams.Message), args.Error(1)
 }
 
-func (s *MockSource) Commit() error {
-	args := s.Called()
+func (s *MockSource) Commit(v interface{}) error {
+	args := s.Called(v)
 	return args.Error(0)
 }
 
 func (s *MockSource) Close() error {
 	args := s.Called()
-	return args.Error(0)
-}
-
-type MockTask struct {
-	mock.Mock
-}
-
-func (t *MockTask) Start() {
-	t.Called()
-}
-
-func (t *MockTask) Commit() error {
-	args := t.Called()
-	return args.Error(0)
-}
-
-func (t *MockTask) OnError(fn streams.ErrorFunc) {
-	t.Called(fn)
-}
-
-func (t *MockTask) Close() error {
-	args := t.Called()
 	return args.Error(0)
 }

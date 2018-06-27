@@ -36,8 +36,9 @@ type Sink struct {
 	insertFn InsertFunc
 	commitFn TxFunc
 
-	batch int
-	count int
+	batch   int
+	count   int
+	lastMsg *streams.Message
 }
 
 // NewSink creates a new batch sql insert sink.
@@ -71,10 +72,11 @@ func (p *Sink) Process(msg *streams.Message) error {
 		return err
 	}
 
+	p.lastMsg = msg
 	p.count++
 	if p.count >= p.batch {
 		p.count = 0
-		return p.commitTransaction()
+		return p.commitTransaction(msg)
 	}
 
 	return nil
@@ -99,7 +101,7 @@ func (p *Sink) ensureTransaction() error {
 	return nil
 }
 
-func (p *Sink) commitTransaction() error {
+func (p *Sink) commitTransaction(msg *streams.Message) error {
 	if p.tx == nil {
 		return nil
 	}
@@ -116,12 +118,12 @@ func (p *Sink) commitTransaction() error {
 	}
 	p.tx = nil
 
-	return p.pipe.Commit()
+	return p.pipe.Commit(msg)
 }
 
 // Close closes the processor.
 func (p *Sink) Close() error {
-	if err := p.commitTransaction(); err != nil {
+	if err := p.commitTransaction(p.lastMsg); err != nil {
 		return err
 	}
 

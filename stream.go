@@ -71,7 +71,7 @@ func (s *Stream) Merge(name string, streams ...*Stream) *Stream {
 		parents = append(parents, stream.parents...)
 	}
 
-	p := NewPassThroughProcessor()
+	p := NewMergeProcessor()
 
 	n := s.tp.AddProcessor(name, p, parents)
 

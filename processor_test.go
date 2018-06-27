@@ -16,24 +16,24 @@ func TestBranchProcessor_Process(t *testing.T) {
 	falsePred := func(msg *streams.Message) (bool, error) {
 		return false, nil
 	}
-	ctx := mocks.NewPipe(t)
-	ctx.ExpectForwardToChild("test", "test", 0)
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForwardToChild("test", "test", 0)
 	p := streams.NewBranchProcessor([]streams.Predicate{truePred, falsePred})
-	p.WithPipe(ctx)
+	p.WithPipe(pipe)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
 	assert.NoError(t, err)
-	ctx.AssertExpectations()
+	pipe.AssertExpectations()
 }
 
 func TestBranchProcessor_ProcessWithError(t *testing.T) {
 	errPred := func(msg *streams.Message) (bool, error) {
 		return true, errors.New("test")
 	}
-	ctx := mocks.NewPipe(t)
+	pipe := mocks.NewPipe(t)
 	p := streams.NewBranchProcessor([]streams.Predicate{errPred})
-	p.WithPipe(ctx)
+	p.WithPipe(pipe)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
@@ -44,11 +44,11 @@ func TestBranchProcessor_ProcessWithForwardError(t *testing.T) {
 	pred := func(msg *streams.Message) (bool, error) {
 		return true, nil
 	}
-	ctx := mocks.NewPipe(t)
-	ctx.ExpectForwardToChild("test", "test", 0)
-	ctx.ShouldError()
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForwardToChild("test", "test", 0)
+	pipe.ShouldError()
 	p := streams.NewBranchProcessor([]streams.Predicate{pred})
-	p.WithPipe(ctx)
+	p.WithPipe(pipe)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
@@ -71,24 +71,24 @@ func TestFilterProcessor_Process(t *testing.T) {
 
 		return false, nil
 	}
-	ctx := mocks.NewPipe(t)
-	ctx.ExpectForward("test", "test")
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForward("test", "test")
 	p := streams.NewFilterProcessor(pred)
-	p.WithPipe(ctx)
+	p.WithPipe(pipe)
 
 	p.Process(streams.NewMessage(1, 1))
 	p.Process(streams.NewMessage("test", "test"))
 
-	ctx.AssertExpectations()
+	pipe.AssertExpectations()
 }
 
 func TestFilterProcessor_ProcessWithError(t *testing.T) {
 	errPred := func(msg *streams.Message) (bool, error) {
 		return true, errors.New("test")
 	}
-	ctx := mocks.NewPipe(t)
+	pipe := mocks.NewPipe(t)
 	p := streams.NewFilterProcessor(errPred)
-	p.WithPipe(ctx)
+	p.WithPipe(pipe)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
@@ -107,23 +107,23 @@ func TestMapProcessor_Process(t *testing.T) {
 	mapper := func(msg *streams.Message) (*streams.Message, error) {
 		return streams.NewMessage(1, 1), nil
 	}
-	ctx := mocks.NewPipe(t)
-	ctx.ExpectForward(1, 1)
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForward(1, 1)
 	p := streams.NewMapProcessor(mapper)
-	p.WithPipe(ctx)
+	p.WithPipe(pipe)
 
 	p.Process(streams.NewMessage("test", "test"))
 
-	ctx.AssertExpectations()
+	pipe.AssertExpectations()
 }
 
 func TestMapProcessor_ProcessWithError(t *testing.T) {
 	mapper := func(msg *streams.Message) (*streams.Message, error) {
 		return nil, errors.New("test")
 	}
-	ctx := mocks.NewPipe(t)
+	pipe := mocks.NewPipe(t)
 	p := streams.NewMapProcessor(mapper)
-	p.WithPipe(ctx)
+	p.WithPipe(pipe)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
@@ -145,24 +145,24 @@ func TestFlatMapProcessor_Process(t *testing.T) {
 			streams.NewMessage(2, 2),
 		}, nil
 	}
-	ctx := mocks.NewPipe(t)
-	ctx.ExpectForward(1, 1)
-	ctx.ExpectForward(2, 2)
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForward(1, 1)
+	pipe.ExpectForward(2, 2)
 	p := streams.NewFlatMapProcessor(mapper)
-	p.WithPipe(ctx)
+	p.WithPipe(pipe)
 
 	p.Process(streams.NewMessage("test", "test"))
 
-	ctx.AssertExpectations()
+	pipe.AssertExpectations()
 }
 
 func TestFlatMapProcessor_ProcessWithError(t *testing.T) {
 	mapper := func(msg *streams.Message) ([]*streams.Message, error) {
 		return nil, errors.New("test")
 	}
-	ctx := mocks.NewPipe(t)
+	pipe := mocks.NewPipe(t)
 	p := streams.NewFlatMapProcessor(mapper)
-	p.WithPipe(ctx)
+	p.WithPipe(pipe)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
@@ -176,16 +176,16 @@ func TestFlatMapProcessor_ProcessWithForawrdError(t *testing.T) {
 			streams.NewMessage(2, 2),
 		}, nil
 	}
-	ctx := mocks.NewPipe(t)
-	ctx.ExpectForward(1, 1)
-	ctx.ShouldError()
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForward(1, 1)
+	pipe.ShouldError()
 	p := streams.NewFlatMapProcessor(mapper)
-	p.WithPipe(ctx)
+	p.WithPipe(pipe)
 
 	err := p.Process(streams.NewMessage("test", "test"))
 
 	assert.Error(t, err)
-	ctx.AssertExpectations()
+	pipe.AssertExpectations()
 }
 
 func TestFlatMapProcessor_Close(t *testing.T) {
@@ -196,19 +196,41 @@ func TestFlatMapProcessor_Close(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPassThroughProcessor_Process(t *testing.T) {
-	ctx := mocks.NewPipe(t)
-	ctx.ExpectForward("test", "test")
-	p := streams.NewPassThroughProcessor()
-	p.WithPipe(ctx)
+func TestMergeProcessor_Process(t *testing.T) {
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForward("test", "test")
+	p := streams.NewMergeProcessor()
+	p.WithPipe(pipe)
 
 	p.Process(streams.NewMessage("test", "test"))
 
-	ctx.AssertExpectations()
+	pipe.AssertExpectations()
 }
 
-func TestPassThroughProcessor_Close(t *testing.T) {
-	p := streams.NewPassThroughProcessor()
+func TestMergeProcessor_ProcessMergesMetadata(t *testing.T) {
+	src1 := new(MockSource)
+	src2 := new(MockSource)
+	pipe := mocks.NewPipe(t)
+	pipe.OnForward(func (msg *streams.Message) {
+		if msg.Key == nil {
+			return
+		}
+
+		assert.Len(t, msg.Metadata(), 2)
+		assert.Equal(t, "test1", msg.Metadata()[src1])
+		assert.Equal(t, "test2", msg.Metadata()[src2])
+	})
+	p := streams.NewMergeProcessor()
+	p.WithPipe(pipe)
+
+	p.Process(streams.NewMessage(nil, "test").WithMetadata(src1, "test1"))
+	p.Process(streams.NewMessage("test", "test").WithMetadata(src2, "test2"))
+
+	pipe.AssertExpectations()
+}
+
+func TestMergeProcessor_Close(t *testing.T) {
+	p := streams.NewMergeProcessor()
 
 	err := p.Close()
 
@@ -216,14 +238,14 @@ func TestPassThroughProcessor_Close(t *testing.T) {
 }
 
 func TestPrintProcessor_Process(t *testing.T) {
-	ctx := mocks.NewPipe(t)
-	ctx.ExpectForward("test", "test")
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForward("test", "test")
 	p := streams.NewPrintProcessor()
-	p.WithPipe(ctx)
+	p.WithPipe(pipe)
 
 	p.Process(streams.NewMessage("test", "test"))
 
-	ctx.AssertExpectations()
+	pipe.AssertExpectations()
 }
 
 func TestPrintProcessor_Close(t *testing.T) {

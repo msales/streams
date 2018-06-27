@@ -14,8 +14,7 @@ func TestProcessorPipe_Forward(t *testing.T) {
 	child.On("Process", msg).Return(nil)
 	parent := new(MockNode)
 	parent.On("Children").Return([]streams.Node{child})
-	task := new(MockTask)
-	ctx := streams.NewProcessorPipe(task)
+	ctx := streams.NewProcessorPipe()
 	ctx.SetNode(parent)
 
 	ctx.Forward(msg)
@@ -29,8 +28,7 @@ func TestProcessorPipe_ForwardReturnsChildError(t *testing.T) {
 	child.On("Process", msg).Return(errors.New("test"))
 	parent := new(MockNode)
 	parent.On("Children").Return([]streams.Node{child})
-	task := new(MockTask)
-	ctx := streams.NewProcessorPipe(task)
+	ctx := streams.NewProcessorPipe()
 	ctx.SetNode(parent)
 
 	err := ctx.Forward(msg)
@@ -45,8 +43,7 @@ func TestProcessorPipe_ForwardToChild(t *testing.T) {
 	child.On("Process", msg).Return(nil)
 	parent := new(MockNode)
 	parent.On("Children").Return([]streams.Node{nil, child})
-	task := new(MockTask)
-	ctx := streams.NewProcessorPipe(task)
+	ctx := streams.NewProcessorPipe()
 	ctx.SetNode(parent)
 
 	ctx.ForwardToChild(msg, 1)
@@ -58,8 +55,7 @@ func TestProcessorPipe_ForwardToChildIndexError(t *testing.T) {
 	msg := streams.NewMessage("test", "test")
 	parent := new(MockNode)
 	parent.On("Children").Return([]streams.Node{})
-	task := new(MockTask)
-	ctx := streams.NewProcessorPipe(task)
+	ctx := streams.NewProcessorPipe()
 	ctx.SetNode(parent)
 
 	err := ctx.ForwardToChild(msg, 1)
@@ -73,8 +69,7 @@ func TestProcessorPipe_ForwardToChildReturnsChildError(t *testing.T) {
 	child.On("Process", msg).Return(errors.New("test"))
 	parent := new(MockNode)
 	parent.On("Children").Return([]streams.Node{nil, child})
-	task := new(MockTask)
-	ctx := streams.NewProcessorPipe(task)
+	ctx := streams.NewProcessorPipe()
 	ctx.SetNode(parent)
 
 	err := ctx.ForwardToChild(msg, 1)
@@ -84,23 +79,25 @@ func TestProcessorPipe_ForwardToChildReturnsChildError(t *testing.T) {
 }
 
 func TestProcessorPipe_Commit(t *testing.T) {
-	task := new(MockTask)
-	task.On("Commit").Return(nil)
-	ctx := streams.NewProcessorPipe(task)
+	src := new(MockSource)
+	src.On("Commit", interface{}("test")).Return(nil)
+	msg := streams.NewMessage(nil, nil).WithMetadata(src, "test")
+	ctx := streams.NewProcessorPipe()
 
-	err := ctx.Commit()
+	err := ctx.Commit(msg)
 
 	assert.NoError(t, err)
-	task.AssertExpectations(t)
+	src.AssertExpectations(t)
 }
 
 func TestProcessorPipe_CommitWithError(t *testing.T) {
-	task := new(MockTask)
-	task.On("Commit").Return(errors.New("test"))
-	ctx := streams.NewProcessorPipe(task)
+	src := new(MockSource)
+	src.On("Commit", interface{}("test")).Return(errors.New("test"))
+	msg := streams.NewMessage(nil, nil).WithMetadata(src, "test")
+	ctx := streams.NewProcessorPipe()
 
-	err := ctx.Commit()
+	err := ctx.Commit(msg)
 
 	assert.Error(t, err)
-	task.AssertExpectations(t)
+	src.AssertExpectations(t)
 }

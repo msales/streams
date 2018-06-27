@@ -175,28 +175,43 @@ func (p *MapProcessor) Close() error {
 	return nil
 }
 
-// PassThroughProcessor is a processor that passes the message on.
-type PassThroughProcessor struct {
+// MergeProcessor is a processor that passes the message on,
+// keeping track of seen metadata.
+type MergeProcessor struct {
+	metadata map[Source]interface{}
+
 	pipe Pipe
 }
 
-// NewPassThroughProcessor creates a new PassThroughProcessor instance.
-func NewPassThroughProcessor() Processor {
-	return &PassThroughProcessor{}
+// NewMergeProcessor creates a new MergeProcessor instance.
+func NewMergeProcessor() Processor {
+	return &MergeProcessor{
+		metadata: map[Source]interface{}{},
+	}
 }
 
 // WithPipe sets the pipe on the Processor.
-func (p *PassThroughProcessor) WithPipe(pipe Pipe) {
+func (p *MergeProcessor) WithPipe(pipe Pipe) {
 	p.pipe = pipe
 }
 
 // Process processes the stream Message.
-func (p *PassThroughProcessor) Process(msg *Message) error {
+func (p *MergeProcessor) Process(msg *Message) error {
+	// Update the internal metadata state
+	for s, v := range msg.Metadata() {
+		p.metadata[s] = v
+	}
+
+	// Attach metadata to the message
+	for s, v := range p.metadata {
+		msg.WithMetadata(s, v)
+	}
+
 	return p.pipe.Forward(msg)
 }
 
 // Close closes the processor.
-func (p *PassThroughProcessor) Close() error {
+func (p *MergeProcessor) Close() error {
 	return nil
 }
 

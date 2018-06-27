@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -70,8 +69,6 @@ type Source struct {
 	valueDecoder Decoder
 
 	state     map[string]map[int32]int64
-	stateLock sync.Mutex
-
 	buf     chan *sarama.ConsumerMessage
 	lastErr error
 }
@@ -124,9 +121,9 @@ func (s *Source) Consume() (*streams.Message, error) {
 			return nil, err
 		}
 
-		s.markState(msg)
-
-		return streams.NewMessageWithContext(s.ctx, k, v), nil
+		m := streams.NewMessageWithContext(s.ctx, k, v).
+			WithMetadata(s, s.markState(msg))
+		return m, nil
 
 	case <-time.After(100 * time.Millisecond):
 		return streams.NewMessage(nil, nil), nil
@@ -134,16 +131,13 @@ func (s *Source) Consume() (*streams.Message, error) {
 }
 
 // Commit marks the consumed records as processed.
-func (s *Source) Commit() error {
-	s.stateLock.Lock()
-
-	for topic, partitions := range s.state {
+func (s *Source) Commit(v interface{}) error {
+	state := v.(map[string]map[int32]int64)
+	for topic, partitions := range state {
 		for partition, offset := range partitions {
 			s.consumer.MarkPartitionOffset(topic, partition, offset, "")
 		}
 	}
-
-	s.stateLock.Unlock()
 
 	if err := s.consumer.CommitOffsets(); err != nil {
 		return errors.Wrap(err, "streams: could not commit kafka offset")
@@ -157,9 +151,7 @@ func (s *Source) Close() error {
 	return s.consumer.Close()
 }
 
-func (s *Source) markState(msg *sarama.ConsumerMessage) {
-	s.stateLock.Lock()
-
+func (s *Source) markState(msg *sarama.ConsumerMessage) map[string]map[int32]int64 {
 	partitions, ok := s.state[msg.Topic]
 	if !ok {
 		partitions = make(map[int32]int64)
@@ -168,7 +160,7 @@ func (s *Source) markState(msg *sarama.ConsumerMessage) {
 
 	partitions[msg.Partition] = msg.Offset
 
-	s.stateLock.Unlock()
+	return s.state
 }
 
 func (s *Source) readErrors() {
