@@ -18,6 +18,8 @@ type Task interface {
 }
 
 type streamTask struct {
+	sync.RWMutex
+
 	topology *Topology
 
 	running  bool
@@ -36,12 +38,12 @@ func NewTask(topology *Topology) Task {
 
 func (t *streamTask) run() {
 	// If we are already running, exit
-	if t.running {
+	if t.isRunning() {
 		return
 	}
 
 	t.stream = make(chan nodeMessage, 1000)
-	t.running = true
+	t.setRunning(true)
 
 	ctx := NewProcessorPipe()
 	t.setupTopology(ctx)
@@ -82,7 +84,7 @@ func (t *streamTask) closeTopology() error {
 }
 
 func (t *streamTask) handleError(err error) {
-	t.running = false
+	t.setRunning(false)
 
 	t.errorFn(err)
 }
@@ -93,7 +95,7 @@ func (t *streamTask) consumeSources() {
 			t.sourceWg.Add(1)
 			defer t.sourceWg.Done()
 
-			for t.running {
+			for t.isRunning() {
 				msg, err := source.Consume()
 				if err != nil {
 					t.handleError(err)
@@ -112,6 +114,20 @@ func (t *streamTask) consumeSources() {
 	}
 }
 
+func (t *streamTask) isRunning() bool {
+	t.RLock()
+	running := t.running
+	t.RUnlock()
+
+	return running
+}
+
+func (t *streamTask) setRunning(running bool) {
+	t.Lock()
+	t.running = running
+	t.Unlock()
+}
+
 func (t *streamTask) Start() {
 	go t.run()
 }
@@ -121,7 +137,7 @@ func (t *streamTask) OnError(fn ErrorFunc) {
 }
 
 func (t *streamTask) Close() error {
-	t.running = false
+	t.setRunning(false)
 	t.sourceWg.Wait()
 
 	close(t.stream)
