@@ -15,6 +15,10 @@
   version = "2.*"
 
 [[constraint]]
+  branch = "master"
+  name = "github.com/tevino/abool"
+
+[[constraint]]
   name = "github.com/stretchr/testify"
   version = "1.*"
 

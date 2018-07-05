@@ -2,6 +2,8 @@ package streams
 
 import (
 	"sync"
+
+	"github.com/tevino/abool"
 )
 
 type nodeMessage struct {
@@ -18,11 +20,9 @@ type Task interface {
 }
 
 type streamTask struct {
-	sync.RWMutex
-
 	topology *Topology
 
-	running  bool
+	running  *abool.AtomicBool
 	errorFn  ErrorFunc
 	stream   chan nodeMessage
 	runWg    sync.WaitGroup
@@ -32,26 +32,21 @@ type streamTask struct {
 func NewTask(topology *Topology) Task {
 	return &streamTask{
 		topology: topology,
-		running:  false,
+		running:  abool.New(),
 	}
 }
 
 func (t *streamTask) run() {
-	// If we are already running, exit
-	if t.isRunning() {
-		return
-	}
+	t.runWg.Add(1)
+	defer t.runWg.Done()
 
 	t.stream = make(chan nodeMessage, 1000)
-	t.setRunning(true)
+	t.running.Set()
 
 	ctx := NewProcessorPipe()
 	t.setupTopology(ctx)
 
 	t.consumeSources()
-
-	t.runWg.Add(1)
-	defer t.runWg.Done()
 
 	for r := range t.stream {
 		ctx.SetNode(r.node)
@@ -84,7 +79,7 @@ func (t *streamTask) closeTopology() error {
 }
 
 func (t *streamTask) handleError(err error) {
-	t.setRunning(false)
+	t.running.UnSet()
 
 	t.errorFn(err)
 }
@@ -95,7 +90,7 @@ func (t *streamTask) consumeSources() {
 			t.sourceWg.Add(1)
 			defer t.sourceWg.Done()
 
-			for t.isRunning() {
+			for t.running.IsSet() {
 				msg, err := source.Consume()
 				if err != nil {
 					t.handleError(err)
@@ -114,21 +109,12 @@ func (t *streamTask) consumeSources() {
 	}
 }
 
-func (t *streamTask) isRunning() bool {
-	t.RLock()
-	running := t.running
-	t.RUnlock()
-
-	return running
-}
-
-func (t *streamTask) setRunning(running bool) {
-	t.Lock()
-	t.running = running
-	t.Unlock()
-}
-
 func (t *streamTask) Start() {
+	// If we are already running, exit
+	if t.running.IsSet() {
+		return
+	}
+
 	go t.run()
 }
 
@@ -137,7 +123,7 @@ func (t *streamTask) OnError(fn ErrorFunc) {
 }
 
 func (t *streamTask) Close() error {
-	t.setRunning(false)
+	t.running.UnSet()
 	t.sourceWg.Wait()
 
 	close(t.stream)
