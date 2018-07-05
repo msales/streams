@@ -142,6 +142,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/tevino/abool"
+  packages = ["."]
+  revision = "9b9efcf221b50905aab9bbabd3daed56dc10f339"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
   revision = "fc8bd948cf46f9c7af0f07d34151ce25fe90e477"
@@ -161,6 +167,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a6dfa9e8160703799b9b27efae90f28e240c3145fd7b889b04d2e95f54204dc1"
+  inputs-digest = "1db35b4cd812295cd019cdba2884b74ff048756df9005a6c0c222a0150d5fa51"
   solver-name = "gps-cdcl"
   solver-version = 1
