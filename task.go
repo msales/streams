@@ -2,19 +2,16 @@ package streams
 
 import (
 	"sync"
+	"time"
 
+	"github.com/pkg/errors"
 	"github.com/tevino/abool"
 )
-
-type nodeMessage struct {
-	msg  *Message
-	node Node
-}
 
 type ErrorFunc func(error)
 
 type Task interface {
-	Start()
+	Start() error
 	OnError(fn ErrorFunc)
 	Close() error
 }
@@ -22,11 +19,9 @@ type Task interface {
 type streamTask struct {
 	topology *Topology
 
-	running  *abool.AtomicBool
-	errorFn  ErrorFunc
-	stream   chan nodeMessage
-	runWg    sync.WaitGroup
-	sourceWg sync.WaitGroup
+	running *abool.AtomicBool
+	errorFn ErrorFunc
+	procWg  sync.WaitGroup
 }
 
 func NewTask(topology *Topology) Task {
@@ -36,30 +31,78 @@ func NewTask(topology *Topology) Task {
 	}
 }
 
-func (t *streamTask) run() {
-	t.runWg.Add(1)
-	defer t.runWg.Done()
+func (t *streamTask) Start() error {
+	// If we are already running, exit
+	if !t.running.SetToIf(false, true) {
+		return errors.New("streams: task already started")
+	}
 
-	t.stream = make(chan nodeMessage, 1000)
-	t.running.Set()
+	t.setupTopology()
 
-	ctx := NewProcessorPipe()
-	t.setupTopology(ctx)
+	return nil
+}
 
-	t.consumeSources()
+func (t *streamTask) setupTopology() {
+	for _, n := range t.topology.Processors() {
+		pipe := NewProcessorPipe(n)
+		n.WithPipe(pipe)
 
-	for r := range t.stream {
-		ctx.SetNode(r.node)
-		if err := r.node.Process(r.msg); err != nil {
-			t.handleError(err)
-		}
+		t.runProcessor(n)
+	}
+
+	for s, n := range t.topology.Sources() {
+		pipe := NewProcessorPipe(n)
+		n.WithPipe(pipe)
+
+		t.runSource(s, n)
 	}
 }
 
-func (t *streamTask) setupTopology(ctx Pipe) {
-	for _, n := range t.topology.Processors() {
-		n.WithPipe(ctx)
-	}
+func (t *streamTask) runProcessor(n Node) {
+	go func() {
+		t.procWg.Add(1)
+		defer t.procWg.Done()
+
+		for t.running.IsSet() {
+			select {
+			case msg := <-n.Input():
+				if err := n.Process(msg); err != nil {
+					t.handleError(err)
+				}
+
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}()
+}
+
+func (t *streamTask) runSource(s Source, n Node) {
+	go func() {
+		t.procWg.Add(1)
+		defer t.procWg.Done()
+
+		for t.running.IsSet() {
+			msg, err := s.Consume()
+			if err != nil {
+				t.handleError(err)
+			}
+
+			if msg.Empty() {
+				continue
+			}
+
+			if err := n.Process(msg); err != nil {
+				t.handleError(err)
+			}
+		}
+	}()
+}
+
+func (t *streamTask) Close() error {
+	t.running.UnSet()
+	t.procWg.Wait()
+
+	return t.closeTopology()
 }
 
 func (t *streamTask) closeTopology() error {
@@ -84,50 +127,6 @@ func (t *streamTask) handleError(err error) {
 	t.errorFn(err)
 }
 
-func (t *streamTask) consumeSources() {
-	for source, node := range t.topology.Sources() {
-		go func(source Source, node Node) {
-			t.sourceWg.Add(1)
-			defer t.sourceWg.Done()
-
-			for t.running.IsSet() {
-				msg, err := source.Consume()
-				if err != nil {
-					t.handleError(err)
-				}
-
-				if msg.Empty() {
-					continue
-				}
-
-				t.stream <- nodeMessage{
-					msg:  msg,
-					node: node,
-				}
-			}
-		}(source, node)
-	}
-}
-
-func (t *streamTask) Start() {
-	// If we are already running, exit
-	if t.running.IsSet() {
-		return
-	}
-
-	go t.run()
-}
-
 func (t *streamTask) OnError(fn ErrorFunc) {
 	t.errorFn = fn
-}
-
-func (t *streamTask) Close() error {
-	t.running.UnSet()
-	t.sourceWg.Wait()
-
-	close(t.stream)
-	t.runWg.Wait()
-
-	return t.closeTopology()
 }

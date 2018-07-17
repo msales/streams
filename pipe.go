@@ -13,32 +13,20 @@ type Pipe interface {
 
 // ProcessorPipe represents the pipe for processors.
 type ProcessorPipe struct {
-	currentNode Node
+	node Node
 }
 
 // NewProcessorPipe create a new ProcessorPipe instance.
-func NewProcessorPipe() *ProcessorPipe {
-	return &ProcessorPipe{}
-}
-
-// SetNode sets the topology node that is being processed.
-//
-// The is only needed by the task and should not be used
-// directly. Doing so can have some unexpected results.
-func (p *ProcessorPipe) SetNode(n Node) {
-	p.currentNode = n
+func NewProcessorPipe(node Node) *ProcessorPipe {
+	return &ProcessorPipe{
+		node: node,
+	}
 }
 
 // Forward passes the data to all processor children in the topology.
 func (p *ProcessorPipe) Forward(msg *Message) error {
-	previousNode := p.currentNode
-	defer func() { p.currentNode = previousNode }()
-
-	for _, child := range p.currentNode.Children() {
-		p.currentNode = child
-		if err := child.Process(msg); err != nil {
-			return err
-		}
+	for _, child := range p.node.Children() {
+		child.Input() <- msg
 	}
 
 	return nil
@@ -46,18 +34,12 @@ func (p *ProcessorPipe) Forward(msg *Message) error {
 
 // Forward passes the data to the the given processor(s) child in the topology.
 func (p *ProcessorPipe) ForwardToChild(msg *Message, index int) error {
-	previousNode := p.currentNode
-	defer func() { p.currentNode = previousNode }()
-
-	if index > len(p.currentNode.Children())-1 {
+	if index > len(p.node.Children())-1 {
 		return errors.New("streams: child index out of bounds")
 	}
 
-	child := p.currentNode.Children()[index]
-	p.currentNode = child
-	if err := child.Process(msg); err != nil {
-		return err
-	}
+	child := p.node.Children()[index]
+	child.Input() <- msg
 
 	return nil
 }

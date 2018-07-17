@@ -8,7 +8,9 @@ import (
 
 type Node interface {
 	Name() string
+	Input() chan *Message
 	WithPipe(Pipe)
+	Pipe() Pipe
 	AddChild(n Node)
 	Children() []Node
 	Process(*Message) error
@@ -32,8 +34,16 @@ func (n *SourceNode) Name() string {
 	return n.name
 }
 
+func (n *SourceNode) Input() chan *Message {
+	return nil
+}
+
 func (n *SourceNode) WithPipe(pipe Pipe) {
 	n.pipe = pipe
+}
+
+func (n *SourceNode) Pipe() Pipe {
+	return n.pipe
 }
 
 func (n *SourceNode) AddChild(node Node) {
@@ -56,6 +66,8 @@ func (n *SourceNode) Close() error {
 
 type ProcessorNode struct {
 	name      string
+	msgs      chan *Message
+	pipe      Pipe
 	processor Processor
 
 	children []Node
@@ -64,6 +76,7 @@ type ProcessorNode struct {
 func NewProcessorNode(name string, p Processor) *ProcessorNode {
 	return &ProcessorNode{
 		name:      name,
+		msgs:      make(chan *Message, 1000),
 		processor: p,
 	}
 }
@@ -72,8 +85,17 @@ func (n *ProcessorNode) Name() string {
 	return n.name
 }
 
+func (n *ProcessorNode) Input() chan *Message {
+	return n.msgs
+}
+
 func (n *ProcessorNode) WithPipe(pipe Pipe) {
+	n.pipe = pipe
 	n.processor.WithPipe(pipe)
+}
+
+func (n *ProcessorNode) Pipe() Pipe {
+	return n.pipe
 }
 
 func (n *ProcessorNode) AddChild(node Node) {
@@ -99,6 +121,8 @@ func (n *ProcessorNode) Process(msg *Message) error {
 }
 
 func (n *ProcessorNode) Close() error {
+	close(n.msgs)
+
 	return n.processor.Close()
 }
 
@@ -128,9 +152,7 @@ func NewTopologyBuilder() *TopologyBuilder {
 }
 
 func (tb *TopologyBuilder) AddSource(name string, source Source) Node {
-	n := &SourceNode{
-		name: name,
-	}
+	n := NewSourceNode(name)
 
 	tb.sources[source] = n
 	tb.processors = append(tb.processors, n)
@@ -139,12 +161,7 @@ func (tb *TopologyBuilder) AddSource(name string, source Source) Node {
 }
 
 func (tb *TopologyBuilder) AddProcessor(name string, processor Processor, parents []Node) Node {
-	n := &ProcessorNode{
-		name:      name,
-		processor: processor,
-		children:  []Node{},
-	}
-
+	n := NewProcessorNode(name, processor)
 	for _, parent := range parents {
 		parent.AddChild(n)
 	}
