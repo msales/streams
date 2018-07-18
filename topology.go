@@ -16,8 +16,9 @@ type Node interface {
 }
 
 type SourceNode struct {
-	name string
-	pipe Pipe
+	name      string
+	pipe      Pipe
+	throttler Throttler
 
 	children []Node
 }
@@ -45,8 +46,9 @@ func (n *SourceNode) Children() []Node {
 }
 
 func (n *SourceNode) Process(msg *Message) error {
-	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", n.name)
-
+	if should, rate := n.throttle(); !should {
+		stats.Inc(msg.Ctx, "node.throughput", 1, rate, "name", n.name)
+	}
 	return n.pipe.Forward(msg)
 }
 
@@ -54,9 +56,21 @@ func (n *SourceNode) Close() error {
 	return nil
 }
 
+func (n *SourceNode) throttle() (should bool, rate float32) {
+	rate = 1
+
+	if n.throttler != nil {
+		should = n.throttler.Throttle()
+		rate = n.throttler.Rate()
+	}
+
+	return
+}
+
 type ProcessorNode struct {
 	name      string
 	processor Processor
+	throttler Throttler
 
 	children []Node
 }
@@ -86,20 +100,36 @@ func (n *ProcessorNode) Children() []Node {
 
 func (n *ProcessorNode) Process(msg *Message) error {
 	start := time.Now()
+	should, rate := n.throttle()
 
-	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", n.name)
+	if !should {
+		stats.Inc(msg.Ctx, "node.throughput", 1, rate, "name", n.name)
+	}
 
 	if err := n.processor.Process(msg); err != nil {
 		return err
 	}
 
-	stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", n.name)
+	if !should {
+		stats.Timing(msg.Ctx, "node.latency", time.Since(start), rate, "name", n.name)
+	}
 
 	return nil
 }
 
 func (n *ProcessorNode) Close() error {
 	return n.processor.Close()
+}
+
+func (n *ProcessorNode) throttle() (should bool, rate float32) {
+	rate = 1
+
+	if n.throttler != nil {
+		should = n.throttler.Throttle()
+		rate = n.throttler.Rate()
+	}
+
+	return
 }
 
 type Topology struct {
@@ -118,6 +148,7 @@ func (t Topology) Processors() []Node {
 type TopologyBuilder struct {
 	sources    map[Source]Node
 	processors []Node
+	statsRate  float32
 }
 
 func NewTopologyBuilder() *TopologyBuilder {
@@ -127,9 +158,14 @@ func NewTopologyBuilder() *TopologyBuilder {
 	}
 }
 
+func (tb *TopologyBuilder) WithStatsThrottle(rate float32) {
+	tb.statsRate = rate
+}
+
 func (tb *TopologyBuilder) AddSource(name string, source Source) Node {
 	n := &SourceNode{
-		name: name,
+		name:      name,
+		throttler: tb.throttler(),
 	}
 
 	tb.sources[source] = n
@@ -143,6 +179,7 @@ func (tb *TopologyBuilder) AddProcessor(name string, processor Processor, parent
 		name:      name,
 		processor: processor,
 		children:  []Node{},
+		throttler: tb.throttler(),
 	}
 
 	for _, parent := range parents {
@@ -159,4 +196,12 @@ func (tb *TopologyBuilder) Build() *Topology {
 		sources:    tb.sources,
 		processors: tb.processors,
 	}
+}
+
+func (tb *TopologyBuilder) throttler() Throttler {
+	if tb.statsRate > 0 {
+		return NewRateThrottler(tb.statsRate)
+	}
+
+	return NoopThrottler{}
 }

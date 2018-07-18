@@ -10,6 +10,10 @@ func NewStreamBuilder() *StreamBuilder {
 	}
 }
 
+func (sb *StreamBuilder) WithStatsThrottle(rate float32) {
+	sb.tp.WithStatsThrottle(rate)
+}
+
 func (sb *StreamBuilder) Source(name string, source Source) *Stream {
 	n := sb.tp.AddSource(name, source)
 
