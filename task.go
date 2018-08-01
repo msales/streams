@@ -68,7 +68,7 @@ func (t *streamTask) runProcessor(node Node) chan bool {
 	go func() {
 		for msg := range node.Input() {
 			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
-			stats.Gauge(msg.Ctx, "node.back-pressure", float64(len(node.Input())/cap(node.Input())), 0.5, "name", node.Name())
+			stats.Gauge(msg.Ctx, "node.back-pressure", float64(len(node.Input()))/float64(cap(node.Input()))*100, 0.1, "name", node.Name())
 			start := time.Now()
 
 			if err := node.Process(msg); err != nil {
