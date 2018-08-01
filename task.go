@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/msales/pkg/stats"
 	"github.com/pkg/errors"
 	"github.com/tevino/abool"
 )
@@ -21,13 +22,16 @@ type streamTask struct {
 
 	running *abool.AtomicBool
 	errorFn ErrorFunc
-	procWg  sync.WaitGroup
+
+	sourceWg sync.WaitGroup
+	procChs  map[Node]chan bool
 }
 
 func NewTask(topology *Topology) Task {
 	return &streamTask{
 		topology: topology,
 		running:  abool.New(),
+		procChs:  make(map[Node]chan bool),
 	}
 }
 
@@ -43,46 +47,52 @@ func (t *streamTask) Start() error {
 }
 
 func (t *streamTask) setupTopology() {
-	for _, n := range t.topology.Processors() {
-		pipe := NewProcessorPipe(n)
-		n.WithPipe(pipe)
+	for _, node := range t.topology.Processors() {
+		pipe := NewProcessorPipe(node)
+		node.WithPipe(pipe)
 
-		t.runProcessor(n)
+		t.procChs[node] = t.runProcessor(node)
 	}
 
-	for s, n := range t.topology.Sources() {
-		pipe := NewProcessorPipe(n)
-		n.WithPipe(pipe)
+	for source, node := range t.topology.Sources() {
+		pipe := NewProcessorPipe(node)
+		node.WithPipe(pipe)
 
-		t.runSource(s, n)
+		t.runSource(source, node)
 	}
 }
 
-func (t *streamTask) runProcessor(n Node) {
+func (t *streamTask) runProcessor(node Node) chan bool {
+	done := make(chan bool, 1)
+
 	go func() {
-		t.procWg.Add(1)
-		defer t.procWg.Done()
+		for msg := range node.Input() {
+			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
+			stats.Gauge(msg.Ctx, "node.back-pressure", float64(len(node.Input())/cap(node.Input())), 0.5, "name", node.Name())
+			start := time.Now()
 
-		for t.running.IsSet() {
-			select {
-			case msg := <-n.Input():
-				if err := n.Process(msg); err != nil {
-					t.handleError(err)
-				}
-
-			case <-time.After(100 * time.Millisecond):
+			if err := node.Process(msg); err != nil {
+				t.handleError(err)
 			}
+
+			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
 		}
+
+		done <- true
 	}()
+
+	return done
 }
 
-func (t *streamTask) runSource(s Source, n Node) {
+func (t *streamTask) runSource(source Source, node Node) {
 	go func() {
-		t.procWg.Add(1)
-		defer t.procWg.Done()
+		t.sourceWg.Add(1)
+		defer t.sourceWg.Done()
 
 		for t.running.IsSet() {
-			msg, err := s.Consume()
+			start := time.Now()
+
+			msg, err := source.Consume()
 			if err != nil {
 				t.handleError(err)
 			}
@@ -91,7 +101,10 @@ func (t *streamTask) runSource(s Source, n Node) {
 				continue
 			}
 
-			if err := n.Process(msg); err != nil {
+			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
+			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
+
+			if err := node.Process(msg); err != nil {
 				t.handleError(err)
 			}
 		}
@@ -100,20 +113,39 @@ func (t *streamTask) runSource(s Source, n Node) {
 
 func (t *streamTask) Close() error {
 	t.running.UnSet()
-	t.procWg.Wait()
+	t.sourceWg.Wait()
 
 	return t.closeTopology()
 }
 
 func (t *streamTask) closeTopology() error {
-	for _, node := range t.topology.Processors() {
-		if err := node.Close(); err != nil {
+	for _, node := range t.topology.Sources() {
+		if err := t.closeNode(node); err != nil {
 			return err
 		}
 	}
 
 	for source := range t.topology.Sources() {
 		if err := source.Close(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (t *streamTask) closeNode(n Node) error {
+	if done, ok := t.procChs[n]; ok {
+		close(n.Input())
+		<-done
+	}
+
+	if err := n.Close(); err != nil {
+		return err
+	}
+
+	for _, child := range n.Children() {
+		if err := t.closeNode(child); err != nil {
 			return err
 		}
 	}

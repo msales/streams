@@ -80,6 +80,7 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 	config.Topic = "example1"
 	config.GroupId = "example-consumer"
 	config.ValueDecoder = kafka.StringDecoder{}
+	config.Ctx = ctx
 
 	src, err := kafka.NewSource(config)
 	if err != nil {

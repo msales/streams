@@ -1,11 +1,5 @@
 package streams
 
-import (
-	"time"
-
-	"github.com/msales/pkg/stats"
-)
-
 type Node interface {
 	Name() string
 	Input() chan *Message
@@ -55,8 +49,6 @@ func (n *SourceNode) Children() []Node {
 }
 
 func (n *SourceNode) Process(msg *Message) error {
-	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", n.name)
-
 	return n.pipe.Forward(msg)
 }
 
@@ -107,22 +99,14 @@ func (n *ProcessorNode) Children() []Node {
 }
 
 func (n *ProcessorNode) Process(msg *Message) error {
-	start := time.Now()
-
-	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", n.name)
-
 	if err := n.processor.Process(msg); err != nil {
 		return err
 	}
-
-	stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", n.name)
 
 	return nil
 }
 
 func (n *ProcessorNode) Close() error {
-	close(n.msgs)
-
 	return n.processor.Close()
 }
 
@@ -155,7 +139,6 @@ func (tb *TopologyBuilder) AddSource(name string, source Source) Node {
 	n := NewSourceNode(name)
 
 	tb.sources[source] = n
-	tb.processors = append(tb.processors, n)
 
 	return n
 }
