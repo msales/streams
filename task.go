@@ -67,8 +67,6 @@ func (t *streamTask) runProcessor(node Node) chan bool {
 
 	go func() {
 		for msg := range node.Input() {
-			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
-			stats.Gauge(msg.Ctx, "node.back-pressure", float64(len(node.Input()))/float64(cap(node.Input()))*100, 0.1, "name", node.Name())
 			start := time.Now()
 
 			if err := node.Process(msg); err != nil {
@@ -76,6 +74,8 @@ func (t *streamTask) runProcessor(node Node) chan bool {
 			}
 
 			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
+			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
+			stats.Gauge(msg.Ctx, "node.back-pressure", pressure(node.Input()), 0.1, "name", node.Name())
 		}
 
 		done <- true
@@ -161,4 +161,11 @@ func (t *streamTask) handleError(err error) {
 
 func (t *streamTask) OnError(fn ErrorFunc) {
 	t.errorFn = fn
+}
+
+func pressure(ch chan *Message) float64 {
+	l := float64(len(ch))
+	c := float64(cap(ch))
+
+	return l / c * 100;
 }

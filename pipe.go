@@ -6,8 +6,11 @@ import (
 
 // Pipe allows messages to flow through the processors.
 type Pipe interface {
+	// Forward passes the data to all processor children in the topology.
 	Forward(*Message) error
+	// Forward passes the data to the the given processor(s) child in the topology.
 	ForwardToChild(*Message, int) error
+	// Commit commits the current state in the sources.
 	Commit(*Message) error
 }
 

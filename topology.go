@@ -4,7 +4,6 @@ type Node interface {
 	Name() string
 	Input() chan *Message
 	WithPipe(Pipe)
-	Pipe() Pipe
 	AddChild(n Node)
 	Children() []Node
 	Process(*Message) error
@@ -34,10 +33,6 @@ func (n *SourceNode) Input() chan *Message {
 
 func (n *SourceNode) WithPipe(pipe Pipe) {
 	n.pipe = pipe
-}
-
-func (n *SourceNode) Pipe() Pipe {
-	return n.pipe
 }
 
 func (n *SourceNode) AddChild(node Node) {
@@ -86,10 +81,6 @@ func (n *ProcessorNode) WithPipe(pipe Pipe) {
 	n.processor.WithPipe(pipe)
 }
 
-func (n *ProcessorNode) Pipe() Pipe {
-	return n.pipe
-}
-
 func (n *ProcessorNode) AddChild(node Node) {
 	n.children = append(n.children, node)
 }
@@ -99,11 +90,7 @@ func (n *ProcessorNode) Children() []Node {
 }
 
 func (n *ProcessorNode) Process(msg *Message) error {
-	if err := n.processor.Process(msg); err != nil {
-		return err
-	}
-
-	return nil
+	return n.processor.Process(msg)
 }
 
 func (n *ProcessorNode) Close() error {
