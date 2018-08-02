@@ -69,13 +69,18 @@ func (t *streamTask) runProcessor(node Node) chan bool {
 		for msg := range node.Input() {
 			start := time.Now()
 
-			if err := node.Process(msg); err != nil {
+			nodeMsgs, err := node.Process(msg)
+			if err != nil {
 				t.handleError(err)
 			}
 
 			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
 			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
 			stats.Gauge(msg.Ctx, "node.back-pressure", pressure(node.Input()), 0.1, "name", node.Name())
+
+			for _, nodeMsg := range nodeMsgs {
+				nodeMsg.Node.Input() <- nodeMsg.Msg
+			}
 		}
 
 		done <- true
@@ -104,8 +109,12 @@ func (t *streamTask) runSource(source Source, node Node) {
 			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
 			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
 
-			if err := node.Process(msg); err != nil {
+			nodeMsgs, err := node.Process(msg)
+			if err != nil {
 				t.handleError(err)
+			}
+			for _, nodeMsg := range nodeMsgs {
+				nodeMsg.Node.Input() <- nodeMsg.Msg
 			}
 		}
 	}()

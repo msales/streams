@@ -6,6 +6,8 @@ import (
 
 // Pipe allows messages to flow through the processors.
 type Pipe interface {
+	// Queue gets the queued Messages for each Node.
+	Queue() []NodeMessage
 	// Forward passes the data to all processor children in the topology.
 	Forward(*Message) error
 	// Forward passes the data to the the given processor(s) child in the topology.
@@ -16,20 +18,33 @@ type Pipe interface {
 
 // ProcessorPipe represents the pipe for processors.
 type ProcessorPipe struct {
-	node Node
+	node  Node
+	queue []NodeMessage
 }
 
 // NewProcessorPipe create a new ProcessorPipe instance.
 func NewProcessorPipe(node Node) *ProcessorPipe {
 	return &ProcessorPipe{
-		node: node,
+		node:  node,
+		queue: make([]NodeMessage, 0, len(node.Children())),
 	}
+}
+
+// Queue gets the queued Messages for each Node.
+//
+// Reading the node message queue will reset the queue.
+func (p *ProcessorPipe) Queue() []NodeMessage {
+	defer func() {
+		p.queue = p.queue[:0]
+	}()
+
+	return p.queue
 }
 
 // Forward passes the data to all processor children in the topology.
 func (p *ProcessorPipe) Forward(msg *Message) error {
 	for _, child := range p.node.Children() {
-		child.Input() <- msg
+		p.queue = append(p.queue, NodeMessage{child, msg})
 	}
 
 	return nil
@@ -42,7 +57,7 @@ func (p *ProcessorPipe) ForwardToChild(msg *Message, index int) error {
 	}
 
 	child := p.node.Children()[index]
-	child.Input() <- msg
+	p.queue = append(p.queue, NodeMessage{child, msg})
 
 	return nil
 }

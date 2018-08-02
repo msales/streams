@@ -6,7 +6,7 @@ type Node interface {
 	WithPipe(Pipe)
 	AddChild(n Node)
 	Children() []Node
-	Process(*Message) error
+	Process(*Message) ([]NodeMessage, error)
 	Close() error
 }
 
@@ -43,8 +43,12 @@ func (n *SourceNode) Children() []Node {
 	return n.children
 }
 
-func (n *SourceNode) Process(msg *Message) error {
-	return n.pipe.Forward(msg)
+func (n *SourceNode) Process(msg *Message) ([]NodeMessage, error) {
+	if err := n.pipe.Forward(msg); err != nil {
+		return nil, err
+	}
+
+	return n.pipe.Queue(), nil
 }
 
 func (n *SourceNode) Close() error {
@@ -89,8 +93,12 @@ func (n *ProcessorNode) Children() []Node {
 	return n.children
 }
 
-func (n *ProcessorNode) Process(msg *Message) error {
-	return n.processor.Process(msg)
+func (n *ProcessorNode) Process(msg *Message) ([]NodeMessage, error) {
+	if err := n.processor.Process(msg); err != nil {
+		return nil, err
+	}
+
+	return n.pipe.Queue(), nil
 }
 
 func (n *ProcessorNode) Close() error {
