@@ -2,7 +2,6 @@ package streams
 
 type Node interface {
 	Name() string
-	Input() chan *Message
 	WithPipe(Pipe)
 	AddChild(n Node)
 	Children() []Node
@@ -25,10 +24,6 @@ func NewSourceNode(name string) *SourceNode {
 
 func (n *SourceNode) Name() string {
 	return n.name
-}
-
-func (n *SourceNode) Input() chan *Message {
-	return nil
 }
 
 func (n *SourceNode) WithPipe(pipe Pipe) {
@@ -57,7 +52,6 @@ func (n *SourceNode) Close() error {
 
 type ProcessorNode struct {
 	name      string
-	msgs      chan *Message
 	pipe      Pipe
 	processor Processor
 
@@ -67,17 +61,12 @@ type ProcessorNode struct {
 func NewProcessorNode(name string, p Processor) *ProcessorNode {
 	return &ProcessorNode{
 		name:      name,
-		msgs:      make(chan *Message, 1000),
 		processor: p,
 	}
 }
 
 func (n *ProcessorNode) Name() string {
 	return n.name
-}
-
-func (n *ProcessorNode) Input() chan *Message {
-	return n.msgs
 }
 
 func (n *ProcessorNode) WithPipe(pipe Pipe) {

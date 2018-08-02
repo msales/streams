@@ -24,14 +24,16 @@ type streamTask struct {
 	errorFn ErrorFunc
 
 	sourceWg sync.WaitGroup
-	procChs  map[Node]chan bool
+	procChs  map[Node]chan *Message
+	procSigs map[Node]chan bool
 }
 
 func NewTask(topology *Topology) Task {
 	return &streamTask{
 		topology: topology,
 		running:  abool.New(),
-		procChs:  make(map[Node]chan bool),
+		procChs:  make(map[Node]chan *Message),
+		procSigs: make(map[Node]chan bool),
 	}
 }
 
@@ -51,7 +53,9 @@ func (t *streamTask) setupTopology() {
 		pipe := NewProcessorPipe(node)
 		node.WithPipe(pipe)
 
-		t.procChs[node] = t.runProcessor(node)
+		ch := make(chan *Message, 1000)
+		t.procChs[node] = ch
+		t.procSigs[node] = t.runProcessor(node, ch)
 	}
 
 	for source, node := range t.topology.Sources() {
@@ -62,11 +66,11 @@ func (t *streamTask) setupTopology() {
 	}
 }
 
-func (t *streamTask) runProcessor(node Node) chan bool {
+func (t *streamTask) runProcessor(node Node, ch chan *Message) chan bool {
 	done := make(chan bool, 1)
 
 	go func() {
-		for msg := range node.Input() {
+		for msg := range ch {
 			start := time.Now()
 
 			nodeMsgs, err := node.Process(msg)
@@ -76,10 +80,11 @@ func (t *streamTask) runProcessor(node Node) chan bool {
 
 			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
 			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
-			stats.Gauge(msg.Ctx, "node.back-pressure", pressure(node.Input()), 0.1, "name", node.Name())
+			stats.Gauge(msg.Ctx, "node.back-pressure", pressure(ch), 0.1, "name", node.Name())
 
 			for _, nodeMsg := range nodeMsgs {
-				nodeMsg.Node.Input() <- nodeMsg.Msg
+				ch := t.procChs[nodeMsg.Node]
+				ch <- nodeMsg.Msg
 			}
 		}
 
@@ -114,7 +119,8 @@ func (t *streamTask) runSource(source Source, node Node) {
 				t.handleError(err)
 			}
 			for _, nodeMsg := range nodeMsgs {
-				nodeMsg.Node.Input() <- nodeMsg.Msg
+				ch := t.procChs[nodeMsg.Node]
+				ch <- nodeMsg.Msg
 			}
 		}
 	}()
@@ -144,8 +150,9 @@ func (t *streamTask) closeTopology() error {
 }
 
 func (t *streamTask) closeNode(n Node) error {
-	if done, ok := t.procChs[n]; ok {
-		close(n.Input())
+	if done, ok := t.procSigs[n]; ok {
+		ch := t.procChs[n]
+		close(ch)
 		<-done
 	}
 
