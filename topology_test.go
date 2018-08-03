@@ -46,7 +46,27 @@ func TestSourceNode_Process(t *testing.T) {
 	n := streams.SourceNode{}
 	n.WithPipe(pipe)
 
-	n.Process(streams.NewMessage(key, value))
+	_, err := n.Process(streams.NewMessage(key, value))
+
+	assert.NoError(t, err)
+
+	pipe.AssertExpectations()
+}
+
+func TestSourceNode_ProcessWithForwardError(t *testing.T) {
+	key := "test"
+	value := "test"
+
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForward(key, value)
+	pipe.ShouldError()
+
+	n := streams.SourceNode{}
+	n.WithPipe(pipe)
+
+	_, err := n.Process(streams.NewMessage(key, value))
+
+	assert.Error(t, err)
 
 	pipe.AssertExpectations()
 }
