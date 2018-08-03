@@ -162,6 +162,8 @@ func (s *Source) markState(msg *sarama.ConsumerMessage) []marker {
 		s.state[msg.Topic] = partitions
 	}
 
+	partitions[msg.Partition] = msg.Offset
+
 	var markers []marker
 	for topic, partitions := range s.state {
 		for partition, offset := range partitions {
