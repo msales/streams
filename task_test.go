@@ -50,6 +50,38 @@ func TestStreamTask_ConsumesMessages(t *testing.T) {
 	p.AssertExpectations(t)
 }
 
+func TestStreamTask_Throughput(t *testing.T) {
+	msgs := make(chan *streams.Message)
+	msg := streams.NewMessage("test", "test")
+
+	count := 0
+
+	b := streams.NewStreamBuilder()
+	b.Source("src", &chanSource{msgs: msgs}).
+		Map("pass-through", passThroughMapper).
+		Map("count", func(msg *streams.Message) (*streams.Message, error) {
+		count++;
+		return msg, nil
+	})
+
+	task := streams.NewTask(b.Build())
+	task.OnError(func(err error) {
+		t.FailNow()
+	})
+
+	task.Start()
+
+	for i := 0; i < 100; i++ {
+		msgs <- msg
+	}
+
+	time.Sleep(time.Millisecond)
+
+	task.Close()
+
+	assert.Equal(t, 100, count)
+}
+
 func TestStreamTask_CannotStartTwice(t *testing.T) {
 	msgs := make(chan *streams.Message)
 
