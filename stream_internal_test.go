@@ -26,7 +26,7 @@ func TestStreamBuilder_Build(t *testing.T) {
 	top := builder.Build()
 
 	assert.Len(t, top.Sources(), 1)
-	assert.Len(t, top.Processors(), 2)
+	assert.Len(t, top.Processors(), 1)
 	assert.Contains(t, top.Sources(), source)
 }
 

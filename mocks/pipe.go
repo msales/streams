@@ -13,12 +13,11 @@ type record struct {
 	index int
 }
 
-type ForwardFunc func(message *streams.Message)
-
+// Pipe is a mock Pipe.
 type Pipe struct {
 	t *testing.T
 
-	fn ForwardFunc
+	queue []streams.NodeMessage
 
 	shouldError bool
 
@@ -26,20 +25,22 @@ type Pipe struct {
 	expectCommit  bool
 }
 
+// NewPipe create a new mock Pipe instance.
 func NewPipe(t *testing.T) *Pipe {
 	return &Pipe{
 		t:             t,
+		queue:         []streams.NodeMessage{},
 		expectForward: []record{},
 	}
 }
 
+// Queue gets the queued Messages for each Node.
+func (p *Pipe) Queue() []streams.NodeMessage {
+	return p.queue
+}
+
+// Forward queues the data to all processor children in the topology.
 func (p *Pipe) Forward(msg *streams.Message) error {
-	if p.fn != nil {
-		p.fn(msg)
-
-		return nil
-	}
-
 	if len(p.expectForward) == 0 {
 		p.t.Error("streams: mock: Unexpected call to Forward")
 		return nil
@@ -56,16 +57,13 @@ func (p *Pipe) Forward(msg *streams.Message) error {
 		return errors.New("test")
 	}
 
+	p.queue = append(p.queue, streams.NodeMessage{nil, msg})
+
 	return nil
 }
 
+// Forward queues the data to the the given processor(s) child in the topology.
 func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
-	if p.fn != nil {
-		p.fn(msg)
-
-		return nil
-	}
-
 	if len(p.expectForward) == 0 {
 		p.t.Error("streams: mock: Unexpected call to ForwardToChild")
 		return nil
@@ -82,9 +80,12 @@ func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
 		return errors.New("test")
 	}
 
+	p.queue = append(p.queue, streams.NodeMessage{nil, msg})
+
 	return nil
 }
 
+// Commit commits the current state in the sources.
 func (p *Pipe) Commit(msg *streams.Message) error {
 	if !p.expectCommit {
 		p.t.Error("streams: mock: Unexpected call to Commit")
@@ -101,10 +102,6 @@ func (p *Pipe) Commit(msg *streams.Message) error {
 
 func (p *Pipe) ShouldError() {
 	p.shouldError = true
-}
-
-func (p *Pipe) OnForward(fn ForwardFunc) {
-	p.fn = fn
 }
 
 func (p *Pipe) ExpectForward(k, v interface{}) {

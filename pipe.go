@@ -8,9 +8,9 @@ import (
 type Pipe interface {
 	// Queue gets the queued Messages for each Node.
 	Queue() []NodeMessage
-	// Forward passes the data to all processor children in the topology.
+	// Forward queues the data to all processor children in the topology.
 	Forward(*Message) error
-	// Forward passes the data to the the given processor(s) child in the topology.
+	// Forward queues the data to the the given processor(s) child in the topology.
 	ForwardToChild(*Message, int) error
 	// Commit commits the current state in the sources.
 	Commit(*Message) error
@@ -26,7 +26,7 @@ type ProcessorPipe struct {
 func NewProcessorPipe(node Node) *ProcessorPipe {
 	return &ProcessorPipe{
 		node:  node,
-		queue: make([]NodeMessage, 0, len(node.Children())),
+		queue: []NodeMessage{},
 	}
 }
 
@@ -41,7 +41,7 @@ func (p *ProcessorPipe) Queue() []NodeMessage {
 	return p.queue
 }
 
-// Forward passes the data to all processor children in the topology.
+// Forward queues the data to all processor children in the topology.
 func (p *ProcessorPipe) Forward(msg *Message) error {
 	for _, child := range p.node.Children() {
 		p.queue = append(p.queue, NodeMessage{child, msg})
@@ -50,7 +50,7 @@ func (p *ProcessorPipe) Forward(msg *Message) error {
 	return nil
 }
 
-// Forward passes the data to the the given processor(s) child in the topology.
+// Forward queues the data to the the given processor(s) child in the topology.
 func (p *ProcessorPipe) ForwardToChild(msg *Message, index int) error {
 	if index > len(p.node.Children())-1 {
 		return errors.New("streams: child index out of bounds")
