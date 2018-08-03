@@ -57,7 +57,7 @@ func (p *Pipe) Forward(msg *streams.Message) error {
 		return errors.New("test")
 	}
 
-	p.queue = append(p.queue, streams.NodeMessage{nil, msg})
+	p.queue = append(p.queue, streams.NodeMessage{Node: nil, Msg: msg})
 
 	return nil
 }
@@ -80,7 +80,7 @@ func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
 		return errors.New("test")
 	}
 
-	p.queue = append(p.queue, streams.NodeMessage{nil, msg})
+	p.queue = append(p.queue, streams.NodeMessage{Node: nil, Msg: msg})
 
 	return nil
 }
