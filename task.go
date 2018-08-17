@@ -180,5 +180,5 @@ func pressure(ch chan *Message) float64 {
 	l := float64(len(ch))
 	c := float64(cap(ch))
 
-	return l / c * 100;
+	return l / c * 100
 }

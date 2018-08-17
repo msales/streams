@@ -74,7 +74,7 @@ type Source struct {
 	keyDecoder   Decoder
 	valueDecoder Decoder
 
-	state     map[string]map[int32]int64
+	state   map[string]map[int32]int64
 	buf     chan *sarama.ConsumerMessage
 	lastErr error
 }

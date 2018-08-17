@@ -60,9 +60,9 @@ func TestStreamTask_Throughput(t *testing.T) {
 	b.Source("src", &chanSource{msgs: msgs}).
 		Map("pass-through", passThroughMapper).
 		Map("count", func(msg *streams.Message) (*streams.Message, error) {
-		count++;
-		return msg, nil
-	})
+			count++
+			return msg, nil
+		})
 
 	task := streams.NewTask(b.Build())
 	task.OnError(func(err error) {

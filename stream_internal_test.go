@@ -90,8 +90,8 @@ func TestStream_FlatMap(t *testing.T) {
 
 	stream := builder.Source("source", source).
 		FlatMap("test", func(msg *Message) ([]*Message, error) {
-		return nil, nil
-	})
+			return nil, nil
+		})
 
 	assert.Len(t, stream.parents, 1)
 	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
