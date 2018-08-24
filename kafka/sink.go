@@ -104,9 +104,14 @@ func (p *Sink) Process(msg *streams.Message) error {
 		return err
 	}
 
+	var keyEnc sarama.Encoder
+	if k != nil {
+		keyEnc = sarama.ByteEncoder(k)
+	}
+
 	pm := &sarama.ProducerMessage{
 		Topic: p.topic,
-		Key:   sarama.ByteEncoder(k),
+		Key:   keyEnc,
 		Value: sarama.ByteEncoder(v),
 	}
 	p.buf = append(p.buf, pm)
