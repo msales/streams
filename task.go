@@ -114,7 +114,11 @@ func (t *streamTask) runSource(source Source, node Node) {
 			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
 			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
 
-			nodeMsgs, _ := node.Process(msg)
+			nodeMsgs, err := node.Process(msg)
+			if err != nil {
+				t.handleError(err)
+			}
+
 			for _, nodeMsg := range nodeMsgs {
 				ch := t.procChs[nodeMsg.Node]
 				ch <- nodeMsg.Msg

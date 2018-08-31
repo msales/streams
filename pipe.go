@@ -7,6 +7,8 @@ import (
 // Pipe allows messages to flow through the processors.
 type Pipe interface {
 	// Queue gets the queued Messages for each Node.
+	//
+	// This method should not be used by Processors.
 	Queue() []NodeMessage
 	// Forward queues the data to all processor children in the topology.
 	Forward(*Message) error
