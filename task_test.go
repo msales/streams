@@ -10,6 +10,10 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func passThroughMapper(msg *streams.Message) (*streams.Message, error) {
+	return msg, nil
+}
+
 func TestNewTask(t *testing.T) {
 	task := streams.NewTask(nil)
 
@@ -27,6 +31,7 @@ func TestStreamTask_ConsumesMessages(t *testing.T) {
 
 	b := streams.NewStreamBuilder()
 	b.Source("src", &chanSource{msgs: msgs}).
+		Map("pass-through", passThroughMapper).
 		Process("processor", p)
 
 	task := streams.NewTask(b.Build())
@@ -43,6 +48,58 @@ func TestStreamTask_ConsumesMessages(t *testing.T) {
 	task.Close()
 
 	p.AssertExpectations(t)
+}
+
+func TestStreamTask_Throughput(t *testing.T) {
+	msgs := make(chan *streams.Message)
+	msg := streams.NewMessage("test", "test")
+
+	count := 0
+
+	b := streams.NewStreamBuilder()
+	b.Source("src", &chanSource{msgs: msgs}).
+		Map("pass-through", passThroughMapper).
+		Map("count", func(msg *streams.Message) (*streams.Message, error) {
+			count++
+			return msg, nil
+		})
+
+	task := streams.NewTask(b.Build())
+	task.OnError(func(err error) {
+		t.FailNow()
+	})
+
+	task.Start()
+
+	for i := 0; i < 100; i++ {
+		msgs <- msg
+	}
+
+	time.Sleep(time.Millisecond)
+
+	task.Close()
+
+	assert.Equal(t, 100, count)
+}
+
+func TestStreamTask_CannotStartTwice(t *testing.T) {
+	msgs := make(chan *streams.Message)
+
+	b := streams.NewStreamBuilder()
+	b.Source("src", &chanSource{msgs: msgs})
+
+	task := streams.NewTask(b.Build())
+	task.OnError(func(err error) {
+		t.FailNow()
+	})
+
+	task.Start()
+
+	err := task.Start()
+
+	task.Close()
+
+	assert.Error(t, err)
 }
 
 func TestStreamTask_HandleSourceError(t *testing.T) {

@@ -26,7 +26,7 @@ func TestStreamBuilder_Build(t *testing.T) {
 	top := builder.Build()
 
 	assert.Len(t, top.Sources(), 1)
-	assert.Len(t, top.Processors(), 2)
+	assert.Len(t, top.Processors(), 1)
 	assert.Contains(t, top.Sources(), source)
 }
 
@@ -90,8 +90,8 @@ func TestStream_FlatMap(t *testing.T) {
 
 	stream := builder.Source("source", source).
 		FlatMap("test", func(msg *Message) ([]*Message, error) {
-		return nil, nil
-	})
+			return nil, nil
+		})
 
 	assert.Len(t, stream.parents, 1)
 	assert.IsType(t, &ProcessorNode{}, stream.parents[0])

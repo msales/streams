@@ -15,34 +15,30 @@ func TestPipe_ImplementsPipeInterface(t *testing.T) {
 	}
 }
 
-func TestPipe_OnForwardForForward(t *testing.T) {
-	called := false
-
+func TestPipe_QueueForForward(t *testing.T) {
 	msg := streams.NewMessage("test", "test")
 	p := NewPipe(t)
-	p.OnForward(func(m *streams.Message) {
-		called = true
-		assert.Equal(t, msg, m)
-	})
+	p.ExpectForward("test", "test")
 
 	p.Forward(msg)
 
-	assert.True(t, called)
+	queue := p.Queue()
+	assert.Len(t, queue, 1)
+	assert.Nil(t, queue[0].Node)
+	assert.Exactly(t, msg, queue[0].Msg)
 }
 
-func TestPipe_OnForwardForForwardToChild(t *testing.T) {
-	called := false
-
+func TestPipe_QueueForForwardToChild(t *testing.T) {
 	msg := streams.NewMessage("test", "test")
 	p := NewPipe(t)
-	p.OnForward(func(m *streams.Message) {
-		called = true
-		assert.Exactly(t, msg, m)
-	})
+	p.ExpectForwardToChild("test", "test", 0)
 
 	p.ForwardToChild(msg, 0)
 
-	assert.True(t, called)
+	queue := p.Queue()
+	assert.Len(t, queue, 1)
+	assert.Nil(t, queue[0].Node)
+	assert.Exactly(t, msg, queue[0].Msg)
 }
 
 func TestPipe_HandlesExpectations(t *testing.T) {

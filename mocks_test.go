@@ -27,9 +27,9 @@ func (mn *MockNode) Children() []streams.Node {
 	return args.Get(0).([]streams.Node)
 }
 
-func (mn *MockNode) Process(msg *streams.Message) error {
+func (mn *MockNode) Process(msg *streams.Message) ([]streams.NodeMessage, error) {
 	args := mn.Called(msg)
-	return args.Error(0)
+	return args.Get(0).([]streams.NodeMessage), args.Error(1)
 }
 
 func (mn *MockNode) Close() error {

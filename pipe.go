@@ -6,58 +6,60 @@ import (
 
 // Pipe allows messages to flow through the processors.
 type Pipe interface {
+	// Queue gets the queued Messages for each Node.
+	//
+	// This method should not be used by Processors.
+	Queue() []NodeMessage
+	// Forward queues the data to all processor children in the topology.
 	Forward(*Message) error
+	// Forward queues the data to the the given processor(s) child in the topology.
 	ForwardToChild(*Message, int) error
+	// Commit commits the current state in the sources.
 	Commit(*Message) error
 }
 
 // ProcessorPipe represents the pipe for processors.
 type ProcessorPipe struct {
-	currentNode Node
+	node  Node
+	queue []NodeMessage
 }
 
 // NewProcessorPipe create a new ProcessorPipe instance.
-func NewProcessorPipe() *ProcessorPipe {
-	return &ProcessorPipe{}
+func NewProcessorPipe(node Node) *ProcessorPipe {
+	return &ProcessorPipe{
+		node:  node,
+		queue: []NodeMessage{},
+	}
 }
 
-// SetNode sets the topology node that is being processed.
+// Queue gets the queued Messages for each Node.
 //
-// The is only needed by the task and should not be used
-// directly. Doing so can have some unexpected results.
-func (p *ProcessorPipe) SetNode(n Node) {
-	p.currentNode = n
+// Reading the node message queue will reset the queue.
+func (p *ProcessorPipe) Queue() []NodeMessage {
+	defer func() {
+		p.queue = p.queue[:0]
+	}()
+
+	return p.queue
 }
 
-// Forward passes the data to all processor children in the topology.
+// Forward queues the data to all processor children in the topology.
 func (p *ProcessorPipe) Forward(msg *Message) error {
-	previousNode := p.currentNode
-	defer func() { p.currentNode = previousNode }()
-
-	for _, child := range p.currentNode.Children() {
-		p.currentNode = child
-		if err := child.Process(msg); err != nil {
-			return err
-		}
+	for _, child := range p.node.Children() {
+		p.queue = append(p.queue, NodeMessage{child, msg})
 	}
 
 	return nil
 }
 
-// Forward passes the data to the the given processor(s) child in the topology.
+// Forward queues the data to the the given processor(s) child in the topology.
 func (p *ProcessorPipe) ForwardToChild(msg *Message, index int) error {
-	previousNode := p.currentNode
-	defer func() { p.currentNode = previousNode }()
-
-	if index > len(p.currentNode.Children())-1 {
+	if index > len(p.node.Children())-1 {
 		return errors.New("streams: child index out of bounds")
 	}
 
-	child := p.currentNode.Children()[index]
-	p.currentNode = child
-	if err := child.Process(msg); err != nil {
-		return err
-	}
+	child := p.node.Children()[index]
+	p.queue = append(p.queue, NodeMessage{child, msg})
 
 	return nil
 }

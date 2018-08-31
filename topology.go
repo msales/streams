@@ -1,17 +1,11 @@
 package streams
 
-import (
-	"time"
-
-	"github.com/msales/pkg/stats"
-)
-
 type Node interface {
 	Name() string
 	WithPipe(Pipe)
 	AddChild(n Node)
 	Children() []Node
-	Process(*Message) error
+	Process(*Message) ([]NodeMessage, error)
 	Close() error
 }
 
@@ -44,10 +38,12 @@ func (n *SourceNode) Children() []Node {
 	return n.children
 }
 
-func (n *SourceNode) Process(msg *Message) error {
-	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", n.name)
+func (n *SourceNode) Process(msg *Message) ([]NodeMessage, error) {
+	if err := n.pipe.Forward(msg); err != nil {
+		return nil, err
+	}
 
-	return n.pipe.Forward(msg)
+	return n.pipe.Queue(), nil
 }
 
 func (n *SourceNode) Close() error {
@@ -56,6 +52,7 @@ func (n *SourceNode) Close() error {
 
 type ProcessorNode struct {
 	name      string
+	pipe      Pipe
 	processor Processor
 
 	children []Node
@@ -73,6 +70,7 @@ func (n *ProcessorNode) Name() string {
 }
 
 func (n *ProcessorNode) WithPipe(pipe Pipe) {
+	n.pipe = pipe
 	n.processor.WithPipe(pipe)
 }
 
@@ -84,18 +82,12 @@ func (n *ProcessorNode) Children() []Node {
 	return n.children
 }
 
-func (n *ProcessorNode) Process(msg *Message) error {
-	start := time.Now()
-
-	stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", n.name)
-
+func (n *ProcessorNode) Process(msg *Message) ([]NodeMessage, error) {
 	if err := n.processor.Process(msg); err != nil {
-		return err
+		return nil, err
 	}
 
-	stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", n.name)
-
-	return nil
+	return n.pipe.Queue(), nil
 }
 
 func (n *ProcessorNode) Close() error {
@@ -128,23 +120,15 @@ func NewTopologyBuilder() *TopologyBuilder {
 }
 
 func (tb *TopologyBuilder) AddSource(name string, source Source) Node {
-	n := &SourceNode{
-		name: name,
-	}
+	n := NewSourceNode(name)
 
 	tb.sources[source] = n
-	tb.processors = append(tb.processors, n)
 
 	return n
 }
 
 func (tb *TopologyBuilder) AddProcessor(name string, processor Processor, parents []Node) Node {
-	n := &ProcessorNode{
-		name:      name,
-		processor: processor,
-		children:  []Node{},
-	}
-
+	n := NewProcessorNode(name, processor)
 	for _, parent := range parents {
 		parent.AddChild(n)
 	}

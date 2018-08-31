@@ -43,3 +43,8 @@ func NewMessageWithContext(ctx context.Context, k, v interface{}) *Message {
 		Value:    v,
 	}
 }
+
+type NodeMessage struct {
+	Node Node
+	Msg  *Message
+}

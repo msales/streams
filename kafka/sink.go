@@ -22,6 +22,7 @@ func NewSinkConfig() *SinkConfig {
 		Config: *sarama.NewConfig(),
 	}
 
+	c.Producer.Return.Successes = true
 	c.KeyEncoder = ByteEncoder{}
 	c.ValueEncoder = ByteEncoder{}
 	c.BatchSize = 1000
@@ -103,9 +104,14 @@ func (p *Sink) Process(msg *streams.Message) error {
 		return err
 	}
 
+	var keyEnc sarama.Encoder
+	if k != nil {
+		keyEnc = sarama.ByteEncoder(k)
+	}
+
 	pm := &sarama.ProducerMessage{
 		Topic: p.topic,
-		Key:   sarama.ByteEncoder(k),
+		Key:   keyEnc,
 		Value: sarama.ByteEncoder(v),
 	}
 	p.buf = append(p.buf, pm)
@@ -117,7 +123,7 @@ func (p *Sink) Process(msg *streams.Message) error {
 		}
 
 		p.count = 0
-		p.buf = make([]*sarama.ProducerMessage, 0, p.batch)
+		p.buf = p.buf[:0]
 
 		return p.pipe.Commit(msg)
 	}

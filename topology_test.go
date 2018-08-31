@@ -46,7 +46,27 @@ func TestSourceNode_Process(t *testing.T) {
 	n := streams.SourceNode{}
 	n.WithPipe(pipe)
 
-	n.Process(streams.NewMessage(key, value))
+	_, err := n.Process(streams.NewMessage(key, value))
+
+	assert.NoError(t, err)
+
+	pipe.AssertExpectations()
+}
+
+func TestSourceNode_ProcessWithForwardError(t *testing.T) {
+	key := "test"
+	value := "test"
+
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForward(key, value)
+	pipe.ShouldError()
+
+	n := streams.SourceNode{}
+	n.WithPipe(pipe)
+
+	_, err := n.Process(streams.NewMessage(key, value))
+
+	assert.Error(t, err)
 
 	pipe.AssertExpectations()
 }
@@ -92,11 +112,11 @@ func TestProcessorNode_Process(t *testing.T) {
 	pipe := mocks.NewPipe(t)
 	p := new(MockProcessor)
 	p.On("WithPipe", pipe).Return(nil)
-	p.On("Process", msg).Return(nil)
+	p.On("Process", msg).Return(nil, nil)
 	n := streams.NewProcessorNode("test", p)
 	n.WithPipe(pipe)
 
-	err := n.Process(msg)
+	_, err := n.Process(msg)
 
 	assert.NoError(t, err)
 	p.AssertExpectations(t)
@@ -111,7 +131,7 @@ func TestProcessorNode_ProcessWithError(t *testing.T) {
 	n := streams.NewProcessorNode("test", p)
 	n.WithPipe(pipe)
 
-	err := n.Process(msg)
+	_, err := n.Process(msg)
 
 	assert.Error(t, err)
 	p.AssertExpectations(t)
@@ -139,8 +159,6 @@ func TestTopologyBuilder_AddSource(t *testing.T) {
 	assert.Equal(t, "test", n.(*streams.SourceNode).Name())
 	assert.Len(t, to.Sources(), 1)
 	assert.Equal(t, n, to.Sources()[s])
-	assert.Len(t, to.Processors(), 1)
-	assert.Equal(t, n, to.Processors()[0])
 }
 
 func TestTopologyBuilder_AddProcessor(t *testing.T) {
