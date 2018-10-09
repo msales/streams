@@ -1,14 +1,15 @@
-package mocks
+package mocks_test
 
 import (
 	"testing"
 
 	"github.com/msales/streams"
+	"github.com/msales/streams/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPipe_ImplementsPipeInterface(t *testing.T) {
-	var c interface{} = &Pipe{}
+	var c interface{} = &mocks.Pipe{}
 
 	if _, ok := c.(streams.Pipe); !ok {
 		t.Error("The mock Pipe should implement the streams.Pipe interface.")
@@ -17,7 +18,7 @@ func TestPipe_ImplementsPipeInterface(t *testing.T) {
 
 func TestPipe_QueueForForward(t *testing.T) {
 	msg := streams.NewMessage("test", "test")
-	p := NewPipe(t)
+	p := mocks.NewPipe(t)
 	p.ExpectForward("test", "test")
 
 	p.Forward(msg)
@@ -30,7 +31,7 @@ func TestPipe_QueueForForward(t *testing.T) {
 
 func TestPipe_QueueForForwardToChild(t *testing.T) {
 	msg := streams.NewMessage("test", "test")
-	p := NewPipe(t)
+	p := mocks.NewPipe(t)
 	p.ExpectForwardToChild("test", "test", 0)
 
 	p.ForwardToChild(msg, 0)
@@ -42,7 +43,7 @@ func TestPipe_QueueForForwardToChild(t *testing.T) {
 }
 
 func TestPipe_HandlesExpectations(t *testing.T) {
-	p := NewPipe(t)
+	p := mocks.NewPipe(t)
 
 	p.ExpectForward("test", "test")
 	p.ExpectForwardToChild("test", "test", 1)
@@ -54,6 +55,17 @@ func TestPipe_HandlesExpectations(t *testing.T) {
 	p.AssertExpectations()
 }
 
+func TestPipe_HandlesAnythingExpectations(t *testing.T) {
+	p := mocks.NewPipe(t)
+
+	p.ExpectForward(mocks.Anything, mocks.Anything)
+	p.ExpectForwardToChild(mocks.Anything, mocks.Anything, 1)
+
+	p.Forward(streams.NewMessage("test", "test"))
+	p.ForwardToChild(streams.NewMessage("test", "test"), 1)
+	p.AssertExpectations()
+}
+
 func TestPipe_WithoutExpectationOnForward(t *testing.T) {
 	mockT := new(testing.T)
 	defer func() {
@@ -62,7 +74,7 @@ func TestPipe_WithoutExpectationOnForward(t *testing.T) {
 		}
 
 	}()
-	p := NewPipe(mockT)
+	p := mocks.NewPipe(mockT)
 
 	p.Forward(streams.NewMessage("test", "test"))
 }
@@ -75,7 +87,7 @@ func TestPipe_WithWrongExpectationOnForward(t *testing.T) {
 		}
 
 	}()
-	p := NewPipe(mockT)
+	p := mocks.NewPipe(mockT)
 	p.ExpectForward(1, 1)
 
 	p.Forward(streams.NewMessage("test", "test"))
@@ -83,7 +95,7 @@ func TestPipe_WithWrongExpectationOnForward(t *testing.T) {
 
 func TestPipe_WithShouldErrorOnForward(t *testing.T) {
 	mockT := new(testing.T)
-	p := NewPipe(mockT)
+	p := mocks.NewPipe(mockT)
 	p.ExpectForward("test", "test")
 	p.ShouldError()
 
@@ -102,7 +114,7 @@ func TestPipe_WithoutExpectationOnForwardToChild(t *testing.T) {
 		}
 
 	}()
-	c := NewPipe(mockT)
+	c := mocks.NewPipe(mockT)
 
 	c.ForwardToChild(streams.NewMessage("test", "test"), 1)
 }
@@ -115,7 +127,7 @@ func TestPipeWithWrongExpectationOnForwardToChild(t *testing.T) {
 		}
 
 	}()
-	p := NewPipe(mockT)
+	p := mocks.NewPipe(mockT)
 	p.ExpectForwardToChild(1, 1, 3)
 
 	p.ForwardToChild(streams.NewMessage("test", "test"), 1)
@@ -123,7 +135,7 @@ func TestPipeWithWrongExpectationOnForwardToChild(t *testing.T) {
 
 func TestPipe_WithShouldErrorOnForwardToChild(t *testing.T) {
 	mockT := new(testing.T)
-	p := NewPipe(mockT)
+	p := mocks.NewPipe(mockT)
 	p.ExpectForwardToChild("test", "test", 1)
 	p.ShouldError()
 
@@ -142,14 +154,14 @@ func TestPipe_WithoutExpectationOnCommit(t *testing.T) {
 		}
 
 	}()
-	p := NewPipe(mockT)
+	p := mocks.NewPipe(mockT)
 
 	p.Commit(streams.NewMessage("test", "test"))
 }
 
 func TestPipe_WithErrorOnCommit(t *testing.T) {
 	mockT := new(testing.T)
-	p := NewPipe(mockT)
+	p := mocks.NewPipe(mockT)
 	p.ExpectCommit()
 	p.ShouldError()
 
@@ -168,7 +180,7 @@ func TestPipe_WithUnfulfilledExpectationOnForward(t *testing.T) {
 		}
 
 	}()
-	p := NewPipe(mockT)
+	p := mocks.NewPipe(mockT)
 	p.ExpectForward(1, 1)
 
 	p.AssertExpectations()
@@ -182,7 +194,7 @@ func TestPipe_WithUnfulfilledExpectationOnForwardToChild(t *testing.T) {
 		}
 
 	}()
-	p := NewPipe(mockT)
+	p := mocks.NewPipe(mockT)
 	p.ExpectForwardToChild(1, 1, 1)
 
 	p.AssertExpectations()
@@ -196,7 +208,7 @@ func TestPipe_WithUnfulfilledExpectationOnCommit(t *testing.T) {
 		}
 
 	}()
-	p := NewPipe(mockT)
+	p := mocks.NewPipe(mockT)
 	p.ExpectCommit()
 
 	p.AssertExpectations()

@@ -48,7 +48,8 @@ func (p *Pipe) Forward(msg *streams.Message) error {
 	record := p.expectForward[0]
 	p.expectForward = p.expectForward[1:]
 
-	if msg.Key != record.key || msg.Value != record.value {
+	if (record.key != Anything && msg.Key != record.key) ||
+		(record.value != Anything && msg.Value != record.value) {
 		p.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v, got %v:%v", record.key, record.value, msg.Key, msg.Value)
 	}
 
@@ -71,7 +72,9 @@ func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
 	record := p.expectForward[0]
 	p.expectForward = p.expectForward[1:]
 
-	if msg.Key != record.key || msg.Value != record.value || index != record.index {
+	if (record.key != Anything && msg.Key != record.key) ||
+		(record.value != Anything && msg.Value != record.value) ||
+		index != record.index {
 		p.t.Errorf("streams: mock: Arguments to Forward did not match expectation: wanted %v:%v:%d, got %v:%v:%d", record.key, record.value, record.index, msg.Key, msg.Value, index)
 	}
 
