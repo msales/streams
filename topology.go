@@ -2,57 +2,13 @@ package streams
 
 type Node interface {
 	Name() string
-	WithPipe(Pipe)
 	AddChild(n Node)
 	Children() []Node
-	Process(*Message) ([]NodeMessage, error)
-	Close() error
-}
-
-type SourceNode struct {
-	name string
-	pipe Pipe
-
-	children []Node
-}
-
-func NewSourceNode(name string) *SourceNode {
-	return &SourceNode{
-		name: name,
-	}
-}
-
-func (n *SourceNode) Name() string {
-	return n.name
-}
-
-func (n *SourceNode) WithPipe(pipe Pipe) {
-	n.pipe = pipe
-}
-
-func (n *SourceNode) AddChild(node Node) {
-	n.children = append(n.children, node)
-}
-
-func (n *SourceNode) Children() []Node {
-	return n.children
-}
-
-func (n *SourceNode) Process(msg *Message) ([]NodeMessage, error) {
-	if err := n.pipe.Forward(msg); err != nil {
-		return nil, err
-	}
-
-	return n.pipe.Queue(), nil
-}
-
-func (n *SourceNode) Close() error {
-	return nil
+	Processor() Processor
 }
 
 type ProcessorNode struct {
 	name      string
-	pipe      Pipe
 	processor Processor
 
 	children []Node
@@ -69,11 +25,6 @@ func (n *ProcessorNode) Name() string {
 	return n.name
 }
 
-func (n *ProcessorNode) WithPipe(pipe Pipe) {
-	n.pipe = pipe
-	n.processor.WithPipe(pipe)
-}
-
 func (n *ProcessorNode) AddChild(node Node) {
 	n.children = append(n.children, node)
 }
@@ -82,16 +33,8 @@ func (n *ProcessorNode) Children() []Node {
 	return n.children
 }
 
-func (n *ProcessorNode) Process(msg *Message) ([]NodeMessage, error) {
-	if err := n.processor.Process(msg); err != nil {
-		return nil, err
-	}
-
-	return n.pipe.Queue(), nil
-}
-
-func (n *ProcessorNode) Close() error {
-	return n.processor.Close()
+func (n *ProcessorNode) Processor() Processor {
+	return n.processor
 }
 
 type Topology struct {
@@ -120,7 +63,7 @@ func NewTopologyBuilder() *TopologyBuilder {
 }
 
 func (tb *TopologyBuilder) AddSource(name string, source Source) Node {
-	n := NewSourceNode(name)
+	n := NewProcessorNode(name, NewPassThroughProcessor())
 
 	tb.sources[source] = n
 

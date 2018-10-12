@@ -24,16 +24,13 @@ type streamTask struct {
 	errorFn ErrorFunc
 
 	sourceWg sync.WaitGroup
-	procChs  map[Node]chan *Message
-	procSigs map[Node]chan bool
+	pumps map[Node]Pump
 }
 
 func NewTask(topology *Topology) Task {
 	return &streamTask{
 		topology: topology,
 		running:  abool.New(),
-		procChs:  make(map[Node]chan *Message),
-		procSigs: make(map[Node]chan bool),
 	}
 }
 
@@ -49,49 +46,21 @@ func (t *streamTask) Start() error {
 }
 
 func (t *streamTask) setupTopology() {
+	// TODO: create a slice in reverse order of all nodes
+
+	// TODO: run through the slice, resolving node runners
+
 	for _, node := range t.topology.Processors() {
 		pipe := NewProcessorPipe(node)
-		node.WithPipe(pipe)
-
-		ch := make(chan *Message, 1000)
-		t.procChs[node] = ch
-		t.procSigs[node] = t.runProcessor(node, ch)
+		node.Processor().WithPipe(pipe)
 	}
 
 	for source, node := range t.topology.Sources() {
 		pipe := NewProcessorPipe(node)
-		node.WithPipe(pipe)
+		node.Processor().WithPipe(pipe)
 
 		t.runSource(source, node)
 	}
-}
-
-func (t *streamTask) runProcessor(node Node, ch chan *Message) chan bool {
-	done := make(chan bool, 1)
-
-	go func() {
-		for msg := range ch {
-			start := time.Now()
-
-			nodeMsgs, err := node.Process(msg)
-			if err != nil {
-				t.handleError(err)
-			}
-
-			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
-			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
-			stats.Gauge(msg.Ctx, "node.back-pressure", pressure(ch), 0.1, "name", node.Name())
-
-			for _, nodeMsg := range nodeMsgs {
-				ch := t.procChs[nodeMsg.Node]
-				ch <- nodeMsg.Msg
-			}
-		}
-
-		done <- true
-	}()
-
-	return done
 }
 
 func (t *streamTask) runSource(source Source, node Node) {
@@ -114,14 +83,11 @@ func (t *streamTask) runSource(source Source, node Node) {
 			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
 			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
 
-			nodeMsgs, err := node.Process(msg)
+			// Get runner
+			// err = runner.Process(msg)
+			err = node.Processor().Process(msg)
 			if err != nil {
 				t.handleError(err)
-			}
-
-			for _, nodeMsg := range nodeMsgs {
-				ch := t.procChs[nodeMsg.Node]
-				ch <- nodeMsg.Msg
 			}
 		}
 	}()
@@ -135,6 +101,7 @@ func (t *streamTask) Close() error {
 }
 
 func (t *streamTask) closeTopology() error {
+	// TODO: Remove recursion and use instead a slice that can be deduped
 	for _, node := range t.topology.Sources() {
 		if err := t.closeNode(node); err != nil {
 			return err
@@ -151,15 +118,7 @@ func (t *streamTask) closeTopology() error {
 }
 
 func (t *streamTask) closeNode(n Node) error {
-	if done, ok := t.procSigs[n]; ok {
-		ch := t.procChs[n]
-		close(ch)
-		<-done
-	}
-
-	if err := n.Close(); err != nil {
-		return err
-	}
+	// runner.Close()
 
 	for _, child := range n.Children() {
 		if err := t.closeNode(child); err != nil {
@@ -178,11 +137,4 @@ func (t *streamTask) handleError(err error) {
 
 func (t *streamTask) OnError(fn ErrorFunc) {
 	t.errorFn = fn
-}
-
-func pressure(ch chan *Message) float64 {
-	l := float64(len(ch))
-	c := float64(cap(ch))
-
-	return l / c * 100
 }
