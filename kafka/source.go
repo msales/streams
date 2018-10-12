@@ -54,7 +54,7 @@ func (c *SourceConfig) Validate() error {
 
 	switch {
 	case c.Brokers == nil || len(c.Brokers) == 0:
-		return sarama.ConfigurationError("Brokers mut have at least one broker")
+		return sarama.ConfigurationError("Brokers must have at least one broker")
 	case c.KeyDecoder == nil:
 		return sarama.ConfigurationError("KeyDecoder must be an instance of Decoder")
 	case c.ValueDecoder == nil:
