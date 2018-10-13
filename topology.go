@@ -87,3 +87,46 @@ func (tb *TopologyBuilder) Build() *Topology {
 		processors: tb.processors,
 	}
 }
+
+func flattenNodeTree(roots map[Source]Node) []Node {
+	nodes := []Node{}
+	visit := []Node{}
+
+	for _, node := range roots {
+		visit = append(visit, node)
+	}
+
+	for len(visit) > 0 {
+		var n Node
+		n, visit = visit[0], visit[1:]
+
+		nodes = append(nodes, n)
+
+		for _, c := range n.Children() {
+			if contains(c, visit) {
+				continue
+			}
+
+			visit = append(visit, c)
+		}
+	}
+
+	return nodes
+}
+
+func reverseNodes(nodes []Node) {
+	for i := len(nodes)/2 - 1; i >= 0; i-- {
+		opp := len(nodes) - 1 - i
+		nodes[i], nodes[opp] = nodes[opp], nodes[i]
+	}
+}
+
+func contains(n Node, nodes []Node) bool {
+	for _, node := range nodes {
+		if node == n {
+			return true
+		}
+	}
+
+	return false
+}

@@ -29,6 +29,7 @@ func NewProcessorPump(node Node, errFunc ErrorFunc) Pump {
 		name:      node.Name(),
 		processor: node.Processor(),
 		errFunc:   errFunc,
+		ch:        make(chan *Message, 1000),
 	}
 
 	go r.run()

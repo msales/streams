@@ -2,9 +2,7 @@ package streams
 
 import (
 	"sync"
-	"time"
 
-	"github.com/msales/pkg/stats"
 	"github.com/pkg/errors"
 	"github.com/tevino/abool"
 )
@@ -31,6 +29,7 @@ func NewTask(topology *Topology) Task {
 	return &streamTask{
 		topology: topology,
 		running:  abool.New(),
+		pumps:    map[Node]Pump{},
 	}
 }
 
@@ -46,30 +45,37 @@ func (t *streamTask) Start() error {
 }
 
 func (t *streamTask) setupTopology() {
-	// TODO: create a slice in reverse order of all nodes
+	nodes := flattenNodeTree(t.topology.Sources())
+	reverseNodes(nodes)
+	for _, node := range nodes {
+		pump := NewProcessorPump(node, t.errorFn)
+		t.pumps[node] = pump
 
-	// TODO: run through the slice, resolving node runners
-
-	for _, node := range t.topology.Processors() {
-		pipe := NewProcessorPipe(node)
+		pipe := NewProcessorPipe(t.resolvePumps(node.Children()))
 		node.Processor().WithPipe(pipe)
 	}
 
 	for source, node := range t.topology.Sources() {
-		pipe := NewProcessorPipe(node)
-		node.Processor().WithPipe(pipe)
-
-		t.runSource(source, node)
+		pump := t.pumps[node]
+		t.runSource(source, pump)
 	}
 }
 
-func (t *streamTask) runSource(source Source, node Node) {
+func (t *streamTask) resolvePumps(nodes []Node) []Pump {
+	pumps := []Pump{}
+	for _, node := range nodes {
+		pumps = append(pumps, t.pumps[node])
+	}
+	return pumps
+}
+
+func (t *streamTask) runSource(source Source, pump Pump) {
 	go func() {
 		t.sourceWg.Add(1)
 		defer t.sourceWg.Done()
 
 		for t.running.IsSet() {
-			start := time.Now()
+			//start := time.Now()
 
 			msg, err := source.Consume()
 			if err != nil {
@@ -80,12 +86,10 @@ func (t *streamTask) runSource(source Source, node Node) {
 				continue
 			}
 
-			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
-			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
+			//stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
+			//stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
 
-			// Get runner
-			// err = runner.Process(msg)
-			err = node.Processor().Process(msg)
+			err = pump.Process(msg)
 			if err != nil {
 				t.handleError(err)
 			}
@@ -101,27 +105,14 @@ func (t *streamTask) Close() error {
 }
 
 func (t *streamTask) closeTopology() error {
-	// TODO: Remove recursion and use instead a slice that can be deduped
-	for _, node := range t.topology.Sources() {
-		if err := t.closeNode(node); err != nil {
-			return err
-		}
+	nodes := flattenNodeTree(t.topology.Sources())
+	for _, node := range nodes {
+		pump := t.pumps[node]
+		pump.Close()
 	}
 
 	for source := range t.topology.Sources() {
 		if err := source.Close(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (t *streamTask) closeNode(n Node) error {
-	// runner.Close()
-
-	for _, child := range n.Children() {
-		if err := t.closeNode(child); err != nil {
 			return err
 		}
 	}
