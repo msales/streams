@@ -2,7 +2,9 @@ package streams
 
 import (
 	"sync"
+	"time"
 
+	"github.com/msales/pkg/stats"
 	"github.com/pkg/errors"
 	"github.com/tevino/abool"
 )
@@ -56,26 +58,25 @@ func (t *streamTask) setupTopology() {
 	}
 
 	for source, node := range t.topology.Sources() {
-		pump := t.pumps[node]
-		t.runSource(source, pump)
+		t.runSource(node.Name(), source, t.resolvePumps(node.Children()))
 	}
 }
 
 func (t *streamTask) resolvePumps(nodes []Node) []Pump {
-	pumps := []Pump{}
+	var pumps []Pump
 	for _, node := range nodes {
 		pumps = append(pumps, t.pumps[node])
 	}
 	return pumps
 }
 
-func (t *streamTask) runSource(source Source, pump Pump) {
+func (t *streamTask) runSource(name string, source Source, pumps []Pump) {
 	go func() {
 		t.sourceWg.Add(1)
 		defer t.sourceWg.Done()
 
 		for t.running.IsSet() {
-			//start := time.Now()
+			start := time.Now()
 
 			msg, err := source.Consume()
 			if err != nil {
@@ -86,12 +87,14 @@ func (t *streamTask) runSource(source Source, pump Pump) {
 				continue
 			}
 
-			//stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", node.Name())
-			//stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", node.Name())
+			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", name)
+			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", name)
 
-			err = pump.Process(msg)
-			if err != nil {
-				t.handleError(err)
+			for _, pump := range pumps {
+				err = pump.Process(msg)
+				if err != nil {
+					t.handleError(err)
+				}
 			}
 		}
 	}()

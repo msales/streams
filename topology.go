@@ -7,6 +7,43 @@ type Node interface {
 	Processor() Processor
 }
 
+type SourceNode struct {
+	name string
+	pipe Pipe
+
+	children []Node
+}
+
+func NewSourceNode(name string) *SourceNode {
+	return &SourceNode{
+		name: name,
+	}
+}
+
+func (n *SourceNode) Name() string {
+	return n.name
+}
+
+func (n *SourceNode) WithPipe(pipe Pipe) {
+	n.pipe = pipe
+}
+
+func (n *SourceNode) AddChild(node Node) {
+	n.children = append(n.children, node)
+}
+
+func (n *SourceNode) Children() []Node {
+	return n.children
+}
+
+func (n *SourceNode) Processor() Processor {
+	return nil
+}
+
+func (n *SourceNode) Close() error {
+	return nil
+}
+
 type ProcessorNode struct {
 	name      string
 	processor Processor
@@ -63,7 +100,7 @@ func NewTopologyBuilder() *TopologyBuilder {
 }
 
 func (tb *TopologyBuilder) AddSource(name string, source Source) Node {
-	n := NewProcessorNode(name, NewPassThroughProcessor())
+	n := NewSourceNode(name)
 
 	tb.sources[source] = n
 
@@ -89,8 +126,8 @@ func (tb *TopologyBuilder) Build() *Topology {
 }
 
 func flattenNodeTree(roots map[Source]Node) []Node {
-	nodes := []Node{}
-	visit := []Node{}
+	var nodes []Node
+	var visit []Node
 
 	for _, node := range roots {
 		visit = append(visit, node)
@@ -100,7 +137,9 @@ func flattenNodeTree(roots map[Source]Node) []Node {
 		var n Node
 		n, visit = visit[0], visit[1:]
 
-		nodes = append(nodes, n)
+		if _, ok := n.(*SourceNode); !ok {
+			nodes = append(nodes, n)
+		}
 
 		for _, c := range n.Children() {
 			if contains(c, visit) {

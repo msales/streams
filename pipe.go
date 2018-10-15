@@ -14,6 +14,8 @@ type Pipe interface {
 	Commit(*Message) error
 }
 
+var _ = (Pipe)(&ProcessorPipe{})
+
 // ProcessorPipe represents the pipe for processors.
 type ProcessorPipe struct {
 	children []Pump
