@@ -16,17 +16,17 @@ func TestPipe_ImplementsPipeInterface(t *testing.T) {
 	}
 }
 
-func TestPipe_QueueForForward(t *testing.T) {
+func TestPipe_MessagesForForward(t *testing.T) {
 	msg := streams.NewMessage("test", "test")
 	p := mocks.NewPipe(t)
 	p.ExpectForward("test", "test")
 
 	p.Forward(msg)
 
-	queue := p.Queue()
-	assert.Len(t, queue, 1)
-	assert.Nil(t, queue[0].Node)
-	assert.Exactly(t, msg, queue[0].Msg)
+	msgs := p.Messages()
+	assert.Len(t, msgs, 1)
+	assert.Exactly(t, -1, msgs[0].Index)
+	assert.Exactly(t, msg, msgs[0].Msg)
 }
 
 func TestPipe_QueueForForwardToChild(t *testing.T) {
@@ -36,10 +36,10 @@ func TestPipe_QueueForForwardToChild(t *testing.T) {
 
 	p.ForwardToChild(msg, 0)
 
-	queue := p.Queue()
-	assert.Len(t, queue, 1)
-	assert.Nil(t, queue[0].Node)
-	assert.Exactly(t, msg, queue[0].Msg)
+	msgs := p.Messages()
+	assert.Len(t, msgs, 1)
+	assert.Exactly(t, 0, msgs[0].Index)
+	assert.Exactly(t, msg, msgs[0].Msg)
 }
 
 func TestPipe_HandlesExpectations(t *testing.T) {

@@ -7,9 +7,10 @@ type Node interface {
 	Processor() Processor
 }
 
+var _ = (Node)(&SourceNode{})
+
 type SourceNode struct {
 	name string
-	pipe Pipe
 
 	children []Node
 }
@@ -24,10 +25,6 @@ func (n *SourceNode) Name() string {
 	return n.name
 }
 
-func (n *SourceNode) WithPipe(pipe Pipe) {
-	n.pipe = pipe
-}
-
 func (n *SourceNode) AddChild(node Node) {
 	n.children = append(n.children, node)
 }
@@ -40,9 +37,7 @@ func (n *SourceNode) Processor() Processor {
 	return nil
 }
 
-func (n *SourceNode) Close() error {
-	return nil
-}
+var _ = (Node)(&ProcessorNode{})
 
 type ProcessorNode struct {
 	name      string
@@ -137,7 +132,7 @@ func flattenNodeTree(roots map[Source]Node) []Node {
 		var n Node
 		n, visit = visit[0], visit[1:]
 
-		if _, ok := n.(*SourceNode); !ok {
+		if n.Processor() != nil {
 			nodes = append(nodes, n)
 		}
 

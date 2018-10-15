@@ -220,7 +220,7 @@ func TestMergeProcessor_ProcessMergesMetadata(t *testing.T) {
 	p.Process(streams.NewMessage(nil, "test").WithMetadata(src1, "test1"))
 	p.Process(streams.NewMessage("test", "test").WithMetadata(src2, "test2"))
 
-	queue := pipe.Queue()
+	queue := pipe.Messages()
 	assert.Len(t, queue, 2)
 	msg := queue[1].Msg
 	assert.Len(t, msg.Metadata(), 2)

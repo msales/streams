@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/msales/streams"
-	"github.com/msales/streams/mocks"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,47 +34,12 @@ func TestSourceNode_Children(t *testing.T) {
 	assert.Equal(t, child, children[0])
 }
 
-func TestSourceNode_Process(t *testing.T) {
-	key := "test"
-	value := "test"
-
-	pipe := mocks.NewPipe(t)
-	pipe.ExpectForward(key, value)
-
-	n := streams.SourceNode{}
-	n.WithPipe(pipe)
-
-	_, err := n.Process(streams.NewMessage(key, value))
-
-	assert.NoError(t, err)
-
-	pipe.AssertExpectations()
-}
-
-func TestSourceNode_ProcessWithForwardError(t *testing.T) {
-	key := "test"
-	value := "test"
-
-	pipe := mocks.NewPipe(t)
-	pipe.ExpectForward(key, value)
-	pipe.ShouldError()
-
-	n := streams.SourceNode{}
-	n.WithPipe(pipe)
-
-	_, err := n.Process(streams.NewMessage(key, value))
-
-	assert.Error(t, err)
-
-	pipe.AssertExpectations()
-}
-
-func TestSourceNode_Close(t *testing.T) {
+func TestSourceNode_Processor(t *testing.T) {
 	n := streams.SourceNode{}
 
-	err := n.Close()
+	processor := n.Processor()
 
-	assert.NoError(t, err)
+	assert.Nil(t, processor)
 }
 
 func TestNewProcessorNode(t *testing.T) {
@@ -107,45 +70,13 @@ func TestProcessorNode_Children(t *testing.T) {
 	assert.Equal(t, child, children[0])
 }
 
-func TestProcessorNode_Process(t *testing.T) {
-	msg := streams.NewMessage("test", "test")
-	pipe := mocks.NewPipe(t)
+func TestProcessorNode_Processor(t *testing.T) {
 	p := new(MockProcessor)
-	p.On("WithPipe", pipe).Return(nil)
-	p.On("Process", msg).Return(nil, nil)
-	n := streams.NewProcessorNode("test", p)
-	n.WithPipe(pipe)
-
-	_, err := n.Process(msg)
-
-	assert.NoError(t, err)
-	p.AssertExpectations(t)
-}
-
-func TestProcessorNode_ProcessWithError(t *testing.T) {
-	msg := streams.NewMessage("test", "test")
-	pipe := mocks.NewPipe(t)
-	p := new(MockProcessor)
-	p.On("WithPipe", pipe).Return(nil)
-	p.On("Process", msg).Return(errors.New("test"))
-	n := streams.NewProcessorNode("test", p)
-	n.WithPipe(pipe)
-
-	_, err := n.Process(msg)
-
-	assert.Error(t, err)
-	p.AssertExpectations(t)
-}
-
-func TestProcessorNode_Close(t *testing.T) {
-	p := new(MockProcessor)
-	p.On("Close").Return(nil)
 	n := streams.NewProcessorNode("test", p)
 
-	err := n.Close()
+	processor := n.Processor()
 
-	assert.NoError(t, err)
-	p.AssertExpectations(t)
+	assert.Exactly(t, p, processor)
 }
 
 func TestTopologyBuilder_AddSource(t *testing.T) {

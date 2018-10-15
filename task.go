@@ -50,11 +50,11 @@ func (t *streamTask) setupTopology() {
 	nodes := flattenNodeTree(t.topology.Sources())
 	reverseNodes(nodes)
 	for _, node := range nodes {
-		pump := NewProcessorPump(node, t.errorFn)
-		t.pumps[node] = pump
-
 		pipe := NewProcessorPipe(t.resolvePumps(node.Children()))
 		node.Processor().WithPipe(pipe)
+
+		pump := NewProcessorPump(node, t.errorFn)
+		t.pumps[node] = pump
 	}
 
 	for source, node := range t.topology.Sources() {
@@ -110,8 +110,9 @@ func (t *streamTask) Close() error {
 func (t *streamTask) closeTopology() error {
 	nodes := flattenNodeTree(t.topology.Sources())
 	for _, node := range nodes {
-		pump := t.pumps[node]
-		pump.Close()
+		if err := t.pumps[node].Close(); err != nil {
+			return err
+		}
 	}
 
 	for source := range t.topology.Sources() {

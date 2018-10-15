@@ -163,7 +163,7 @@ func TestStreamTask_HandleCloseWithProcessorError(t *testing.T) {
 	s.On("Close").Return(nil)
 
 	p := new(MockProcessor)
-	p.On("WithPipe", mock.Anything).Return(nil)
+	p.On("WithPipe", mock.Anything)
 	p.On("Close").Return(errors.New("test error"))
 
 	b := streams.NewStreamBuilder()

@@ -13,11 +13,19 @@ type record struct {
 	index int
 }
 
+// ChildMessage represents a message forwarded to a child index.
+type ChildMessage struct {
+	Index int
+	Msg   *streams.Message
+}
+
+var _ = (streams.Pipe)(&Pipe{})
+
 // Pipe is a mock Pipe.
 type Pipe struct {
 	t *testing.T
 
-	queue []streams.NodeMessage
+	msgs []ChildMessage
 
 	shouldError bool
 
@@ -29,14 +37,14 @@ type Pipe struct {
 func NewPipe(t *testing.T) *Pipe {
 	return &Pipe{
 		t:             t,
-		queue:         []streams.NodeMessage{},
+		msgs:          []ChildMessage{},
 		expectForward: []record{},
 	}
 }
 
-// Queue gets the queued Messages for each Node.
-func (p *Pipe) Queue() []streams.NodeMessage {
-	return p.queue
+// Messages gets the queued Messages for each Node.
+func (p *Pipe) Messages() []ChildMessage {
+	return p.msgs
 }
 
 // Forward queues the data to all processor children in the topology.
@@ -58,7 +66,7 @@ func (p *Pipe) Forward(msg *streams.Message) error {
 		return errors.New("test")
 	}
 
-	p.queue = append(p.queue, streams.NodeMessage{Node: nil, Msg: msg})
+	p.msgs = append(p.msgs, ChildMessage{Index: -1, Msg: msg})
 
 	return nil
 }
@@ -83,7 +91,7 @@ func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
 		return errors.New("test")
 	}
 
-	p.queue = append(p.queue, streams.NodeMessage{Node: nil, Msg: msg})
+	p.msgs = append(p.msgs, ChildMessage{Index: index, Msg: msg})
 
 	return nil
 }
