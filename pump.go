@@ -1,6 +1,7 @@
 package streams
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -55,9 +56,12 @@ func (p *processorPump) run() {
 			return
 		}
 
-		stats.Timing(msg.Ctx, "node.latency", time.Since(start)-p.pipe.Duration(), 1.0, "name", p.name)
-		stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", p.name)
-		stats.Gauge(msg.Ctx, "node.back-pressure", pressure(p.ch), 0.1, "name", p.name)
+		latency := time.Since(start) - p.pipe.Duration()
+		withStats(msg.Ctx, func(s stats.Stats) {
+			s.Timing("node.latency", latency, 0.1, "name", p.name)
+			s.Inc("node.throughput", 1, 0.1, "name", p.name)
+			s.Gauge("node.back-pressure", pressure(p.ch), 0.1, "name", p.name)
+		})
 	}
 }
 
@@ -150,8 +154,11 @@ func (p *sourcePump) run() {
 				continue
 			}
 
-			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", p.name)
-			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", p.name)
+			latency := time.Since(start)
+			withStats(msg.Ctx, func(s stats.Stats) {
+				s.Timing("node.latency", latency, 0.1, "name", p.name)
+				s.Inc("node.throughput", 1, 0.1, "name", p.name)
+			})
 
 			for _, pump := range p.pumps {
 				err = pump.Process(msg)
@@ -176,4 +183,12 @@ func (p *sourcePump) Close() error {
 	close(p.quit)
 
 	return p.source.Close()
+}
+
+func withStats(ctx context.Context, fn func(s stats.Stats)) {
+	if s, ok := stats.FromContext(ctx); ok {
+		fn(s)
+		return
+	}
+	fn(stats.Null)
 }
