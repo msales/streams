@@ -71,7 +71,7 @@ func (p *Pipe) Forward(msg *streams.Message) error {
 	return nil
 }
 
-// Forward queues the data to the the given processor(s) child in the topology.
+// ForwardToChild queues the data to the the given processor(s) child in the topology.
 func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
 	if len(p.expectForward) == 0 {
 		p.t.Error("streams: mock: Unexpected call to ForwardToChild")
@@ -111,22 +111,28 @@ func (p *Pipe) Commit(msg *streams.Message) error {
 	return nil
 }
 
+// ShouldError indicates that an error should be returned on the
+// next operation.
 func (p *Pipe) ShouldError() {
 	p.shouldError = true
 }
 
+// ExpectForward registers an expectation of a Forward of the Pipe.
 func (p *Pipe) ExpectForward(k, v interface{}) {
 	p.expectForward = append(p.expectForward, record{k, v, -1})
 }
 
+// ExpectForwardToChild registers an expectation of a ForwardToChild the Pipe.
 func (p *Pipe) ExpectForwardToChild(k, v interface{}, index int) {
 	p.expectForward = append(p.expectForward, record{k, v, index})
 }
 
+// ExpectCommit registers an expectation of a Commit the Pipe.
 func (p *Pipe) ExpectCommit() {
 	p.expectCommit = true
 }
 
+// AssertExpectations asserts that the expectations were met.
 func (p *Pipe) AssertExpectations() {
 	if len(p.expectForward) > 0 {
 		p.t.Error("streams: mock: Expected a call to Forward or ForwardToChild but got none")

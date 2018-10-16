@@ -1,44 +1,57 @@
 package streams
 
+// Node represents a topology node.
 type Node interface {
+	// Name gets the node name.
 	Name() string
+	// AddChild adds a child node to the node.
 	AddChild(n Node)
+	// Children gets the nodes children.
 	Children() []Node
+	// Processor gets the nodes processor.
 	Processor() Processor
 }
 
 var _ = (Node)(&SourceNode{})
 
+// SourceNode represents a node between the source
+// and the rest of the node tree.
 type SourceNode struct {
 	name string
 
 	children []Node
 }
 
+// NewSourceNode create a new SourceNode.
 func NewSourceNode(name string) *SourceNode {
 	return &SourceNode{
 		name: name,
 	}
 }
 
+// Name gets the node name.
 func (n *SourceNode) Name() string {
 	return n.name
 }
 
+// AddChild adds a child node to the node.
 func (n *SourceNode) AddChild(node Node) {
 	n.children = append(n.children, node)
 }
 
+// Children gets the nodes children.
 func (n *SourceNode) Children() []Node {
 	return n.children
 }
 
+// Processor gets the nodes processor.
 func (n *SourceNode) Processor() Processor {
 	return nil
 }
 
 var _ = (Node)(&ProcessorNode{})
 
+// ProcessorNode represents the topology node for a processor.
 type ProcessorNode struct {
 	name      string
 	processor Processor
@@ -46,6 +59,7 @@ type ProcessorNode struct {
 	children []Node
 }
 
+// NewProcessorNode creates a new ProcessorNode.
 func NewProcessorNode(name string, p Processor) *ProcessorNode {
 	return &ProcessorNode{
 		name:      name,
@@ -53,40 +67,49 @@ func NewProcessorNode(name string, p Processor) *ProcessorNode {
 	}
 }
 
+// Name gets the node name.
 func (n *ProcessorNode) Name() string {
 	return n.name
 }
 
+// AddChild adds a child node to the node.
 func (n *ProcessorNode) AddChild(node Node) {
 	n.children = append(n.children, node)
 }
 
+// Children gets the nodes children.
 func (n *ProcessorNode) Children() []Node {
 	return n.children
 }
 
+// Processor gets the nodes processor.
 func (n *ProcessorNode) Processor() Processor {
 	return n.processor
 }
 
+// Topology represents the streams topology.
 type Topology struct {
 	sources    map[Source]Node
 	processors []Node
 }
 
+// Sources get the topology Sources.
 func (t Topology) Sources() map[Source]Node {
 	return t.sources
 }
 
+// Processors gets the topology Processors.
 func (t Topology) Processors() []Node {
 	return t.processors
 }
 
+// TopologyBuilder represents a topology builder.
 type TopologyBuilder struct {
 	sources    map[Source]Node
 	processors []Node
 }
 
+// NewTopologyBuilder creates a new TopologyBuilder.
 func NewTopologyBuilder() *TopologyBuilder {
 	return &TopologyBuilder{
 		sources:    map[Source]Node{},
@@ -94,6 +117,7 @@ func NewTopologyBuilder() *TopologyBuilder {
 	}
 }
 
+// AddSource adds a Source to the builder, returning the created Node.
 func (tb *TopologyBuilder) AddSource(name string, source Source) Node {
 	n := NewSourceNode(name)
 
@@ -102,6 +126,7 @@ func (tb *TopologyBuilder) AddSource(name string, source Source) Node {
 	return n
 }
 
+// AddProcessor adds a Processor to the builder, returning the created Node.
 func (tb *TopologyBuilder) AddProcessor(name string, processor Processor, parents []Node) Node {
 	n := NewProcessorNode(name, processor)
 	for _, parent := range parents {
@@ -113,6 +138,7 @@ func (tb *TopologyBuilder) AddProcessor(name string, processor Processor, parent
 	return n
 }
 
+// Build creates an immutable Topology.
 func (tb *TopologyBuilder) Build() *Topology {
 	return &Topology{
 		sources:    tb.sources,

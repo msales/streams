@@ -178,7 +178,7 @@ func (p *sourcePump) Stop() {
 	p.wg.Wait()
 }
 
-// Close closed the source pump.
+// Close closes the source pump.
 func (p *sourcePump) Close() error {
 	close(p.quit)
 

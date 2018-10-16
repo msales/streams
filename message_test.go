@@ -34,8 +34,10 @@ func TestNewMessage(t *testing.T) {
 	assert.Equal(t, "test", msg.Value)
 }
 
+type ctxKey string
+
 func TestNewMessageWithContext(t *testing.T) {
-	ctx := context.WithValue(context.Background(), "1", "2")
+	ctx := context.WithValue(context.Background(), ctxKey("1"), "2")
 	msg := NewMessageWithContext(ctx, "test", "test")
 
 	assert.Equal(t, ctx, msg.Ctx)
