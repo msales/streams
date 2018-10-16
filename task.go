@@ -1,45 +1,48 @@
 package streams
 
 import (
-	"sync"
-	"time"
-
-	"github.com/msales/pkg/stats"
-	"github.com/pkg/errors"
-	"github.com/tevino/abool"
+	"errors"
 )
 
+// ErrorFunc represents a streams error handling function.
 type ErrorFunc func(error)
 
+// Task represents a streams task.
 type Task interface {
+	// Start starts the streams processors.
 	Start() error
+	// OnError sets the error handler.
 	OnError(fn ErrorFunc)
+	// Close stops and closes the streams processors.
 	Close() error
 }
 
 type streamTask struct {
 	topology *Topology
 
-	running *abool.AtomicBool
+	running bool
 	errorFn ErrorFunc
 
-	sourceWg sync.WaitGroup
-	pumps map[Node]Pump
+	srcPumps SourcePumps
+	pumps    map[Node]Pump
 }
 
+// NewTask creates a new streams task.
 func NewTask(topology *Topology) Task {
 	return &streamTask{
 		topology: topology,
-		running:  abool.New(),
+		srcPumps: SourcePumps{},
 		pumps:    map[Node]Pump{},
 	}
 }
 
+// Start starts the streams processors.
 func (t *streamTask) Start() error {
 	// If we are already running, exit
-	if !t.running.SetToIf(false, true) {
+	if t.running {
 		return errors.New("streams: task already started")
 	}
+	t.running = true
 
 	t.setupTopology()
 
@@ -50,15 +53,16 @@ func (t *streamTask) setupTopology() {
 	nodes := flattenNodeTree(t.topology.Sources())
 	reverseNodes(nodes)
 	for _, node := range nodes {
-		pipe := NewProcessorPipe(t.resolvePumps(node.Children()))
+		pipe := NewPipe(t.resolvePumps(node.Children()))
 		node.Processor().WithPipe(pipe)
 
-		pump := NewProcessorPump(node, t.errorFn)
+		pump := NewPump(node, pipe.(TimedPipe), t.handleError)
 		t.pumps[node] = pump
 	}
 
 	for source, node := range t.topology.Sources() {
-		t.runSource(node.Name(), source, t.resolvePumps(node.Children()))
+		srcPump := NewSourcePump(node.Name(), source, t.resolvePumps(node.Children()), t.handleError)
+		t.srcPumps = append(t.srcPumps, srcPump)
 	}
 }
 
@@ -70,39 +74,10 @@ func (t *streamTask) resolvePumps(nodes []Node) []Pump {
 	return pumps
 }
 
-func (t *streamTask) runSource(name string, source Source, pumps []Pump) {
-	go func() {
-		t.sourceWg.Add(1)
-		defer t.sourceWg.Done()
-
-		for t.running.IsSet() {
-			start := time.Now()
-
-			msg, err := source.Consume()
-			if err != nil {
-				t.handleError(err)
-			}
-
-			if msg.Empty() {
-				continue
-			}
-
-			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", name)
-			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", name)
-
-			for _, pump := range pumps {
-				err = pump.Process(msg)
-				if err != nil {
-					t.handleError(err)
-				}
-			}
-		}
-	}()
-}
-
+// Close stops and closes the streams processors.
 func (t *streamTask) Close() error {
-	t.running.UnSet()
-	t.sourceWg.Wait()
+	t.running = false
+	t.srcPumps.StopAll()
 
 	return t.closeTopology()
 }
@@ -115,8 +90,8 @@ func (t *streamTask) closeTopology() error {
 		}
 	}
 
-	for source := range t.topology.Sources() {
-		if err := source.Close(); err != nil {
+	for _, srcPump := range t.srcPumps {
+		if err := srcPump.Close(); err != nil {
 			return err
 		}
 	}
@@ -125,11 +100,13 @@ func (t *streamTask) closeTopology() error {
 }
 
 func (t *streamTask) handleError(err error) {
-	t.running.UnSet()
+	t.running = false
+	t.srcPumps.StopAll()
 
 	t.errorFn(err)
 }
 
+// OnError sets the error handler.
 func (t *streamTask) OnError(fn ErrorFunc) {
 	t.errorFn = fn
 }

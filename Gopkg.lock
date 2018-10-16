@@ -2,54 +2,71 @@
 
 
 [[projects]]
+  digest = "1:9362b2212139b7821f73a86169bf80ce6b0264956f87d82ab3aeedb2b5c08fea"
   name = "github.com/Shopify/sarama"
   packages = ["."]
+  pruneopts = ""
   revision = "35324cf48e33d8260e1c7c18854465a904ade249"
   version = "v1.17.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:2b036724237c0630b22864b499d27a35e7f9f0eefc3d90bf738571617d6ceaae"
   name = "github.com/bradfitz/gomemcache"
   packages = ["memcache"]
+  pruneopts = ""
   revision = "1952afaa557dc08e8e0d89eafab110fb501c1a2b"
 
 [[projects]]
+  digest = "1:c5978131c797af795972c27c25396c81d1bf53b7b6e8e3e0259e58375765c071"
   name = "github.com/bsm/sarama-cluster"
   packages = ["."]
+  pruneopts = ""
   revision = "cf455bc755fe41ac9bb2861e7a961833d9c2ecc3"
   version = "v2.1.13"
 
 [[projects]]
+  digest = "1:47fe89a242ccbae03d31b4c665d3d983786acd316c0d7c51bcfa0d019b205004"
   name = "github.com/cactus/go-statsd-client"
   packages = ["statsd"]
+  pruneopts = ""
   revision = "138b925ccdf617776955904ba7759fce64406cec"
   version = "v3.1.1"
 
 [[projects]]
+  digest = "1:56c130d885a4aacae1dd9c7b71cfe39912c7ebc1ff7d2b46083c8812996dc43b"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
+  pruneopts = ""
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:6d6672f85a84411509885eaa32f597577873de00e30729b9bb0eb1e1faa49c12"
   name = "github.com/eapache/go-resiliency"
   packages = ["breaker"]
+  pruneopts = ""
   revision = "ea41b0fad31007accc7f806884dcdf3da98b79ce"
   version = "v1.1.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:1f7503fa58a852a1416556ae2ddb219b49a1304fd408391948e2e3676514c48d"
   name = "github.com/eapache/go-xerial-snappy"
   packages = ["."]
+  pruneopts = ""
   revision = "bb955e01b9346ac19dc29eb16586c90ded99a98c"
 
 [[projects]]
+  digest = "1:d8d46d21073d0f65daf1740ebf4629c65e04bf92e14ce93c2201e8624843c3d3"
   name = "github.com/eapache/queue"
   packages = ["."]
+  pruneopts = ""
   revision = "44cc805cf13205b55f69e14bcb69867d1ae92f98"
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:3dfd659219b6f63dc0677a62b8d4e8f10b5cf53900aef40858db10a19407e41d"
   name = "github.com/go-redis/redis"
   packages = [
     ".",
@@ -59,114 +76,147 @@
     "internal/pool",
     "internal/proto",
     "internal/singleflight",
-    "internal/util"
+    "internal/util",
   ]
+  pruneopts = ""
   revision = "83fb42932f6145ce52df09860384a4653d2d332a"
   version = "v6.12.0"
 
 [[projects]]
+  digest = "1:9ca737b471693542351e112c9e86be9bf7385e42256893a09ecb2a98e2036f74"
   name = "github.com/go-stack/stack"
   packages = ["."]
+  pruneopts = ""
   revision = "259ab82a6cad3992b4e21ff5cac294ccb06474bc"
   version = "v1.7.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:2a5888946cdbc8aa360fd43301f9fc7869d663f60d5eedae7d4e6e5e4f06f2bf"
   name = "github.com/golang/snappy"
   packages = ["."]
+  pruneopts = ""
   revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
 
 [[projects]]
+  digest = "1:9ea83adf8e96d6304f394d40436f2eb44c1dc3250d223b74088cc253a6cd0a1c"
   name = "github.com/mattn/go-colorable"
   packages = ["."]
+  pruneopts = ""
   revision = "167de6bfdfba052fa6b2d3664c8f5272e23c9072"
   version = "v0.0.9"
 
 [[projects]]
+  digest = "1:78229b46ddb7434f881390029bd1af7661294af31f6802e0e1bedaad4ab0af3c"
   name = "github.com/mattn/go-isatty"
   packages = ["."]
+  pruneopts = ""
   revision = "0360b2af4f38e8d38c7fce2a9f4e702702d73a39"
   version = "v0.0.3"
 
 [[projects]]
+  digest = "1:f634e37300463c186106436c60267ef0c5815004e14f40d0c1f425d034193373"
   name = "github.com/msales/pkg"
   packages = [
     "cache",
     "log",
-    "stats"
+    "stats",
   ]
+  pruneopts = ""
   revision = "17f08a8e63b432dc9a202d4fdf7479e7a6b7e31c"
   version = "v2.0.0"
 
 [[projects]]
+  digest = "1:ae207f9ee2d8ec63fa2830a7d53626c36890d5ca33b88c80efc22eb1aee0ba78"
   name = "github.com/pierrec/lz4"
   packages = [
     ".",
-    "internal/xxh32"
+    "internal/xxh32",
   ]
+  pruneopts = ""
   revision = "6b9367c9ff401dbc54fabce3fb8d972e799b702d"
   version = "v2.0.2"
 
 [[projects]]
+  digest = "1:7365acd48986e205ccb8652cc746f09c8b7876030d53710ea6ef7d0bd0dcd7ca"
   name = "github.com/pkg/errors"
   packages = ["."]
+  pruneopts = ""
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
 
 [[projects]]
+  digest = "1:256484dbbcd271f9ecebc6795b2df8cad4c458dd0f5fd82a8c2fa0c29f233411"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
+  pruneopts = ""
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:15bcdc717654ef21128e8af3a63eec39a6d08a830e297f93d65163f87c8eb523"
   name = "github.com/rcrowley/go-metrics"
   packages = ["."]
+  pruneopts = ""
   revision = "e2704e165165ec55d062f5919b4b29494e9fa790"
 
 [[projects]]
+  digest = "1:711eebe744c0151a9d09af2315f0bb729b2ec7637ef4c410fa90a18ef74b65b6"
   name = "github.com/stretchr/objx"
   packages = ["."]
+  pruneopts = ""
   revision = "477a77ecc69700c7cdeb1fa9e129548e1c1c393c"
   version = "v0.1.1"
 
 [[projects]]
+  digest = "1:c587772fb8ad29ad4db67575dad25ba17a51f072ff18a22b4f0257a4d9c24f75"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
-    "mock"
+    "mock",
   ]
+  pruneopts = ""
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
   version = "v1.2.2"
 
 [[projects]]
   branch = "master"
-  name = "github.com/tevino/abool"
-  packages = ["."]
-  revision = "9b9efcf221b50905aab9bbabd3daed56dc10f339"
-
-[[projects]]
-  branch = "master"
+  digest = "1:a8bbf66046a1af68dd81d9d7b12cc9da2d28491fb5632b7757751cada4664444"
   name = "golang.org/x/sys"
   packages = ["unix"]
+  pruneopts = ""
   revision = "fc8bd948cf46f9c7af0f07d34151ce25fe90e477"
 
 [[projects]]
+  digest = "1:4014584c076f25aaf35d9de36c79ae2d208bba32c780f405e3395dad79292e22"
   name = "gopkg.in/DATA-DOG/go-sqlmock.v1"
   packages = ["."]
+  pruneopts = ""
   revision = "d76b18b42f285b792bf985118980ce9eacea9d10"
   version = "v1.3.0"
 
 [[projects]]
+  digest = "1:cd42e7799605c57153280b45612419aa2657798bea700c04bd8980c00fb88edc"
   name = "gopkg.in/inconshreveable/log15.v2"
   packages = ["."]
+  pruneopts = ""
   revision = "0decfc6c20d9ca0ad143b0e89dcaa20f810b4fb3"
   version = "v2.13"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1db35b4cd812295cd019cdba2884b74ff048756df9005a6c0c222a0150d5fa51"
+  input-imports = [
+    "github.com/Shopify/sarama",
+    "github.com/bsm/sarama-cluster",
+    "github.com/msales/pkg/cache",
+    "github.com/msales/pkg/stats",
+    "github.com/pkg/errors",
+    "github.com/stretchr/testify/assert",
+    "github.com/stretchr/testify/mock",
+    "gopkg.in/DATA-DOG/go-sqlmock.v1",
+    "gopkg.in/inconshreveable/log15.v2",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1

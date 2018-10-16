@@ -7,67 +7,74 @@ import (
 	"github.com/msales/pkg/stats"
 )
 
+// Pump represent a Message pump.
 type Pump interface {
+	// Process processes a message in the Pump.
 	Process(*Message) error
+	// Close closes the pump.
 	Close() error
 }
 
-var _ = (Pump)(&ProcessorPump{})
-
-type ProcessorPump struct {
+// processorPump is an asynchronous Message Pump.
+type processorPump struct {
 	name      string
 	processor Processor
-	errFunc   ErrorFunc
+	pipe      TimedPipe
+	errFn     ErrorFunc
 
 	ch chan *Message
 
 	wg sync.WaitGroup
 }
 
-func NewProcessorPump(node Node, errFunc ErrorFunc) Pump {
-	r := &ProcessorPump{
+// NewPump creates a new processorPump instance.
+func NewPump(node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
+	p := &processorPump{
 		name:      node.Name(),
 		processor: node.Processor(),
-		errFunc:   errFunc,
+		pipe:      pipe,
+		errFn:     errFn,
 		ch:        make(chan *Message, 1000),
 	}
 
-	go r.run()
+	go p.run()
 
-	return r
+	return p
 }
 
-func (r *ProcessorPump) run() {
-	r.wg.Add(1)
-	defer r.wg.Done()
+func (p *processorPump) run() {
+	p.wg.Add(1)
+	defer p.wg.Done()
 
-	for msg := range r.ch {
+	for msg := range p.ch {
+		p.pipe.Reset()
 		start := time.Now()
 
-		err := r.processor.Process(msg)
-		if err != nil {
-			r.errFunc(err)
+		if err := p.processor.Process(msg); err != nil {
+			p.errFn(err)
 			return
 		}
 
-		stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", r.name)
-		stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", r.name)
-		stats.Gauge(msg.Ctx, "node.back-pressure", pressure(r.ch), 0.1, "name", r.name)
+		stats.Timing(msg.Ctx, "node.latency", time.Since(start)-p.pipe.Duration(), 1.0, "name", p.name)
+		stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", p.name)
+		stats.Gauge(msg.Ctx, "node.back-pressure", pressure(p.ch), 0.1, "name", p.name)
 	}
 }
 
-func (r *ProcessorPump) Process(msg *Message) error {
-	r.ch <- msg
+// Process processes a message in the Pump.
+func (p *processorPump) Process(msg *Message) error {
+	p.ch <- msg
 
 	return nil
 }
 
-func (r *ProcessorPump) Close() error {
-	close(r.ch)
+// Close closes the pump.
+func (p *processorPump) Close() error {
+	close(p.ch)
 
-	r.wg.Wait()
+	p.wg.Wait()
 
-	return r.processor.Close()
+	return p.processor.Close()
 }
 
 // pressure calculates how full a channel is.
@@ -76,4 +83,93 @@ func pressure(ch chan *Message) float64 {
 	c := float64(cap(ch))
 
 	return l / c * 100
+}
+
+// SourcePump represents a Message pump for sources.
+type SourcePump interface {
+	// Stop stops the source pump from running.
+	Stop()
+	// Close closed the source pump.
+	Close() error
+}
+
+// SourcePumps represents a set of source pumps.
+type SourcePumps []SourcePump
+
+// StopAll stops all source pumps.
+func (p SourcePumps) StopAll() {
+	for _, sp := range p {
+		sp.Stop()
+	}
+}
+
+// sourcePump represents a Message pump for sources.
+type sourcePump struct {
+	name   string
+	source Source
+	pumps  []Pump
+	errFn  ErrorFunc
+
+	quit chan struct{}
+	wg   sync.WaitGroup
+}
+
+// NewSourcePump creates a new SourcePump.
+func NewSourcePump(name string, source Source, pumps []Pump, errFn ErrorFunc) SourcePump {
+	p := &sourcePump{
+		name:   name,
+		source: source,
+		pumps:  pumps,
+		errFn:  errFn,
+		quit:   make(chan struct{}, 1),
+	}
+
+	go p.run()
+
+	return p
+}
+
+func (p *sourcePump) run() {
+	p.wg.Add(1)
+	defer p.wg.Done()
+
+	for {
+		select {
+		case <-p.quit:
+			return
+		default:
+			start := time.Now()
+
+			msg, err := p.source.Consume()
+			if err != nil {
+				p.errFn(err)
+			}
+
+			if msg.Empty() {
+				continue
+			}
+
+			stats.Timing(msg.Ctx, "node.latency", time.Since(start), 1.0, "name", p.name)
+			stats.Inc(msg.Ctx, "node.throughput", 1, 1.0, "name", p.name)
+
+			for _, pump := range p.pumps {
+				err = pump.Process(msg)
+				if err != nil {
+					p.errFn(err)
+				}
+			}
+		}
+	}
+}
+
+// Stop stops the source pump from running.
+func (p *sourcePump) Stop() {
+	p.quit <- struct{}{}
+}
+
+// Close closed the source pump.
+func (p *sourcePump) Close() error {
+	p.wg.Wait()
+
+	return p.source.Close()
 }

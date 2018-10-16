@@ -14,10 +14,6 @@ type Processor interface {
 	Close() error
 }
 
-type Committer interface {
-	Commit() error
-}
-
 // Mapper represents a mapping function.
 type Mapper func(*Message) (*Message, error)
 
@@ -216,33 +212,6 @@ func (p *MergeProcessor) Process(msg *Message) error {
 
 // Close closes the processor.
 func (p *MergeProcessor) Close() error {
-	return nil
-}
-
-// PassThroughProcessor is a processor that passes the message on.
-type PassThroughProcessor struct {
-	pipe Pipe
-}
-
-// NewPassThroughProcessor creates a new PassThroughProcessor instance.
-func NewPassThroughProcessor() Processor {
-	return &MergeProcessor{
-		metadata: map[Source]interface{}{},
-	}
-}
-
-// WithPipe sets the pipe on the Processor.
-func (p *PassThroughProcessor) WithPipe(pipe Pipe) {
-	p.pipe = pipe
-}
-
-// Process processes the stream Message.
-func (p *PassThroughProcessor) Process(msg *Message) error {
-	return p.pipe.Forward(msg)
-}
-
-// Close closes the processor.
-func (p *PassThroughProcessor) Close() error {
 	return nil
 }
 

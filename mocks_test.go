@@ -1,6 +1,8 @@
 package streams_test
 
 import (
+	"time"
+
 	"github.com/msales/streams"
 	"github.com/stretchr/testify/mock"
 )
@@ -28,6 +30,21 @@ func (mn *MockNode) Children() []streams.Node {
 func (mn *MockNode) Processor() (streams.Processor) {
 	args := mn.Called()
 	return args.Get(0).(streams.Processor)
+}
+
+var _ = (streams.TimedPipe)(&MockTimedPipe{})
+
+type MockTimedPipe struct {
+	mock.Mock
+}
+
+func (p *MockTimedPipe) Reset() {
+	p.Called()
+}
+
+func (p *MockTimedPipe) Duration() time.Duration {
+	args := p.Called()
+	return args.Get(0).(time.Duration)
 }
 
 var _ = (streams.Pump)(&MockPump{})
