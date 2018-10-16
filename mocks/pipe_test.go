@@ -29,7 +29,7 @@ func TestPipe_MessagesForForward(t *testing.T) {
 	assert.Exactly(t, msg, msgs[0].Msg)
 }
 
-func TestPipe_QueueForForwardToChild(t *testing.T) {
+func TestPipe_MessagesForForwardToChild(t *testing.T) {
 	msg := streams.NewMessage("test", "test")
 	p := mocks.NewPipe(t)
 	p.ExpectForwardToChild("test", "test", 0)
