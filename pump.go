@@ -121,7 +121,7 @@ func NewSourcePump(name string, source Source, pumps []Pump, errFn ErrorFunc) So
 		source: source,
 		pumps:  pumps,
 		errFn:  errFn,
-		quit:   make(chan struct{}, 1),
+		quit:   make(chan struct{}, 2),
 	}
 
 	go p.run()
@@ -142,7 +142,8 @@ func (p *sourcePump) run() {
 
 			msg, err := p.source.Consume()
 			if err != nil {
-				p.errFn(err)
+				go p.errFn(err)
+				return
 			}
 
 			if msg.Empty() {
@@ -155,7 +156,8 @@ func (p *sourcePump) run() {
 			for _, pump := range p.pumps {
 				err = pump.Process(msg)
 				if err != nil {
-					p.errFn(err)
+					go p.errFn(err)
+					return
 				}
 			}
 		}
@@ -165,11 +167,13 @@ func (p *sourcePump) run() {
 // Stop stops the source pump from running.
 func (p *sourcePump) Stop() {
 	p.quit <- struct{}{}
+
+	p.wg.Wait()
 }
 
 // Close closed the source pump.
 func (p *sourcePump) Close() error {
-	p.wg.Wait()
+	close(p.quit)
 
 	return p.source.Close()
 }
