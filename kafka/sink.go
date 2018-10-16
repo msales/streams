@@ -39,7 +39,7 @@ func (c *SinkConfig) Validate() error {
 
 	switch {
 	case c.Brokers == nil || len(c.Brokers) == 0:
-		return sarama.ConfigurationError("Brokers mut have at least one broker")
+		return sarama.ConfigurationError("Brokers must have at least one broker")
 	case c.KeyEncoder == nil:
 		return sarama.ConfigurationError("KeyEncoder must be an instance of Encoder")
 	case c.ValueEncoder == nil:
