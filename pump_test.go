@@ -1,16 +1,19 @@
 package streams_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/msales/pkg/stats"
 	"github.com/msales/streams"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestProcessorPump_Process(t *testing.T) {
-	msg := streams.NewMessage("test", "test")
+	ctx := stats.WithStats(context.Background(), stats.Null)
+	msg := streams.NewMessageWithContext(ctx, "test", "test")
 	processor := new(MockProcessor)
 	processor.On("Process", msg).Return(nil)
 	processor.On("Close").Maybe().Return(nil)
@@ -78,7 +81,8 @@ func TestProcessorPump_CloseError(t *testing.T) {
 }
 
 func TestSourcePump_CanConsume(t *testing.T) {
-	msg := streams.NewMessage("test", "test")
+	ctx := stats.WithStats(context.Background(), stats.Null)
+	msg := streams.NewMessageWithContext(ctx, "test", "test")
 	source := new(MockSource)
 	source.On("Consume").Maybe().Return(msg, nil)
 	source.On("Close").Return(nil)
