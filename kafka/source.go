@@ -16,7 +16,7 @@ type SourceConfig struct {
 
 	Brokers []string
 	Topic   string
-	GroupID string
+	GroupId string
 
 	Ctx          context.Context
 	KeyDecoder   Decoder
@@ -89,7 +89,7 @@ func NewSource(c *SourceConfig) (*Source, error) {
 	cc.Config = c.Config
 	cc.Consumer.Return.Errors = true
 
-	consumer, err := cluster.NewConsumer(c.Brokers, c.GroupID, []string{c.Topic}, cc)
+	consumer, err := cluster.NewConsumer(c.Brokers, c.GroupId, []string{c.Topic}, cc)
 	if err != nil {
 		return nil, err
 	}
