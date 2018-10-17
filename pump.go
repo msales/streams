@@ -188,7 +188,5 @@ func (p *sourcePump) Close() error {
 func withStats(ctx context.Context, fn func(s stats.Stats)) {
 	if s, ok := stats.FromContext(ctx); ok {
 		fn(s)
-		return
 	}
-	fn(stats.Null)
 }

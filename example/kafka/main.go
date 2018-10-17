@@ -39,13 +39,11 @@ func main() {
 
 	p.Start()
 	c.Start()
+	defer c.Close()
+	defer p.Close()
 
 	// Wait for SIGTERM
-	done := listenForSignals()
-	<-done
-
-	p.Close()
-	c.Close()
+	<-waitForSignals()
 }
 
 func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (streams.Task, error) {
@@ -61,8 +59,8 @@ func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 	}
 
 	builder := streams.NewStreamBuilder()
-	builder.Source("rand-source", NewRandIntSource(ctx)).
-		Map("to-string", StringMapper).
+	builder.Source("rand-source", newRandIntSource(ctx)).
+		Map("to-string", stringMapper).
 		Process("kafka-sink", sink)
 
 	task := streams.NewTask(builder.Build())
@@ -78,7 +76,7 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 	config.Config = *c
 	config.Brokers = brokers
 	config.Topic = "example1"
-	config.GroupId = "example-consumer"
+	config.GroupID = "example-consumer"
 	config.ValueDecoder = kafka.StringDecoder{}
 	config.Ctx = ctx
 
@@ -89,7 +87,7 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 
 	builder := streams.NewStreamBuilder()
 	builder.Source("kafka-source", src).
-		Map("to-int", IntMapper).
+		Map("to-int", intMapper).
 		Print("print")
 
 	task := streams.NewTask(builder.Build())
@@ -100,38 +98,38 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 	return task, nil
 }
 
-type RandIntSource struct {
+type randIntSource struct {
 	ctx  context.Context
 	rand *rand.Rand
 }
 
-func NewRandIntSource(ctx context.Context) streams.Source {
-	return &RandIntSource{
+func newRandIntSource(ctx context.Context) streams.Source {
+	return &randIntSource{
 		ctx:  ctx,
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
-func (s *RandIntSource) Consume() (*streams.Message, error) {
+func (s *randIntSource) Consume() (*streams.Message, error) {
 	return streams.NewMessageWithContext(s.ctx, nil, s.rand.Intn(100)), nil
 }
 
-func (s *RandIntSource) Commit(v interface{}) error {
+func (s *randIntSource) Commit(v interface{}) error {
 	return nil
 }
 
-func (s *RandIntSource) Close() error {
+func (s *randIntSource) Close() error {
 	return nil
 }
 
-func StringMapper(msg *streams.Message) (*streams.Message, error) {
+func stringMapper(msg *streams.Message) (*streams.Message, error) {
 	i := msg.Value.(int)
 	msg.Value = strconv.Itoa(i)
 
 	return msg, nil
 }
 
-func IntMapper(msg *streams.Message) (*streams.Message, error) {
+func intMapper(msg *streams.Message) (*streams.Message, error) {
 	s := msg.Value.(string)
 	i, err := strconv.Atoi(s)
 	if err != nil {
@@ -143,16 +141,9 @@ func IntMapper(msg *streams.Message) (*streams.Message, error) {
 	return msg, nil
 }
 
-func listenForSignals() chan bool {
+func waitForSignals() chan os.Signal {
 	sigs := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
-
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	go func() {
-		<-sigs
-		done <- true
-	}()
-
-	return done
+	return sigs
 }

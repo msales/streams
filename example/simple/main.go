@@ -12,9 +12,9 @@ import (
 
 func main() {
 	builder := streams.NewStreamBuilder()
-	builder.Source("rand-source", NewRandIntSource()).
-		Filter("odd-filter", OddNumberFilter).
-		Map("double-mapper", DoubleMapper).
+	builder.Source("rand-source", newRandIntSource()).
+		Filter("odd-filter", oddNumberFilter).
+		Map("double-mapper", doubleMapper).
 		Print("print")
 
 	task := streams.NewTask(builder.Build())
@@ -22,59 +22,50 @@ func main() {
 		log.Fatal(err.Error())
 	})
 	task.Start()
+	defer task.Close()
 
 	// Wait for SIGTERM
-	done := listenForSignals()
-	<-done
-
-	task.Close()
+	<-waitForSignals()
 }
 
-type RandomIntSource struct {
+type randIntSource struct {
 	rand *rand.Rand
 }
 
-func NewRandIntSource() streams.Source {
-	return &RandomIntSource{
+func newRandIntSource() streams.Source {
+	return &randIntSource{
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
-func (s *RandomIntSource) Consume() (*streams.Message, error) {
+func (s *randIntSource) Consume() (*streams.Message, error) {
 	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
-func (s *RandomIntSource) Commit(v interface{}) error {
+func (s *randIntSource) Commit(v interface{}) error {
 	return nil
 }
 
-func (s *RandomIntSource) Close() error {
+func (s *randIntSource) Close() error {
 	return nil
 }
 
-func OddNumberFilter(msg *streams.Message) (bool, error) {
+func oddNumberFilter(msg *streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num%2 == 1, nil
 }
 
-func DoubleMapper(msg *streams.Message) (*streams.Message, error) {
+func doubleMapper(msg *streams.Message) (*streams.Message, error) {
 	num := msg.Value.(int)
 	msg.Value = num * 2
 
 	return msg, nil
 }
 
-func listenForSignals() chan bool {
+func waitForSignals() chan os.Signal {
 	sigs := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
-
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	go func() {
-		<-sigs
-		done <- true
-	}()
-
-	return done
+	return sigs
 }

@@ -25,7 +25,7 @@ func WithBatchMessages(messages int) SinkFunc {
 	}
 }
 
-// WithBatchMessages configures the frequency to send a batch
+// WithBatchFrequency configures the frequency to send a batch
 // on the Sink.
 func WithBatchFrequency(freq time.Duration) SinkFunc {
 	return func(s *Sink) {
