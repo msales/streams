@@ -13,12 +13,12 @@ import (
 func main() {
 	builder := streams.NewStreamBuilder()
 
-	stream1 := builder.Source("rand1-source", NewRandIntSource()).
-		Filter("filter1", LowNumberFilter)
+	stream1 := builder.Source("rand1-source", newRandIntSource()).
+		Filter("filter1", lowNumberFilter)
 
-	builder.Source("rand2-source", NewRandIntSource()).
-		Filter("filter2", HighNumberFilter).
-		Map("add-hundedred-mapper", AddHundredMapper).
+	builder.Source("rand2-source", newRandIntSource()).
+		Filter("filter2", highNumberFilter).
+		Map("add-hundedred-mapper", addHundredMapper).
 		Merge("merge", stream1).
 		Print("print")
 
@@ -27,65 +27,56 @@ func main() {
 		log.Fatal(err.Error())
 	})
 	task.Start()
+	defer task.Close()
 
 	// Wait for SIGTERM
-	done := listenForSignals()
-	<-done
-
-	task.Close()
+	<-waitForSignals()
 }
 
-type RandIntSource struct {
+type randIntSource struct {
 	rand *rand.Rand
 }
 
-func NewRandIntSource() streams.Source {
-	return &RandIntSource{
+func newRandIntSource() streams.Source {
+	return &randIntSource{
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
-func (s *RandIntSource) Consume() (*streams.Message, error) {
+func (s *randIntSource) Consume() (*streams.Message, error) {
 	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
-func (s *RandIntSource) Commit(v interface{}) error {
+func (s *randIntSource) Commit(v interface{}) error {
 	return nil
 }
 
-func (s *RandIntSource) Close() error {
+func (s *randIntSource) Close() error {
 	return nil
 }
 
-func LowNumberFilter(msg *streams.Message) (bool, error) {
+func lowNumberFilter(msg *streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num < 50, nil
 }
 
-func HighNumberFilter(msg *streams.Message) (bool, error) {
+func highNumberFilter(msg *streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num >= 50, nil
 }
 
-func AddHundredMapper(msg *streams.Message) (*streams.Message, error) {
+func addHundredMapper(msg *streams.Message) (*streams.Message, error) {
 	num := msg.Value.(int)
 	msg.Value = num + 100
 
 	return msg, nil
 }
 
-func listenForSignals() chan bool {
+func waitForSignals() chan os.Signal {
 	sigs := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
-
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	go func() {
-		<-sigs
-		done <- true
-	}()
-
-	return done
+	return sigs
 }

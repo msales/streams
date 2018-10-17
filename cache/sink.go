@@ -7,6 +7,7 @@ import (
 	"github.com/msales/streams"
 )
 
+// Sink represents a Cache streams sink.
 type Sink struct {
 	pipe streams.Pipe
 

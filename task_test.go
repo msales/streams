@@ -39,7 +39,10 @@ func TestStreamTask_ConsumesMessages(t *testing.T) {
 		t.FailNow()
 	})
 
-	task.Start()
+	err := task.Start()
+	if err != nil {
+		assert.FailNow(t, err.Error())
+	}
 
 	msgs <- msg
 
@@ -69,7 +72,10 @@ func TestStreamTask_Throughput(t *testing.T) {
 		t.FailNow()
 	})
 
-	task.Start()
+	err := task.Start()
+	if err != nil {
+		assert.FailNow(t, err.Error())
+	}
 
 	for i := 0; i < 100; i++ {
 		msgs <- msg
@@ -163,7 +169,7 @@ func TestStreamTask_HandleCloseWithProcessorError(t *testing.T) {
 	s.On("Close").Return(nil)
 
 	p := new(MockProcessor)
-	p.On("WithPipe", mock.Anything).Return(nil)
+	p.On("WithPipe", mock.Anything)
 	p.On("Close").Return(errors.New("test error"))
 
 	b := streams.NewStreamBuilder()

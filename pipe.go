@@ -1,15 +1,21 @@
 package streams
 
 import (
+	"time"
+
 	"github.com/pkg/errors"
 )
 
+// TimedPipe represents a pipe that can accumulate execution time.
+type TimedPipe interface {
+	// Reset resets the accumulative pipe duration.
+	Reset()
+	// Duration returns the accumulative pipe duration.
+	Duration() time.Duration
+}
+
 // Pipe allows messages to flow through the processors.
 type Pipe interface {
-	// Queue gets the queued Messages for each Node.
-	//
-	// This method should not be used by Processors.
-	Queue() []NodeMessage
 	// Forward queues the data to all processor children in the topology.
 	Forward(*Message) error
 	// Forward queues the data to the the given processor(s) child in the topology.
@@ -18,54 +24,61 @@ type Pipe interface {
 	Commit(*Message) error
 }
 
-// ProcessorPipe represents the pipe for processors.
-type ProcessorPipe struct {
-	node  Node
-	queue []NodeMessage
+var _ = (TimedPipe)(&processorPipe{})
+
+// processorPipe represents the pipe for processors.
+type processorPipe struct {
+	children []Pump
+
+	duration time.Duration
 }
 
-// NewProcessorPipe create a new ProcessorPipe instance.
-func NewProcessorPipe(node Node) *ProcessorPipe {
-	return &ProcessorPipe{
-		node:  node,
-		queue: []NodeMessage{},
+// NewPipe create a new processorPipe instance.
+func NewPipe(children []Pump) Pipe {
+	return &processorPipe{
+		children: children,
 	}
 }
 
-// Queue gets the queued Messages for each Node.
-//
-// Reading the node message queue will reset the queue.
-func (p *ProcessorPipe) Queue() []NodeMessage {
-	defer func() {
-		p.queue = p.queue[:0]
-	}()
+// Reset resets the accumulative pipe duration.
+func (p *processorPipe) Reset() {
+	p.duration = 0
+}
 
-	return p.queue
+// Duration returns the accumulative pipe duration.
+func (p *processorPipe) Duration() time.Duration {
+	return p.duration
 }
 
 // Forward queues the data to all processor children in the topology.
-func (p *ProcessorPipe) Forward(msg *Message) error {
-	for _, child := range p.node.Children() {
-		p.queue = append(p.queue, NodeMessage{child, msg})
+func (p *processorPipe) Forward(msg *Message) error {
+	defer p.time(time.Now())
+
+	for _, child := range p.children {
+		if err := child.Process(msg); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 // Forward queues the data to the the given processor(s) child in the topology.
-func (p *ProcessorPipe) ForwardToChild(msg *Message, index int) error {
-	if index > len(p.node.Children())-1 {
+func (p *processorPipe) ForwardToChild(msg *Message, index int) error {
+	defer p.time(time.Now())
+
+	if index > len(p.children)-1 {
 		return errors.New("streams: child index out of bounds")
 	}
 
-	child := p.node.Children()[index]
-	p.queue = append(p.queue, NodeMessage{child, msg})
-
-	return nil
+	child := p.children[index]
+	return child.Process(msg)
 }
 
 // Commit commits the current state in the sources.
-func (p *ProcessorPipe) Commit(msg *Message) error {
+func (p *processorPipe) Commit(msg *Message) error {
+	defer p.time(time.Now())
+
 	for s, v := range msg.Metadata() {
 		if err := s.Commit(v); err != nil {
 			return err
@@ -73,4 +86,9 @@ func (p *ProcessorPipe) Commit(msg *Message) error {
 	}
 
 	return nil
+}
+
+// time adds the duration of the function to the pipe accumulative duration.
+func (p *processorPipe) time(t time.Time) {
+	p.duration += time.Since(t)
 }

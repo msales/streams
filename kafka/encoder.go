@@ -1,21 +1,29 @@
 package kafka
 
+// Decoder represents a Kafka data decoder.
 type Decoder interface {
+	// Decode transforms byte data to the desired type.
 	Decode([]byte) (interface{}, error)
 }
 
+// Encoder represents a Kafka data encoder.
 type Encoder interface {
+	// Encode transforms the typed data to bytes.
 	Encode(interface{}) ([]byte, error)
 }
 
+// ByteDecoder represents a byte decoder.
 type ByteDecoder struct{}
 
+// Decode transforms byte data to the desired type.
 func (d ByteDecoder) Decode(b []byte) (interface{}, error) {
 	return b, nil
 }
 
+// ByteEncoder represents a byte encoder.
 type ByteEncoder struct{}
 
+// Encode transforms the typed data to bytes.
 func (e ByteEncoder) Encode(v interface{}) ([]byte, error) {
 	if v == nil {
 		return nil, nil
@@ -24,14 +32,18 @@ func (e ByteEncoder) Encode(v interface{}) ([]byte, error) {
 	return v.([]byte), nil
 }
 
+// StringDecoder represents a string decoder.
 type StringDecoder struct{}
 
+// Decode transforms byte data to a string.
 func (d StringDecoder) Decode(b []byte) (interface{}, error) {
 	return string(b), nil
 }
 
+// StringEncoder represents a string encoder.
 type StringEncoder struct{}
 
+// Encode transforms the string data to bytes.
 func (e StringEncoder) Encode(v interface{}) ([]byte, error) {
 	if v == nil {
 		return nil, nil

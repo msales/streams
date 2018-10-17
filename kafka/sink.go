@@ -5,6 +5,7 @@ import (
 	"github.com/msales/streams"
 )
 
+// SinkConfig represents the configuration of a Sink.
 type SinkConfig struct {
 	sarama.Config
 
@@ -17,6 +18,7 @@ type SinkConfig struct {
 	BatchSize int
 }
 
+// NewSinkConfig creates a new SinkConfig.
 func NewSinkConfig() *SinkConfig {
 	c := &SinkConfig{
 		Config: *sarama.NewConfig(),
@@ -39,7 +41,7 @@ func (c *SinkConfig) Validate() error {
 
 	switch {
 	case c.Brokers == nil || len(c.Brokers) == 0:
-		return sarama.ConfigurationError("Brokers mut have at least one broker")
+		return sarama.ConfigurationError("Brokers must have at least one broker")
 	case c.KeyEncoder == nil:
 		return sarama.ConfigurationError("KeyEncoder must be an instance of Encoder")
 	case c.ValueEncoder == nil:
@@ -51,6 +53,7 @@ func (c *SinkConfig) Validate() error {
 	return nil
 }
 
+// Sink represents a Kafka streams sink.
 type Sink struct {
 	pipe streams.Pipe
 
@@ -65,6 +68,7 @@ type Sink struct {
 	buf   []*sarama.ProducerMessage
 }
 
+// NewSink creates a new Kafka sink.
 func NewSink(c *SinkConfig) (*Sink, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err

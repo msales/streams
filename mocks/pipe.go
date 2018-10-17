@@ -13,11 +13,19 @@ type record struct {
 	index int
 }
 
+// ChildMessage represents a message forwarded to a child index.
+type ChildMessage struct {
+	Index int
+	Msg   *streams.Message
+}
+
+var _ = (streams.Pipe)(&Pipe{})
+
 // Pipe is a mock Pipe.
 type Pipe struct {
 	t *testing.T
 
-	queue []streams.NodeMessage
+	msgs []ChildMessage
 
 	shouldError bool
 
@@ -29,14 +37,14 @@ type Pipe struct {
 func NewPipe(t *testing.T) *Pipe {
 	return &Pipe{
 		t:             t,
-		queue:         []streams.NodeMessage{},
+		msgs:          []ChildMessage{},
 		expectForward: []record{},
 	}
 }
 
-// Queue gets the queued Messages for each Node.
-func (p *Pipe) Queue() []streams.NodeMessage {
-	return p.queue
+// Messages gets the queued Messages for each Node.
+func (p *Pipe) Messages() []ChildMessage {
+	return p.msgs
 }
 
 // Forward queues the data to all processor children in the topology.
@@ -58,12 +66,12 @@ func (p *Pipe) Forward(msg *streams.Message) error {
 		return errors.New("test")
 	}
 
-	p.queue = append(p.queue, streams.NodeMessage{Node: nil, Msg: msg})
+	p.msgs = append(p.msgs, ChildMessage{Index: -1, Msg: msg})
 
 	return nil
 }
 
-// Forward queues the data to the the given processor(s) child in the topology.
+// ForwardToChild queues the data to the the given processor(s) child in the topology.
 func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
 	if len(p.expectForward) == 0 {
 		p.t.Error("streams: mock: Unexpected call to ForwardToChild")
@@ -83,7 +91,7 @@ func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
 		return errors.New("test")
 	}
 
-	p.queue = append(p.queue, streams.NodeMessage{Node: nil, Msg: msg})
+	p.msgs = append(p.msgs, ChildMessage{Index: index, Msg: msg})
 
 	return nil
 }
@@ -103,22 +111,28 @@ func (p *Pipe) Commit(msg *streams.Message) error {
 	return nil
 }
 
+// ShouldError indicates that an error should be returned on the
+// next operation.
 func (p *Pipe) ShouldError() {
 	p.shouldError = true
 }
 
+// ExpectForward registers an expectation of a Forward of the Pipe.
 func (p *Pipe) ExpectForward(k, v interface{}) {
 	p.expectForward = append(p.expectForward, record{k, v, -1})
 }
 
+// ExpectForwardToChild registers an expectation of a ForwardToChild the Pipe.
 func (p *Pipe) ExpectForwardToChild(k, v interface{}, index int) {
 	p.expectForward = append(p.expectForward, record{k, v, index})
 }
 
+// ExpectCommit registers an expectation of a Commit the Pipe.
 func (p *Pipe) ExpectCommit() {
 	p.expectCommit = true
 }
 
+// AssertExpectations asserts that the expectations were met.
 func (p *Pipe) AssertExpectations() {
 	if len(p.expectForward) > 0 {
 		p.t.Error("streams: mock: Expected a call to Forward or ForwardToChild but got none")

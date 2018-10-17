@@ -4,6 +4,7 @@ import (
 	"context"
 )
 
+// Message represents data the flows through the stream.
 type Message struct {
 	metadata map[Source]interface{}
 
@@ -12,20 +13,24 @@ type Message struct {
 	Value interface{}
 }
 
+// Metadata returns the Message metadata.
 func (m *Message) Metadata() map[Source]interface{} {
 	return m.metadata
 }
 
+// WithMetadata add metadata to the Message from a Source.
 func (m *Message) WithMetadata(s Source, v interface{}) *Message {
 	m.metadata[s] = v
 
 	return m
 }
 
+// Empty determines if the Message is empty.
 func (m Message) Empty() bool {
 	return m.Key == nil && m.Value == nil
 }
 
+// NewMessage creates a Message.
 func NewMessage(k, v interface{}) *Message {
 	return &Message{
 		metadata: map[Source]interface{}{},
@@ -35,6 +40,7 @@ func NewMessage(k, v interface{}) *Message {
 	}
 }
 
+// NewMessageWithContext creates a Message with the given context.
 func NewMessageWithContext(ctx context.Context, k, v interface{}) *Message {
 	return &Message{
 		metadata: map[Source]interface{}{},
@@ -42,9 +48,4 @@ func NewMessageWithContext(ctx context.Context, k, v interface{}) *Message {
 		Key:      k,
 		Value:    v,
 	}
-}
-
-type NodeMessage struct {
-	Node Node
-	Msg  *Message
 }

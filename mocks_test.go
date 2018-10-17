@@ -1,9 +1,13 @@
 package streams_test
 
 import (
+	"time"
+
 	"github.com/msales/streams"
 	"github.com/stretchr/testify/mock"
 )
+
+var _ = (streams.Node)(&MockNode{})
 
 type MockNode struct {
 	mock.Mock
@@ -12,10 +16,6 @@ type MockNode struct {
 func (mn *MockNode) Name() string {
 	args := mn.Called()
 	return args.String(0)
-}
-
-func (mn *MockNode) WithPipe(pipe streams.Pipe) {
-	mn.Called(pipe)
 }
 
 func (mn *MockNode) AddChild(n streams.Node) {
@@ -27,15 +27,43 @@ func (mn *MockNode) Children() []streams.Node {
 	return args.Get(0).([]streams.Node)
 }
 
-func (mn *MockNode) Process(msg *streams.Message) ([]streams.NodeMessage, error) {
-	args := mn.Called(msg)
-	return args.Get(0).([]streams.NodeMessage), args.Error(1)
+func (mn *MockNode) Processor() (streams.Processor) {
+	args := mn.Called()
+	return args.Get(0).(streams.Processor)
 }
 
-func (mn *MockNode) Close() error {
-	args := mn.Called()
+var _ = (streams.TimedPipe)(&MockTimedPipe{})
+
+type MockTimedPipe struct {
+	mock.Mock
+}
+
+func (p *MockTimedPipe) Reset() {
+	p.Called()
+}
+
+func (p *MockTimedPipe) Duration() time.Duration {
+	args := p.Called()
+	return args.Get(0).(time.Duration)
+}
+
+var _ = (streams.Pump)(&MockPump{})
+
+type MockPump struct {
+	mock.Mock
+}
+
+func (p *MockPump) Process(msg *streams.Message) error {
+	args := p.Called(msg)
 	return args.Error(0)
 }
+
+func (p *MockPump) Close() error {
+	args := p.Called()
+	return args.Error(0)
+}
+
+var _ = (streams.Processor)(&MockProcessor{})
 
 type MockProcessor struct {
 	mock.Mock
@@ -54,6 +82,8 @@ func (p *MockProcessor) Close() error {
 	args := p.Called()
 	return args.Error(0)
 }
+
+var _ = (streams.Source)(&MockSource{})
 
 type MockSource struct {
 	mock.Mock
