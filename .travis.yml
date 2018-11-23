@@ -11,9 +11,6 @@ before_install:
   - go get -u golang.org/x/lint/golint
   - go get github.com/mattn/goveralls
 
-install:
-  - dep ensure
-
 script:
 #  - golint ./...
   - go vet ./...
