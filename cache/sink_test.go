@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	cache2 "github.com/msales/pkg/cache"
+	cache2 "github.com/msales/pkg/v3/cache"
 	"github.com/msales/streams"
 	"github.com/msales/streams/cache"
 	"github.com/msales/streams/mocks"

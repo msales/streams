@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/msales/pkg/stats"
+	"github.com/msales/pkg/v3/stats"
 )
 
 // Pump represent a Message pump.
@@ -47,6 +47,8 @@ func (p *processorPump) run() {
 	p.wg.Add(1)
 	defer p.wg.Done()
 
+	tags := []interface{}{"name", p.name}
+
 	for msg := range p.ch {
 		p.pipe.Reset()
 		start := time.Now()
@@ -58,9 +60,9 @@ func (p *processorPump) run() {
 
 		latency := time.Since(start) - p.pipe.Duration()
 		withStats(msg.Ctx, func(s stats.Stats) {
-			s.Timing("node.latency", latency, 0.1, "name", p.name)
-			s.Inc("node.throughput", 1, 0.1, "name", p.name)
-			s.Gauge("node.back-pressure", pressure(p.ch), 0.1, "name", p.name)
+			s.Timing("node.latency", latency, 0.1, tags...)
+			s.Inc("node.throughput", 1, 0.1, tags...)
+			s.Gauge("node.back-pressure", pressure(p.ch), 0.1, tags...)
 		})
 	}
 }
@@ -137,6 +139,8 @@ func (p *sourcePump) run() {
 	p.wg.Add(1)
 	defer p.wg.Done()
 
+	tags := []interface{}{"name", p.name}
+
 	for {
 		select {
 		case <-p.quit:
@@ -156,8 +160,8 @@ func (p *sourcePump) run() {
 
 			latency := time.Since(start)
 			withStats(msg.Ctx, func(s stats.Stats) {
-				s.Timing("node.latency", latency, 0.1, "name", p.name)
-				s.Inc("node.throughput", 1, 0.1, "name", p.name)
+				s.Timing("node.latency", latency, 0.1, tags...)
+				s.Inc("node.throughput", 1, 0.1, tags...)
 			})
 
 			for _, pump := range p.pumps {

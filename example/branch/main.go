@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/msales/pkg/stats"
+	"github.com/msales/pkg/v3/stats"
 	"github.com/msales/streams"
 	"gopkg.in/inconshreveable/log15.v2"
 )

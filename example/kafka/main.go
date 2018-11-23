@@ -10,7 +10,7 @@ import (
 	"syscall"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/pkg/stats"
+	"github.com/msales/pkg/v3/stats"
 	"github.com/msales/streams"
 	"github.com/msales/streams/kafka"
 )

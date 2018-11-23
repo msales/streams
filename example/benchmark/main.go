@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/msales/pkg/stats"
+	"github.com/msales/pkg/v3/stats"
 	"github.com/msales/streams"
 )
 
@@ -62,7 +62,7 @@ func newNilSource(ctx context.Context) streams.Source {
 }
 
 func (s *nilSource) Consume() (*streams.Message, error) {
-	return streams.NewMessageWithContext(s.ctx, nil, nil), nil
+	return streams.NewMessageWithContext(s.ctx, nil, 1), nil
 }
 
 func (s *nilSource) Commit(v interface{}) error {
@@ -74,7 +74,7 @@ func (s *nilSource) Close() error {
 }
 
 func nothingMapper(msg *streams.Message) (*streams.Message, error) {
-	return msg, nil
+	return nil, nil
 }
 
 func waitForSignals() chan os.Signal {
