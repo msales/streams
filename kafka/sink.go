@@ -122,15 +122,24 @@ func (p *Sink) Process(msg *streams.Message) error {
 	p.count++
 
 	if p.count >= p.batch {
-		if err := p.producer.SendMessages(p.buf); err != nil {
+		if err := p.Commit(); err != nil {
 			return err
 		}
 
-		p.count = 0
-		p.buf = p.buf[:0]
-
 		return p.pipe.Commit(msg)
 	}
+
+	return nil
+}
+
+//Commit commits a processors batch.
+func (p *Sink) Commit() error {
+	if err := p.producer.SendMessages(p.buf); err != nil {
+		return err
+	}
+
+	p.count = 0
+	p.buf = p.buf[:0]
 
 	return nil
 }

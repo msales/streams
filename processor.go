@@ -4,6 +4,12 @@ import (
 	"fmt"
 )
 
+// Committer represents a processor that can commit.
+type Committer interface {
+	//Commit commits a processors batch.
+	Commit() error
+}
+
 // Processor represents a stream processor.
 type Processor interface {
 	// WithPipe sets the pipe on the Processor.
@@ -95,7 +101,8 @@ func (p *FilterProcessor) Process(msg *Message) error {
 	if ok {
 		return p.pipe.Forward(msg)
 	}
-	return nil
+
+	return p.pipe.Mark(msg)
 }
 
 // Close closes the processor.
@@ -178,16 +185,12 @@ func (p *MapProcessor) Close() error {
 // MergeProcessor is a processor that passes the message on,
 // keeping track of seen metadata.
 type MergeProcessor struct {
-	metadata map[Source]interface{}
-
 	pipe Pipe
 }
 
 // NewMergeProcessor creates a new MergeProcessor instance.
 func NewMergeProcessor() Processor {
-	return &MergeProcessor{
-		metadata: map[Source]interface{}{},
-	}
+	return &MergeProcessor{}
 }
 
 // WithPipe sets the pipe on the Processor.
@@ -197,16 +200,6 @@ func (p *MergeProcessor) WithPipe(pipe Pipe) {
 
 // Process processes the stream Message.
 func (p *MergeProcessor) Process(msg *Message) error {
-	// Update the internal metadata state
-	for s, v := range msg.Metadata() {
-		p.metadata[s] = v
-	}
-
-	// Attach metadata to the message
-	for s, v := range p.metadata {
-		msg.WithMetadata(s, v)
-	}
-
 	return p.pipe.Forward(msg)
 }
 

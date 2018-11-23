@@ -16,11 +16,13 @@ type TimedPipe interface {
 
 // Pipe allows messages to flow through the processors.
 type Pipe interface {
-	// Forward queues the data to all processor children in the topology.
+	// Mark indicates that the message has been delt with
+	Mark(*Message) error
+	// Forward queues the message with all processor children in the topology.
 	Forward(*Message) error
-	// Forward queues the data to the the given processor(s) child in the topology.
+	// Forward queues the message with the the given processor(s) child in the topology.
 	ForwardToChild(*Message, int) error
-	// Commit commits the current state in the sources.
+	// Commit commits the current state in the related sources.
 	Commit(*Message) error
 }
 
@@ -28,14 +30,16 @@ var _ = (TimedPipe)(&processorPipe{})
 
 // processorPipe represents the pipe for processors.
 type processorPipe struct {
+	store    Metastore
 	children []Pump
 
 	duration time.Duration
 }
 
 // NewPipe create a new processorPipe instance.
-func NewPipe(children []Pump) Pipe {
+func NewPipe(store Metastore, children []Pump) Pipe {
 	return &processorPipe{
+		store:    store,
 		children: children,
 	}
 }
@@ -48,6 +52,11 @@ func (p *processorPipe) Reset() {
 // Duration returns the accumulative pipe duration.
 func (p *processorPipe) Duration() time.Duration {
 	return p.duration
+}
+
+// Mark indicates that the message has been delt with
+func (p *processorPipe) Mark(msg *Message) error {
+	return p.store.Mark(nil, msg.source, msg.metadata)
 }
 
 // Forward queues the data to all processor children in the topology.
@@ -79,13 +88,7 @@ func (p *processorPipe) ForwardToChild(msg *Message, index int) error {
 func (p *processorPipe) Commit(msg *Message) error {
 	defer p.time(time.Now())
 
-	for s, v := range msg.Metadata() {
-		if err := s.Commit(v); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return p.store.Commit(nil, msg.source, msg.metadata)
 }
 
 // time adds the duration of the function to the pipe accumulative duration.

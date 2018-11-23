@@ -25,12 +25,6 @@ type SourceConfig struct {
 	BufferSize int
 }
 
-type marker struct {
-	Topic     string
-	Partition int32
-	Offset    int64
-}
-
 // NewSourceConfig creates a new Kafka source configuration.
 func NewSourceConfig() *SourceConfig {
 	c := &SourceConfig{
@@ -66,6 +60,54 @@ func (c *SourceConfig) Validate() error {
 	return nil
 }
 
+// MergedMetadata represents merged Metadata.
+type MergedMetadata map[string]map[int32]int64
+
+// Merge merges the current metadata into another MergedMetadata.
+func (m MergedMetadata) Merge(v interface{}) interface{} {
+	if v == nil {
+		return m
+	}
+
+	merged := v.(MergedMetadata)
+	for topic, partitions := range m {
+		for partition, offset := range partitions {
+			partitions, ok := merged[topic]
+			if !ok {
+				partitions = make(map[int32]int64)
+				merged[topic] = partitions
+			}
+			partitions[partition] = offset
+		}
+	}
+
+	return merged
+}
+
+// Metadata represents the position in the stream of a message.
+type Metadata struct {
+	Topic     string
+	Partition int32
+	Offset    int64
+}
+
+// Merge merges Metadata into MergedMetadata.
+func (m *Metadata) Merge(v interface{}) interface{} {
+	if v == nil {
+		return MergedMetadata{m.Topic: {m.Partition: m.Offset}}
+	}
+
+	merged := v.(MergedMetadata)
+	partitions, ok := merged[m.Topic]
+	if !ok {
+		partitions = make(map[int32]int64)
+		merged[m.Topic] = partitions
+	}
+	partitions[m.Partition] = m.Offset
+
+	return merged
+}
+
 // Source represents a Kafka stream source.
 type Source struct {
 	consumer *cluster.Consumer
@@ -74,7 +116,6 @@ type Source struct {
 	keyDecoder   Decoder
 	valueDecoder Decoder
 
-	state   map[string]map[int32]int64
 	buf     chan *sarama.ConsumerMessage
 	lastErr error
 }
@@ -100,7 +141,6 @@ func NewSource(c *SourceConfig) (*Source, error) {
 		keyDecoder:   c.KeyDecoder,
 		valueDecoder: c.ValueDecoder,
 		buf:          make(chan *sarama.ConsumerMessage, c.BufferSize),
-		state:        make(map[string]map[int32]int64),
 	}
 
 	go s.readErrors()
@@ -128,7 +168,7 @@ func (s *Source) Consume() (*streams.Message, error) {
 		}
 
 		m := streams.NewMessageWithContext(s.ctx, k, v).
-			WithMetadata(s, s.markState(msg))
+			WithMetadata(s, s.createMetadata(msg))
 		return m, nil
 
 	case <-time.After(100 * time.Millisecond):
@@ -138,9 +178,15 @@ func (s *Source) Consume() (*streams.Message, error) {
 
 // Commit marks the consumed records as processed.
 func (s *Source) Commit(v interface{}) error {
-	state := v.([]marker)
-	for _, m := range state {
-		s.consumer.MarkPartitionOffset(m.Topic, m.Partition, m.Offset, "")
+	if v == nil {
+		return nil
+	}
+
+	state := v.(MergedMetadata)
+	for topic, partitions := range state {
+		for partition, offset := range partitions {
+			s.consumer.MarkPartitionOffset(topic, partition, offset, "")
+		}
 	}
 
 	if err := s.consumer.CommitOffsets(); err != nil {
@@ -155,23 +201,12 @@ func (s *Source) Close() error {
 	return s.consumer.Close()
 }
 
-func (s *Source) markState(msg *sarama.ConsumerMessage) []marker {
-	partitions, ok := s.state[msg.Topic]
-	if !ok {
-		partitions = make(map[int32]int64)
-		s.state[msg.Topic] = partitions
+func (s *Source) createMetadata(msg *sarama.ConsumerMessage) *Metadata {
+	return &Metadata{
+		Topic:     msg.Topic,
+		Partition: msg.Partition,
+		Offset:    msg.Offset,
 	}
-
-	partitions[msg.Partition] = msg.Offset
-
-	var markers []marker
-	for topic, partitions := range s.state {
-		for partition, offset := range partitions {
-			markers = append(markers, marker{Topic: topic, Partition: partition, Offset: offset})
-		}
-	}
-
-	return markers
 }
 
 func (s *Source) readErrors() {

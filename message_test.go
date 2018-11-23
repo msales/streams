@@ -50,6 +50,7 @@ func TestMessage_Metadata(t *testing.T) {
 
 	msg.WithMetadata(nil, "test")
 
-	assert.Len(t, msg.Metadata(), 1)
-	assert.Equal(t, "test", msg.Metadata()[nil])
+	src, meta := msg.Metadata()
+	assert.Equal(t, nil, src)
+	assert.Equal(t, "test", meta)
 }

@@ -6,7 +6,8 @@ import (
 
 // Message represents data the flows through the stream.
 type Message struct {
-	metadata map[Source]interface{}
+	source   Source
+	metadata interface{}
 
 	Ctx   context.Context
 	Key   interface{}
@@ -14,13 +15,14 @@ type Message struct {
 }
 
 // Metadata returns the Message metadata.
-func (m *Message) Metadata() map[Source]interface{} {
-	return m.metadata
+func (m *Message) Metadata() (Source, interface{}) {
+	return m.source, m.metadata
 }
 
 // WithMetadata add metadata to the Message from a Source.
 func (m *Message) WithMetadata(s Source, v interface{}) *Message {
-	m.metadata[s] = v
+	m.source = s
+	m.metadata = v
 
 	return m
 }

@@ -9,12 +9,13 @@ import (
 )
 
 func TestProcessorPipe_Duration(t *testing.T) {
+	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
 	child1.On("Process", msg).Return(nil)
 	child2 := new(MockPump)
 	child2.On("Process", msg).Return(nil)
-	pipe := streams.NewPipe([]streams.Pump{child1, child2})
+	pipe := streams.NewPipe(store, []streams.Pump{child1, child2})
 	tPipe := pipe.(streams.TimedPipe)
 
 	err := pipe.Forward(msg)
@@ -28,12 +29,13 @@ func TestProcessorPipe_Duration(t *testing.T) {
 }
 
 func TestProcessorPipe_Reset(t *testing.T) {
+	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
 	child1.On("Process", msg).Return(nil)
 	child2 := new(MockPump)
 	child2.On("Process", msg).Return(nil)
-	pipe := streams.NewPipe([]streams.Pump{child1, child2})
+	pipe := streams.NewPipe(store, []streams.Pump{child1, child2})
 	tPipe := pipe.(streams.TimedPipe)
 
 	err := pipe.Forward(msg)
@@ -47,13 +49,27 @@ func TestProcessorPipe_Reset(t *testing.T) {
 	}
 }
 
+func TestProcessorPipe_Mark(t *testing.T) {
+	src := new(MockSource)
+	store := new(MockMetastore)
+	store.On("Mark", nil, src, "test").Return(errors.New("test"))
+	msg := streams.NewMessage("test", "test").WithMetadata(src, "test")
+	pipe := streams.NewPipe(store, []streams.Pump{})
+
+	err := pipe.Mark(msg)
+
+	assert.Error(t, err)
+	store.AssertExpectations(t)
+}
+
 func TestProcessorPipe_Forward(t *testing.T) {
+	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
 	child1.On("Process", msg).Return(nil)
 	child2 := new(MockPump)
 	child2.On("Process", msg).Return(nil)
-	pipe := streams.NewPipe([]streams.Pump{child1, child2})
+	pipe := streams.NewPipe(store, []streams.Pump{child1, child2})
 
 	err := pipe.Forward(msg)
 
@@ -63,10 +79,11 @@ func TestProcessorPipe_Forward(t *testing.T) {
 }
 
 func TestProcessorPipe_ForwardError(t *testing.T) {
+	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
 	child1.On("Process", msg).Return(errors.New("test"))
-	pipe := streams.NewPipe([]streams.Pump{child1})
+	pipe := streams.NewPipe(store, []streams.Pump{child1})
 
 	err := pipe.Forward(msg)
 
@@ -75,11 +92,12 @@ func TestProcessorPipe_ForwardError(t *testing.T) {
 }
 
 func TestProcessorPipe_ForwardToChild(t *testing.T) {
+	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
 	child2 := new(MockPump)
 	child2.On("Process", msg).Return(nil)
-	pipe := streams.NewPipe([]streams.Pump{child1, child2})
+	pipe := streams.NewPipe(store, []streams.Pump{child1, child2})
 
 	err := pipe.ForwardToChild(msg, 1)
 
@@ -88,10 +106,11 @@ func TestProcessorPipe_ForwardToChild(t *testing.T) {
 }
 
 func TestProcessorPipe_ForwardToChildIndexError(t *testing.T) {
+	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
 	child1.On("Process", msg).Return(errors.New("test"))
-	pipe := streams.NewPipe([]streams.Pump{child1})
+	pipe := streams.NewPipe(store, []streams.Pump{child1})
 
 	err := pipe.ForwardToChild(msg, 1)
 
@@ -99,8 +118,9 @@ func TestProcessorPipe_ForwardToChildIndexError(t *testing.T) {
 }
 
 func TestProcessorPipe_ForwardToChildError(t *testing.T) {
+	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
-	pipe := streams.NewPipe([]streams.Pump{})
+	pipe := streams.NewPipe(store, []streams.Pump{})
 
 	err := pipe.ForwardToChild(msg, 1)
 
@@ -109,24 +129,13 @@ func TestProcessorPipe_ForwardToChildError(t *testing.T) {
 
 func TestProcessorPipe_Commit(t *testing.T) {
 	src := new(MockSource)
-	src.On("Commit", interface{}("test")).Return(nil)
+	store := new(MockMetastore)
+	store.On("Commit", nil, src, "test").Return(errors.New("test"))
 	msg := streams.NewMessage(nil, nil).WithMetadata(src, "test")
-	pipe := streams.NewPipe([]streams.Pump{})
-
-	err := pipe.Commit(msg)
-
-	assert.NoError(t, err)
-	src.AssertExpectations(t)
-}
-
-func TestProcessorPipe_CommitWithError(t *testing.T) {
-	src := new(MockSource)
-	src.On("Commit", interface{}("test")).Return(errors.New("test"))
-	msg := streams.NewMessage(nil, nil).WithMetadata(src, "test")
-	pipe := streams.NewPipe([]streams.Pump{})
+	pipe := streams.NewPipe(store, []streams.Pump{})
 
 	err := pipe.Commit(msg)
 
 	assert.Error(t, err)
-	src.AssertExpectations(t)
+	store.AssertExpectations(t)
 }

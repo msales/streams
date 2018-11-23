@@ -104,12 +104,22 @@ func (p *Sink) Process(msg *streams.Message) error {
 	p.lastMsg = msg
 	p.count++
 	if p.shouldCommit() {
-		p.count = 0
-		p.lastCommit = time.Now()
-		return p.commitTransaction(msg)
+		if err := p.Commit(); err != nil {
+			return err
+		}
+
+		return p.pipe.Commit(msg)
 	}
 
 	return nil
+}
+
+//Commit commits a processors batch.
+func (p *Sink) Commit() error {
+	p.count = 0
+	p.lastCommit = time.Now()
+
+	return p.commitTransaction()
 }
 
 func (p *Sink) shouldCommit() bool {
@@ -147,7 +157,7 @@ func (p *Sink) ensureTransaction() error {
 	return nil
 }
 
-func (p *Sink) commitTransaction(msg *streams.Message) error {
+func (p *Sink) commitTransaction() error {
 	if p.tx == nil {
 		return nil
 	}
@@ -159,18 +169,17 @@ func (p *Sink) commitTransaction(msg *streams.Message) error {
 	}
 
 	if err := p.tx.Commit(); err != nil {
-		p.tx.Rollback()
+		_ = p.tx.Rollback()
 		return err
 	}
 	p.tx = nil
-
-	return p.pipe.Commit(msg)
+	return nil
 }
 
 // Close closes the processor.
 func (p *Sink) Close() error {
-	if err := p.commitTransaction(p.lastMsg); err != nil {
-		return err
+	if p.tx != nil {
+		_ = p.tx.Rollback()
 	}
 
 	return p.db.Close()

@@ -292,7 +292,7 @@ func TestSink_CloseWithTxError(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectBegin()
-	mock.ExpectCommit().WillReturnError(errors.New("test error"))
+	mock.ExpectRollback()
 
 	pipe := mocks.NewPipe(t)
 	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {

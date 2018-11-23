@@ -32,6 +32,22 @@ func (mn *MockNode) Processor() (streams.Processor) {
 	return args.Get(0).(streams.Processor)
 }
 
+var _ = (streams.Metastore)(&MockMetastore{})
+
+type MockMetastore struct {
+	mock.Mock
+}
+
+func (s *MockMetastore) Mark(n streams.Node, src streams.Source, meta interface{}) error {
+	args := s.Called(n, src, meta)
+	return args.Error(0)
+}
+
+func (s *MockMetastore) Commit(n streams.Node, src streams.Source, meta interface{}) error {
+	args := s.Called(n, src, meta)
+	return args.Error(0)
+}
+
 var _ = (streams.TimedPipe)(&MockTimedPipe{})
 
 type MockTimedPipe struct {

@@ -72,6 +72,7 @@ func TestFilterProcessor_Process(t *testing.T) {
 		return false, nil
 	}
 	pipe := mocks.NewPipe(t)
+	pipe.ExpectMark(1, 1)
 	pipe.ExpectForward("test", "test")
 	p := streams.NewFilterProcessor(pred)
 	p.WithPipe(pipe)
@@ -203,29 +204,6 @@ func TestMergeProcessor_Process(t *testing.T) {
 	p.WithPipe(pipe)
 
 	p.Process(streams.NewMessage("test", "test"))
-
-	pipe.AssertExpectations()
-}
-
-func TestMergeProcessor_ProcessMergesMetadata(t *testing.T) {
-	src1 := new(MockSource)
-	src2 := new(MockSource)
-	pipe := mocks.NewPipe(t)
-	pipe.ExpectForward(nil, "test")
-	pipe.ExpectForward("test", "test")
-
-	p := streams.NewMergeProcessor()
-	p.WithPipe(pipe)
-
-	p.Process(streams.NewMessage(nil, "test").WithMetadata(src1, "test1"))
-	p.Process(streams.NewMessage("test", "test").WithMetadata(src2, "test2"))
-
-	msgs := pipe.Messages()
-	assert.Len(t, msgs, 2)
-	msg := msgs[1].Msg
-	assert.Len(t, msg.Metadata(), 2)
-	assert.Equal(t, "test1", msg.Metadata()[src1])
-	assert.Equal(t, "test2", msg.Metadata()[src2])
 
 	pipe.AssertExpectations()
 }
