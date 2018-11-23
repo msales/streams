@@ -34,9 +34,25 @@ func TestStream_Filter(t *testing.T) {
 	source := &streamSource{}
 	builder := NewStreamBuilder()
 
-	stream := builder.Source("source", source).Filter("test", func(msg *Message) (bool, error) {
-		return true, nil
-	})
+	stream := builder.Source("source", source).
+		Filter("test", PredicateFunc(func(msg *Message) (bool, error) {
+			return true, nil
+		}))
+
+	assert.Len(t, stream.parents, 1)
+	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
+	assert.Equal(t, stream.parents[0].(*ProcessorNode).name, "test")
+	assert.IsType(t, &FilterProcessor{}, stream.parents[0].(*ProcessorNode).processor)
+}
+
+func TestStream_FilterFunc(t *testing.T) {
+	source := &streamSource{}
+	builder := NewStreamBuilder()
+
+	stream := builder.Source("source", source).
+		FilterFunc("test", func(msg *Message) (bool, error) {
+			return true, nil
+		})
 
 	assert.Len(t, stream.parents, 1)
 	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
@@ -50,12 +66,12 @@ func TestStream_Branch(t *testing.T) {
 
 	streams := builder.Source("source", source).Branch(
 		"test",
-		func(msg *Message) (bool, error) {
+		PredicateFunc(func(msg *Message) (bool, error) {
 			return true, nil
-		},
-		func(msg *Message) (bool, error) {
+		}),
+		PredicateFunc(func(msg *Message) (bool, error) {
 			return true, nil
-		},
+		}),
 	)
 
 	assert.Len(t, streams, 2)
@@ -74,7 +90,22 @@ func TestStream_Map(t *testing.T) {
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("source", source).
-		Map("test", func(msg *Message) (*Message, error) {
+		Map("test", MapperFunc(func(msg *Message) (*Message, error) {
+			return nil, nil
+		}))
+
+	assert.Len(t, stream.parents, 1)
+	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
+	assert.Equal(t, stream.parents[0].(*ProcessorNode).name, "test")
+	assert.IsType(t, &MapProcessor{}, stream.parents[0].(*ProcessorNode).processor)
+}
+
+func TestStream_MapFunc(t *testing.T) {
+	source := &streamSource{}
+	builder := NewStreamBuilder()
+
+	stream := builder.Source("source", source).
+		MapFunc("test", func(msg *Message) (*Message, error) {
 			return nil, nil
 		})
 
@@ -89,7 +120,22 @@ func TestStream_FlatMap(t *testing.T) {
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("source", source).
-		FlatMap("test", func(msg *Message) ([]*Message, error) {
+		FlatMap("test", FlatMapperFunc(func(msg *Message) ([]*Message, error) {
+			return nil, nil
+		}))
+
+	assert.Len(t, stream.parents, 1)
+	assert.IsType(t, &ProcessorNode{}, stream.parents[0])
+	assert.Equal(t, stream.parents[0].(*ProcessorNode).name, "test")
+	assert.IsType(t, &FlatMapProcessor{}, stream.parents[0].(*ProcessorNode).processor)
+}
+
+func TestStream_FlatMapFunc(t *testing.T) {
+	source := &streamSource{}
+	builder := NewStreamBuilder()
+
+	stream := builder.Source("source", source).
+		FlatMapFunc("test", func(msg *Message) ([]*Message, error) {
 			return nil, nil
 		})
 

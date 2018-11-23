@@ -10,12 +10,12 @@ import (
 )
 
 func TestBranchProcessor_Process(t *testing.T) {
-	truePred := func(msg *streams.Message) (bool, error) {
+	truePred := streams.PredicateFunc(func(msg *streams.Message) (bool, error) {
 		return true, nil
-	}
-	falsePred := func(msg *streams.Message) (bool, error) {
+	})
+	falsePred := streams.PredicateFunc(func(msg *streams.Message) (bool, error) {
 		return false, nil
-	}
+	})
 	pipe := mocks.NewPipe(t)
 	pipe.ExpectForwardToChild("test", "test", 0)
 	p := streams.NewBranchProcessor([]streams.Predicate{truePred, falsePred})
@@ -28,9 +28,9 @@ func TestBranchProcessor_Process(t *testing.T) {
 }
 
 func TestBranchProcessor_ProcessWithError(t *testing.T) {
-	errPred := func(msg *streams.Message) (bool, error) {
+	errPred := streams.PredicateFunc(func(msg *streams.Message) (bool, error) {
 		return true, errors.New("test")
-	}
+	})
 	pipe := mocks.NewPipe(t)
 	p := streams.NewBranchProcessor([]streams.Predicate{errPred})
 	p.WithPipe(pipe)
@@ -41,9 +41,9 @@ func TestBranchProcessor_ProcessWithError(t *testing.T) {
 }
 
 func TestBranchProcessor_ProcessWithForwardError(t *testing.T) {
-	pred := func(msg *streams.Message) (bool, error) {
+	pred := streams.PredicateFunc(func(msg *streams.Message) (bool, error) {
 		return true, nil
-	}
+	})
 	pipe := mocks.NewPipe(t)
 	pipe.ExpectForwardToChild("test", "test", 0)
 	pipe.ShouldError()
@@ -64,13 +64,13 @@ func TestBranchProcessor_Close(t *testing.T) {
 }
 
 func TestFilterProcessor_Process(t *testing.T) {
-	pred := func(msg *streams.Message) (bool, error) {
+	pred := streams.PredicateFunc(func(msg *streams.Message) (bool, error) {
 		if _, ok := msg.Key.(string); ok {
 			return true, nil
 		}
 
 		return false, nil
-	}
+	})
 	pipe := mocks.NewPipe(t)
 	pipe.ExpectForward("test", "test")
 	p := streams.NewFilterProcessor(pred)
@@ -83,9 +83,9 @@ func TestFilterProcessor_Process(t *testing.T) {
 }
 
 func TestFilterProcessor_ProcessWithError(t *testing.T) {
-	errPred := func(msg *streams.Message) (bool, error) {
+	errPred := streams.PredicateFunc(func(msg *streams.Message) (bool, error) {
 		return true, errors.New("test")
-	}
+	})
 	pipe := mocks.NewPipe(t)
 	p := streams.NewFilterProcessor(errPred)
 	p.WithPipe(pipe)
@@ -104,9 +104,9 @@ func TestFilterProcessor_Close(t *testing.T) {
 }
 
 func TestMapProcessor_Process(t *testing.T) {
-	mapper := func(msg *streams.Message) (*streams.Message, error) {
+	mapper := streams.MapperFunc(func(msg *streams.Message) (*streams.Message, error) {
 		return streams.NewMessage(1, 1), nil
-	}
+	})
 	pipe := mocks.NewPipe(t)
 	pipe.ExpectForward(1, 1)
 	p := streams.NewMapProcessor(mapper)
@@ -118,9 +118,9 @@ func TestMapProcessor_Process(t *testing.T) {
 }
 
 func TestMapProcessor_ProcessWithError(t *testing.T) {
-	mapper := func(msg *streams.Message) (*streams.Message, error) {
+	mapper := streams.MapperFunc(func(msg *streams.Message) (*streams.Message, error) {
 		return nil, errors.New("test")
-	}
+	})
 	pipe := mocks.NewPipe(t)
 	p := streams.NewMapProcessor(mapper)
 	p.WithPipe(pipe)
@@ -139,12 +139,12 @@ func TestMapProcessor_Close(t *testing.T) {
 }
 
 func TestFlatMapProcessor_Process(t *testing.T) {
-	mapper := func(msg *streams.Message) ([]*streams.Message, error) {
+	mapper := streams.FlatMapperFunc(func(msg *streams.Message) ([]*streams.Message, error) {
 		return []*streams.Message{
 			streams.NewMessage(1, 1),
 			streams.NewMessage(2, 2),
 		}, nil
-	}
+	})
 	pipe := mocks.NewPipe(t)
 	pipe.ExpectForward(1, 1)
 	pipe.ExpectForward(2, 2)
@@ -157,9 +157,9 @@ func TestFlatMapProcessor_Process(t *testing.T) {
 }
 
 func TestFlatMapProcessor_ProcessWithError(t *testing.T) {
-	mapper := func(msg *streams.Message) ([]*streams.Message, error) {
+	mapper := streams.FlatMapperFunc(func(msg *streams.Message) ([]*streams.Message, error) {
 		return nil, errors.New("test")
-	}
+	})
 	pipe := mocks.NewPipe(t)
 	p := streams.NewFlatMapProcessor(mapper)
 	p.WithPipe(pipe)
@@ -169,13 +169,13 @@ func TestFlatMapProcessor_ProcessWithError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestFlatMapProcessor_ProcessWithForawrdError(t *testing.T) {
-	mapper := func(msg *streams.Message) ([]*streams.Message, error) {
+func TestFlatMapProcessor_ProcessWithForwardError(t *testing.T) {
+	mapper := streams.FlatMapperFunc(func(msg *streams.Message) ([]*streams.Message, error) {
 		return []*streams.Message{
 			streams.NewMessage(1, 1),
 			streams.NewMessage(2, 2),
 		}, nil
-	}
+	})
 	pipe := mocks.NewPipe(t)
 	pipe.ExpectForward(1, 1)
 	pipe.ShouldError()

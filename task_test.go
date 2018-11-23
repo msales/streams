@@ -31,7 +31,7 @@ func TestStreamTask_ConsumesMessages(t *testing.T) {
 
 	b := streams.NewStreamBuilder()
 	b.Source("src", &chanSource{msgs: msgs}).
-		Map("pass-through", passThroughMapper).
+		Map("pass-through", streams.MapperFunc(passThroughMapper)).
 		Process("processor", p)
 
 	task := streams.NewTask(b.Build())
@@ -61,11 +61,11 @@ func TestStreamTask_Throughput(t *testing.T) {
 
 	b := streams.NewStreamBuilder()
 	b.Source("src", &chanSource{msgs: msgs}).
-		Map("pass-through", passThroughMapper).
-		Map("count", func(msg *streams.Message) (*streams.Message, error) {
+		Map("pass-through", streams.MapperFunc(passThroughMapper)).
+		Map("count", streams.MapperFunc(func(msg *streams.Message) (*streams.Message, error) {
 			count++
 			return msg, nil
-		})
+		}))
 
 	task := streams.NewTask(b.Build())
 	task.OnError(func(err error) {
