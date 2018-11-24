@@ -16,18 +16,26 @@ type Processor interface {
 
 // Mapper represents a mapper.
 type Mapper interface {
+	// Map transforms a message.
 	Map(*Message) (*Message, error)
 }
 
 // FlatMapper represents a mapper that returns multiple messages.
 type FlatMapper interface {
+	// FlatMap maps one message to multiple messages.
 	FlatMap(*Message) ([]*Message, error)
 }
 
 // Predicate represents a message filter.
 type Predicate interface {
-	Match(*Message) (bool, error)
+	// Assert asserts  that the predicate is true for a message.
+	Assert(*Message) (bool, error)
 }
+
+// Compile-time interface checks.
+var _ Mapper = MapperFunc(nil)
+var _ FlatMapper = FlatMapperFunc(nil)
+var _ Predicate = PredicateFunc(nil)
 
 // MapperFunc represents a mapping function.
 type MapperFunc func(*Message) (*Message, error)
@@ -48,8 +56,8 @@ func (fn FlatMapperFunc) FlatMap(msg *Message) ([]*Message, error) {
 // PredicateFunc represents a stream filter function.
 type PredicateFunc func(*Message) (bool, error)
 
-// Match matches a message to the predicate.
-func (fn PredicateFunc) Match(msg *Message) (bool, error) {
+// Assert matches a message to the predicate.
+func (fn PredicateFunc) Assert(msg *Message) (bool, error) {
 	return fn(msg)
 }
 
@@ -75,7 +83,7 @@ func (p *BranchProcessor) WithPipe(pipe Pipe) {
 // Process processes the stream nodeMessage.
 func (p *BranchProcessor) Process(msg *Message) error {
 	for i, pred := range p.preds {
-		ok, err := pred.Match(msg)
+		ok, err := pred.Assert(msg)
 		if err != nil {
 			return err
 		}
@@ -117,7 +125,7 @@ func (p *FilterProcessor) WithPipe(pipe Pipe) {
 
 // Process processes the stream Message.
 func (p *FilterProcessor) Process(msg *Message) error {
-	ok, err := p.pred.Match(msg)
+	ok, err := p.pred.Assert(msg)
 	if err != nil {
 		return err
 	}

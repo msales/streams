@@ -13,8 +13,8 @@ import (
 func main() {
 	builder := streams.NewStreamBuilder()
 	builder.Source("rand-source", newRandIntSource()).
-		Filter("odd-filter", streams.PredicateFunc(oddNumberFilter)).
-		Map("double-mapper", streams.MapperFunc(doubleMapper)).
+		FilterFunc("odd-filter", oddNumberFilter).
+		MapFunc("double-mapper", doubleMapper).
 		Print("print")
 
 	task := streams.NewTask(builder.Build())

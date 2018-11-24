@@ -50,7 +50,7 @@ func (s *Stream) FilterFunc(name string, pred PredicateFunc) *Stream {
 	return s.Filter(name, pred)
 }
 
-// Branch branches a stream based in the given predicates.
+// Branch branches a stream based on the given predicates.
 func (s *Stream) Branch(name string, preds ...Predicate) []*Stream {
 	p := NewBranchProcessor(preds)
 	n := s.tp.AddProcessor(name, p, s.parents)
@@ -60,6 +60,16 @@ func (s *Stream) Branch(name string, preds ...Predicate) []*Stream {
 		streams = append(streams, newStream(s.tp, []Node{n}))
 	}
 	return streams
+}
+
+// BranchFunc branches a stream based on the given predicates.
+func (s *Stream) BranchFunc(name string, preds ...PredicateFunc) []*Stream {
+	ps := make([]Predicate, len(preds))
+	for i, fn := range preds {
+		ps[i] = fn
+	}
+
+	return s.Branch(name, ps...)
 }
 
 // Map runs a mapper on the stream.

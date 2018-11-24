@@ -14,11 +14,11 @@ func main() {
 	builder := streams.NewStreamBuilder()
 
 	stream1 := builder.Source("rand1-source", newRandIntSource()).
-		Filter("filter1", streams.PredicateFunc(lowNumberFilter))
+		FilterFunc("filter1", lowNumberFilter)
 
 	builder.Source("rand2-source", newRandIntSource()).
-		Filter("filter2",streams.PredicateFunc( highNumberFilter)).
-		Map("add-hundedred-mapper", streams.MapperFunc(addHundredMapper)).
+		FilterFunc("filter2", highNumberFilter).
+		MapFunc("add-hundedred-mapper", addHundredMapper).
 		Merge("merge", stream1).
 		Print("print")
 

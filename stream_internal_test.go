@@ -85,6 +85,31 @@ func TestStream_Branch(t *testing.T) {
 	assert.IsType(t, &BranchProcessor{}, streams[1].parents[0].(*ProcessorNode).processor)
 }
 
+func TestStream_BranchFunc(t *testing.T) {
+	source := &streamSource{}
+	builder := NewStreamBuilder()
+
+	streams := builder.Source("source", source).BranchFunc(
+		"test",
+		func(msg *Message) (bool, error) {
+			return true, nil
+		},
+		func(msg *Message) (bool, error) {
+			return true, nil
+		},
+	)
+
+	assert.Len(t, streams, 2)
+	assert.Len(t, streams[0].parents, 1)
+	assert.IsType(t, &ProcessorNode{}, streams[0].parents[0])
+	assert.Equal(t, streams[0].parents[0].(*ProcessorNode).name, "test")
+	assert.IsType(t, &BranchProcessor{}, streams[0].parents[0].(*ProcessorNode).processor)
+	assert.Len(t, streams[1].parents, 1)
+	assert.IsType(t, &ProcessorNode{}, streams[1].parents[0])
+	assert.Equal(t, streams[1].parents[0].(*ProcessorNode).name, "test")
+	assert.IsType(t, &BranchProcessor{}, streams[1].parents[0].(*ProcessorNode).processor)
+}
+
 func TestStream_Map(t *testing.T) {
 	source := &streamSource{}
 	builder := NewStreamBuilder()
