@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestProcessorPump_Process(t *testing.T) {
+func TestProcessorPump_Accept(t *testing.T) {
 	ctx := stats.WithStats(context.Background(), stats.Null)
 	msg := streams.NewMessageWithContext(ctx, "test", "test")
 	processor := new(MockProcessor)
@@ -24,7 +24,7 @@ func TestProcessorPump_Process(t *testing.T) {
 	p := streams.NewPump(node, pipe, func(error) {})
 	defer p.Close()
 
-	err := p.Process(msg)
+	err := p.Accept(msg)
 
 	time.Sleep(time.Millisecond)
 
@@ -32,7 +32,7 @@ func TestProcessorPump_Process(t *testing.T) {
 	processor.AssertExpectations(t)
 }
 
-func TestProcessorPump_ProcessError(t *testing.T) {
+func TestProcessorPump_AcceptError(t *testing.T) {
 	var err error
 
 	msg := streams.NewMessage("test", "test")
@@ -48,7 +48,7 @@ func TestProcessorPump_ProcessError(t *testing.T) {
 	})
 	defer p.Close()
 
-	p.Process(msg)
+	p.Accept(msg)
 
 	time.Sleep(time.Millisecond)
 
@@ -87,7 +87,7 @@ func TestSourcePump_CanConsume(t *testing.T) {
 	source.On("Consume").Maybe().Return(msg, nil)
 	source.On("Close").Return(nil)
 	pump := new(MockPump)
-	pump.On("Process", msg).Return(nil)
+	pump.On("Accept", msg).Return(nil)
 	p := streams.NewSourcePump("test", source, []streams.Pump{pump}, func(error) {})
 	defer p.Close()
 	defer p.Stop()
@@ -104,7 +104,7 @@ func TestSourcePump_HandlesPumpError(t *testing.T) {
 	source.On("Consume").Maybe().Return(msg, nil)
 	source.On("Close").Return(nil)
 	pump := new(MockPump)
-	pump.On("Process", msg).Return(errors.New("test"))
+	pump.On("Accept", msg).Return(errors.New("test"))
 	p := streams.NewSourcePump("test", source, []streams.Pump{pump}, func(error) {
 		gotError = true
 	})

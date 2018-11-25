@@ -64,7 +64,7 @@ func (p *processorPipe) Forward(msg *Message) error {
 	defer p.time(time.Now())
 
 	for _, child := range p.children {
-		if err := child.Process(msg); err != nil {
+		if err := child.Accept(msg); err != nil {
 			return err
 		}
 	}
@@ -81,7 +81,7 @@ func (p *processorPipe) ForwardToChild(msg *Message, index int) error {
 	}
 
 	child := p.children[index]
-	return child.Process(msg)
+	return child.Accept(msg)
 }
 
 // Commit commits the current state in the sources.

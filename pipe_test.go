@@ -12,9 +12,9 @@ func TestProcessorPipe_Duration(t *testing.T) {
 	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
-	child1.On("Process", msg).Return(nil)
+	child1.On("Accept", msg).Return(nil)
 	child2 := new(MockPump)
-	child2.On("Process", msg).Return(nil)
+	child2.On("Accept", msg).Return(nil)
 	pipe := streams.NewPipe(store, []streams.Pump{child1, child2})
 	tPipe := pipe.(streams.TimedPipe)
 
@@ -32,9 +32,9 @@ func TestProcessorPipe_Reset(t *testing.T) {
 	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
-	child1.On("Process", msg).Return(nil)
+	child1.On("Accept", msg).Return(nil)
 	child2 := new(MockPump)
-	child2.On("Process", msg).Return(nil)
+	child2.On("Accept", msg).Return(nil)
 	pipe := streams.NewPipe(store, []streams.Pump{child1, child2})
 	tPipe := pipe.(streams.TimedPipe)
 
@@ -66,9 +66,9 @@ func TestProcessorPipe_Forward(t *testing.T) {
 	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
-	child1.On("Process", msg).Return(nil)
+	child1.On("Accept", msg).Return(nil)
 	child2 := new(MockPump)
-	child2.On("Process", msg).Return(nil)
+	child2.On("Accept", msg).Return(nil)
 	pipe := streams.NewPipe(store, []streams.Pump{child1, child2})
 
 	err := pipe.Forward(msg)
@@ -82,7 +82,7 @@ func TestProcessorPipe_ForwardError(t *testing.T) {
 	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
-	child1.On("Process", msg).Return(errors.New("test"))
+	child1.On("Accept", msg).Return(errors.New("test"))
 	pipe := streams.NewPipe(store, []streams.Pump{child1})
 
 	err := pipe.Forward(msg)
@@ -96,7 +96,7 @@ func TestProcessorPipe_ForwardToChild(t *testing.T) {
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
 	child2 := new(MockPump)
-	child2.On("Process", msg).Return(nil)
+	child2.On("Accept", msg).Return(nil)
 	pipe := streams.NewPipe(store, []streams.Pump{child1, child2})
 
 	err := pipe.ForwardToChild(msg, 1)
@@ -109,7 +109,7 @@ func TestProcessorPipe_ForwardToChildIndexError(t *testing.T) {
 	store := new(MockMetastore)
 	msg := streams.NewMessage("test", "test")
 	child1 := new(MockPump)
-	child1.On("Process", msg).Return(errors.New("test"))
+	child1.On("Accept", msg).Return(errors.New("test"))
 	pipe := streams.NewPipe(store, []streams.Pump{child1})
 
 	err := pipe.ForwardToChild(msg, 1)

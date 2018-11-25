@@ -10,8 +10,8 @@ import (
 
 // Pump represent a Message pump.
 type Pump interface {
-	// Process processes a message in the Pump.
-	Process(*Message) error
+	// Accept takes a message to be processed in the Pump.
+	Accept(*Message) error
 	// Close closes the pump.
 	Close() error
 }
@@ -67,8 +67,8 @@ func (p *processorPump) run() {
 	}
 }
 
-// Process processes a message in the Pump.
-func (p *processorPump) Process(msg *Message) error {
+// Accept takes a message to be processed in the Pump.
+func (p *processorPump) Accept(msg *Message) error {
 	p.ch <- msg
 
 	return nil
@@ -165,7 +165,7 @@ func (p *sourcePump) run() {
 			})
 
 			for _, pump := range p.pumps {
-				err = pump.Process(msg)
+				err = pump.Accept(msg)
 				if err != nil {
 					go p.errFn(err)
 					return
