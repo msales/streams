@@ -4,10 +4,16 @@ import (
 	"context"
 )
 
+// Metadata represents metadata that can be merged.
+type Metadata interface {
+	// Merge merges two pieces of metadata.
+	Merge(interface{}) interface{}
+}
+
 // Message represents data the flows through the stream.
 type Message struct {
 	source   Source
-	metadata interface{}
+	metadata Metadata
 
 	Ctx   context.Context
 	Key   interface{}
@@ -20,7 +26,7 @@ func (m *Message) Metadata() (Source, interface{}) {
 }
 
 // WithMetadata add metadata to the Message from a Source.
-func (m *Message) WithMetadata(s Source, v interface{}) *Message {
+func (m *Message) WithMetadata(s Source, v Metadata) *Message {
 	m.source = s
 	m.metadata = v
 
@@ -35,7 +41,8 @@ func (m Message) Empty() bool {
 // NewMessage creates a Message.
 func NewMessage(k, v interface{}) *Message {
 	return &Message{
-		metadata: map[Source]interface{}{},
+		source:   nil,
+		metadata: nil,
 		Ctx:      context.Background(),
 		Key:      k,
 		Value:    v,
@@ -45,7 +52,8 @@ func NewMessage(k, v interface{}) *Message {
 // NewMessageWithContext creates a Message with the given context.
 func NewMessageWithContext(ctx context.Context, k, v interface{}) *Message {
 	return &Message{
-		metadata: map[Source]interface{}{},
+		source:   nil,
+		metadata: nil,
 		Ctx:      ctx,
 		Key:      k,
 		Value:    v,

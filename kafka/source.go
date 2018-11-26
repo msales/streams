@@ -74,10 +74,14 @@ func (m MergedMetadata) Merge(v interface{}) interface{} {
 		for partition, offset := range partitions {
 			partitions, ok := merged[topic]
 			if !ok {
-				partitions = make(map[int32]int64)
-				merged[topic] = partitions
+				merged[topic] = map[int32]int64{partition: offset}
+				continue
 			}
-			partitions[partition] = offset
+
+			_, ok = partitions[partition]
+			if !ok || offset < partitions[partition] {
+				partitions[partition] = offset
+			}
 		}
 	}
 
@@ -100,10 +104,14 @@ func (m *Metadata) Merge(v interface{}) interface{} {
 	merged := v.(MergedMetadata)
 	partitions, ok := merged[m.Topic]
 	if !ok {
-		partitions = make(map[int32]int64)
-		merged[m.Topic] = partitions
+		merged[m.Topic] = map[int32]int64{m.Partition: m.Offset}
+		return merged
 	}
-	partitions[m.Partition] = m.Offset
+
+	_, ok = partitions[m.Partition]
+	if !ok || m.Offset < partitions[m.Partition] {
+		partitions[m.Partition] = m.Offset
+	}
 
 	return merged
 }

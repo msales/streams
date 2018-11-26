@@ -48,9 +48,15 @@ func TestNewMessageWithContext(t *testing.T) {
 func TestMessage_Metadata(t *testing.T) {
 	msg := NewMessage("test", "test")
 
-	msg.WithMetadata(nil, "test")
+	msg.WithMetadata(nil, metadata("test"))
 
 	src, meta := msg.Metadata()
 	assert.Equal(t, nil, src)
-	assert.Equal(t, "test", meta)
+	assert.Equal(t, metadata("test"), meta)
+}
+
+type metadata string
+
+func (m metadata) Merge(v interface{}) interface{} {
+	return m
 }

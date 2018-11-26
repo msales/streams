@@ -1,14 +1,9 @@
 package streams
 
-// Mergeable represents metadata that can be merged.
-type Mergeable interface {
-	// Merge merges two pieces of metadata.
-	Merge(interface{}) interface{}
-}
-
 type Metastore interface {
-	Mark(n Node, src Source, meta interface{}) error
-	Commit(n Node, src Source, meta interface{}) error
+	Pull(Processor) (map[Source]Metadata, error)
+	PullAll() (map[Processor]map[Source]Metadata, error)
+	Mark(Processor, Source, Metadata) error
 }
 
 type metastore struct {
@@ -19,11 +14,15 @@ func NewMetastore() Metastore {
 	return &metastore{}
 }
 
-func (s *metastore) Mark(n Node, src Source, meta interface{}) error {
+func (s *metastore) Pull(p Processor) (map[Source]Metadata, error) {
 	panic("TODO")
 }
 
-func (s *metastore) Commit(n Node, src Source, meta interface{}) error {
+func (s *metastore) PullAll() (map[Processor]map[Source]Metadata, error) {
+	panic("TODO")
+}
+
+func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
 	panic("TODO")
 }
 

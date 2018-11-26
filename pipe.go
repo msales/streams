@@ -88,7 +88,11 @@ func (p *processorPipe) ForwardToChild(msg *Message, index int) error {
 func (p *processorPipe) Commit(msg *Message) error {
 	defer p.time(time.Now())
 
-	return p.store.Commit(nil, msg.source, msg.metadata)
+	if err := p.store.Mark(nil, msg.source, msg.metadata); err != nil {
+		return err
+	}
+
+	return nil //TODO: Call commit on the Controller
 }
 
 // time adds the duration of the function to the pipe accumulative duration.
