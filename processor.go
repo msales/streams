@@ -14,49 +14,50 @@ type Processor interface {
 	Close() error
 }
 
-// Mapper represents a mapper.
+// Mapper represents a message transformer.
 type Mapper interface {
-	// Map transforms a message.
+	// Map transforms a message into a new value.
 	Map(*Message) (*Message, error)
 }
 
-// FlatMapper represents a mapper that returns multiple messages.
+// FlatMapper represents a transformer that returns zero or many messages.
 type FlatMapper interface {
-	// FlatMap maps one message to multiple messages.
+	// FlatMap transforms a message into multiple messages.
 	FlatMap(*Message) ([]*Message, error)
 }
 
-// Predicate represents a message filter.
+// Predicate represents a predicate (boolean-valued function) of a message.
 type Predicate interface {
-	// Assert asserts  that the predicate is true for a message.
+	// Assert tests if the given message satisfies the predicate.
 	Assert(*Message) (bool, error)
 }
 
-// Compile-time interface checks.
-var _ Mapper = MapperFunc(nil)
-var _ FlatMapper = FlatMapperFunc(nil)
-var _ Predicate = PredicateFunc(nil)
+var _ = (Mapper)(MapperFunc(nil))
 
-// MapperFunc represents a mapping function.
+// MapperFunc represents a function implementing the Mapper interface.
 type MapperFunc func(*Message) (*Message, error)
 
-// Map maps a message.
+// Map transforms a message into a new value.
 func (fn MapperFunc) Map(msg *Message) (*Message, error) {
 	return fn(msg)
 }
 
-// FlatMapperFunc represents a mapping function that return multiple messages.
+var _ = (FlatMapper)(FlatMapperFunc(nil))
+
+// FlatMapperFunc represents a function implementing the FlatMapper interface.
 type FlatMapperFunc func(*Message) ([]*Message, error)
 
-// FlatMap maps a single message to multiple messages.
+// FlatMap transforms a message into multiple messages.
 func (fn FlatMapperFunc) FlatMap(msg *Message) ([]*Message, error) {
 	return fn(msg)
 }
 
-// PredicateFunc represents a stream filter function.
+var _ = (Predicate)(PredicateFunc(nil))
+
+// PredicateFunc represents a function implementing the Predicate interface.
 type PredicateFunc func(*Message) (bool, error)
 
-// Assert matches a message to the predicate.
+// Assert tests if the given message satisfies the predicate.
 func (fn PredicateFunc) Assert(msg *Message) (bool, error) {
 	return fn(msg)
 }
