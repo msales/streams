@@ -48,7 +48,7 @@ func (p *Sink) Process(msg *streams.Message) error {
 		return p.pipe.Commit(msg)
 	}
 
-	return nil
+	return p.pipe.Mark(msg)
 }
 
 // Close closes the processor.

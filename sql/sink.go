@@ -25,14 +25,6 @@ func WithBatchMessages(messages int) SinkFunc {
 	}
 }
 
-// WithBatchFrequency configures the frequency to send a batch
-// on the Sink.
-func WithBatchFrequency(freq time.Duration) SinkFunc {
-	return func(s *Sink) {
-		s.freq = freq
-	}
-}
-
 // WithBeginFn sets the transaction start callback on the Sink.
 func WithBeginFn(fn TxFunc) SinkFunc {
 	return func(s *Sink) {
@@ -60,7 +52,6 @@ type Sink struct {
 
 	batch      int
 	count      int
-	freq       time.Duration
 	lastCommit time.Time
 	lastMsg    *streams.Message
 }
@@ -72,15 +63,14 @@ func NewSink(db *sql.DB, fn InsertFunc, opts ...SinkFunc) (*Sink, error) {
 		insertFn: fn,
 		batch:    0,
 		count:    0,
-		freq:     0,
 	}
 
 	for _, opt := range opts {
 		opt(s)
 	}
 
-	if s.batch == 0 && s.freq == 0 {
-		return nil, errors.New("sink: neither BatchMessages nor BatchFrequency was set")
+	if s.batch == 0 {
+		return nil, errors.New("sink: BatchMessages must be set")
 	}
 
 	return s, nil
@@ -103,15 +93,11 @@ func (p *Sink) Process(msg *streams.Message) error {
 
 	p.lastMsg = msg
 	p.count++
-	if p.shouldCommit() {
-		if err := p.Commit(); err != nil {
-			return err
-		}
-
+	if p.count >= p.batch {
 		return p.pipe.Commit(msg)
 	}
 
-	return nil
+	return p.pipe.Mark(msg)
 }
 
 //Commit commits a processors batch.
@@ -120,18 +106,6 @@ func (p *Sink) Commit() error {
 	p.lastCommit = time.Now()
 
 	return p.commitTransaction()
-}
-
-func (p *Sink) shouldCommit() bool {
-	if p.batch > 0 && p.count >= p.batch {
-		return true
-	}
-
-	if p.freq > 0 && time.Since(p.lastCommit) > p.freq {
-		return true
-	}
-
-	return false
 }
 
 func (p *Sink) ensureTransaction() error {

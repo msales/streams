@@ -23,6 +23,7 @@ func TestSink_Process(t *testing.T) {
 	c := new(MockCache)
 	c.On("Set", "test", "test", time.Millisecond).Return(nil)
 	pipe := mocks.NewPipe(t)
+	pipe.ExpectMark("test", "test")
 	s := cache.NewSink(c, time.Millisecond, 10)
 	s.WithPipe(pipe)
 
