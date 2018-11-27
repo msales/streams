@@ -52,8 +52,9 @@ func TestProcessorPipe_Reset(t *testing.T) {
 func TestProcessorPipe_Mark(t *testing.T) {
 	src := new(MockSource)
 	store := new(MockMetastore)
-	store.On("Mark", nil, src, metadata("test")).Return(errors.New("test"))
-	msg := streams.NewMessage("test", "test").WithMetadata(src, metadata("test"))
+	meta := new(MockMetadata)
+	store.On("Mark", nil, src, meta).Return(errors.New("test"))
+	msg := streams.NewMessage("test", "test").WithMetadata(src, meta)
 	pipe := streams.NewPipe(store, []streams.Pump{})
 
 	err := pipe.Mark(msg)
@@ -130,8 +131,23 @@ func TestProcessorPipe_ForwardToChildError(t *testing.T) {
 func TestProcessorPipe_Commit(t *testing.T) {
 	src := new(MockSource)
 	store := new(MockMetastore)
-	store.On("Mark", nil, src, metadata("test")).Return(errors.New("test"))
-	msg := streams.NewMessage(nil, nil).WithMetadata(src, metadata("test"))
+	meta := new(MockMetadata)
+	store.On("Mark", nil, src, meta).Return(nil)
+	msg := streams.NewMessage(nil, nil).WithMetadata(src, meta)
+	pipe := streams.NewPipe(store, []streams.Pump{})
+
+	err := pipe.Commit(msg)
+
+	assert.NoError(t, err)
+	store.AssertExpectations(t)
+}
+
+func TestProcessorPipe_CommitMarkError(t *testing.T) {
+	src := new(MockSource)
+	store := new(MockMetastore)
+	meta := new(MockMetadata)
+	store.On("Mark", nil, src, meta).Return(errors.New("test"))
+	msg := streams.NewMessage(nil, nil).WithMetadata(src, meta)
 	pipe := streams.NewPipe(store, []streams.Pump{})
 
 	err := pipe.Commit(msg)
@@ -139,3 +155,4 @@ func TestProcessorPipe_Commit(t *testing.T) {
 	assert.Error(t, err)
 	store.AssertExpectations(t)
 }
+

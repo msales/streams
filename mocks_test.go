@@ -7,12 +7,15 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-var _ = (streams.Metadata)(metadata(""))
+var _ = (streams.Metadata)(&MockMetadata{})
 
-type metadata string
+type MockMetadata struct {
+	mock.Mock
+}
 
-func (m metadata) Merge(v interface{}) interface{} {
-	return m
+func (m MockMetadata) Merge(v streams.Metadata) streams.Metadata {
+	args := m.Called(v)
+	return args.Get(0).(streams.Metadata)
 }
 
 var _ = (streams.Node)(&MockNode{})
@@ -46,24 +49,24 @@ type MockMetastore struct {
 	mock.Mock
 }
 
-func (s *MockMetastore) Pull(p streams.Processor) (map[streams.Source]streams.Metadata, error) {
+func (s *MockMetastore) Pull(p streams.Processor) ([]streams.Metaitem, error) {
 	args := s.Called(p)
 
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 
-	return args.Get(0).(map[streams.Source]streams.Metadata), args.Error(1)
+	return args.Get(0).([]streams.Metaitem), args.Error(1)
 }
 
-func (s *MockMetastore) PullAll() (map[streams.Processor]map[streams.Source]streams.Metadata, error) {
+func (s *MockMetastore) PullAll() (map[streams.Processor][]streams.Metaitem, error) {
 	args := s.Called()
 
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 
-	return args.Get(0).(map[streams.Processor]map[streams.Source]streams.Metadata), args.Error(1)
+	return args.Get(0).(map[streams.Processor][]streams.Metaitem), args.Error(1)
 }
 
 func (s *MockMetastore) Mark(p streams.Processor, src streams.Source, meta streams.Metadata) error {

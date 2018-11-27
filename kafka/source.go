@@ -60,30 +60,22 @@ func (c *SourceConfig) Validate() error {
 	return nil
 }
 
-// MergedMetadata represents merged Metadata.
-type MergedMetadata map[string]map[int32]int64
+// MergedMetadata represents an accumulative position in the stream.
+type MergedMetadata map[int32]int64
 
 // Merge merges the current metadata into another MergedMetadata.
-func (m MergedMetadata) Merge(v interface{}) interface{} {
+func (m MergedMetadata) Merge(v streams.Metadata) streams.Metadata {
 	if v == nil {
 		return m
 	}
 
 	merged := v.(MergedMetadata)
-	for topic, partitions := range m {
-		for partition, offset := range partitions {
-			partitions, ok := merged[topic]
-			if !ok {
-				merged[topic] = map[int32]int64{partition: offset}
-				continue
-			}
-
-			_, ok = partitions[partition]
-			if !ok || offset < partitions[partition] {
-				partitions[partition] = offset
+	for partition, offset := range m {
+		_, ok := merged[partition]
+		if !ok || offset < merged[partition] {
+			merged[partition] = offset
 			}
 		}
-	}
 
 	return merged
 }
@@ -96,21 +88,15 @@ type Metadata struct {
 }
 
 // Merge merges Metadata into MergedMetadata.
-func (m *Metadata) Merge(v interface{}) interface{} {
+func (m *Metadata) Merge(v streams.Metadata) streams.Metadata {
 	if v == nil {
-		return MergedMetadata{m.Topic: {m.Partition: m.Offset}}
+		return MergedMetadata{m.Partition: m.Offset}
 	}
 
 	merged := v.(MergedMetadata)
-	partitions, ok := merged[m.Topic]
-	if !ok {
-		merged[m.Topic] = map[int32]int64{m.Partition: m.Offset}
-		return merged
-	}
-
-	_, ok = partitions[m.Partition]
-	if !ok || m.Offset < partitions[m.Partition] {
-		partitions[m.Partition] = m.Offset
+	_, ok := merged[m.Partition]
+	if !ok || m.Offset < merged[m.Partition] {
+		merged[m.Partition] = m.Offset
 	}
 
 	return merged
@@ -118,6 +104,7 @@ func (m *Metadata) Merge(v interface{}) interface{} {
 
 // Source represents a Kafka stream source.
 type Source struct {
+	topic    string
 	consumer *cluster.Consumer
 
 	ctx          context.Context
@@ -144,6 +131,7 @@ func NewSource(c *SourceConfig) (*Source, error) {
 	}
 
 	s := &Source{
+		topic:        c.Topic,
 		consumer:     consumer,
 		ctx:          c.Ctx,
 		keyDecoder:   c.KeyDecoder,
@@ -191,11 +179,9 @@ func (s *Source) Commit(v interface{}) error {
 	}
 
 	state := v.(MergedMetadata)
-	for topic, partitions := range state {
-		for partition, offset := range partitions {
-			s.consumer.MarkPartitionOffset(topic, partition, offset, "")
+	for partition, offset := range state {
+		s.consumer.MarkPartitionOffset(s.topic, partition, offset, "")
 		}
-	}
 
 	if err := s.consumer.CommitOffsets(); err != nil {
 		return errors.Wrap(err, "streams: could not commit kafka offset")

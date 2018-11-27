@@ -7,7 +7,7 @@ import (
 // Metadata represents metadata that can be merged.
 type Metadata interface {
 	// Merge merges two pieces of metadata.
-	Merge(interface{}) interface{}
+	Merge(Metadata) Metadata
 }
 
 // Message represents data the flows through the stream.
@@ -20,12 +20,12 @@ type Message struct {
 	Value interface{}
 }
 
-// Metadata returns the Message metadata.
-func (m *Message) Metadata() (Source, interface{}) {
+// Metadata returns the Message Metadata.
+func (m *Message) Metadata() (Source, Metadata) {
 	return m.source, m.metadata
 }
 
-// WithMetadata add metadata to the Message from a Source.
+// WithMetadata add metadata to the Message for a Source.
 func (m *Message) WithMetadata(s Source, v Metadata) *Message {
 	m.source = s
 	m.metadata = v

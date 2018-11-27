@@ -182,8 +182,7 @@ func (p *MapProcessor) Close() error {
 	return nil
 }
 
-// MergeProcessor is a processor that passes the message on,
-// keeping track of seen metadata.
+// MergeProcessor is a processor that merges multiple streams.
 type MergeProcessor struct {
 	pipe Pipe
 }
