@@ -17,7 +17,7 @@ func TestMetastore_PullAll(t *testing.T) {
 	procMeta, err := s.PullAll()
 
 	assert.NoError(t, err)
-	assert.Equal(t, map[streams.Processor][]streams.Metaitem{p: {{src, meta}}}, procMeta)
+	assert.Equal(t, map[streams.Processor][]streams.Metaitem{p: {{Source: src, Metadata: meta}}}, procMeta)
 }
 
 func TestMetastore_PullAllClearsMetastore(t *testing.T) {
@@ -50,7 +50,7 @@ func TestMetastore_Mark(t *testing.T) {
 	assert.NoError(t, err)
 
 	procMeta, _ := s.PullAll()
-	assert.Equal(t, map[streams.Processor][]streams.Metaitem{p: {{src, meta3}}}, procMeta)
+	assert.Equal(t, map[streams.Processor][]streams.Metaitem{p: {{Source: src, Metadata: meta3}}}, procMeta)
 }
 
 func TestMetastore_MarkMultipleSources(t *testing.T) {
@@ -67,7 +67,7 @@ func TestMetastore_MarkMultipleSources(t *testing.T) {
 	assert.NoError(t, err)
 
 	procMeta, _ := s.PullAll()
-	assert.Equal(t, map[streams.Processor][]streams.Metaitem{p: {{src1, meta}, {src2, meta}}}, procMeta)
+	assert.Equal(t, map[streams.Processor][]streams.Metaitem{p: {{Source: src1, Metadata: meta}, {Source: src2, Metadata: meta}}}, procMeta)
 }
 
 func TestMetastore_Pull(t *testing.T) {
@@ -80,7 +80,7 @@ func TestMetastore_Pull(t *testing.T) {
 	pulled, err := s.Pull(p)
 
 	assert.NoError(t, err)
-	assert.Equal(t, []streams.Metaitem{{src, meta}}, pulled)
+	assert.Equal(t, []streams.Metaitem{{Source: src, Metadata: meta}}, pulled)
 }
 
 func TestMetastore_PullClearsProcessor(t *testing.T) {

@@ -13,7 +13,7 @@ type MockMetadata struct {
 	mock.Mock
 }
 
-func (m MockMetadata) Merge(v streams.Metadata) streams.Metadata {
+func (m *MockMetadata) Merge(v streams.Metadata) streams.Metadata {
 	args := m.Called(v)
 	return args.Get(0).(streams.Metadata)
 }

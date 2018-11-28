@@ -77,7 +77,7 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 	config.Config = *c
 	config.Brokers = brokers
 	config.Topic = "example1"
-	config.GroupId = "example-consumer"
+	config.GroupID = "example-consumer"
 	config.ValueDecoder = kafka.StringDecoder{}
 	config.Ctx = ctx
 

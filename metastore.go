@@ -18,6 +18,7 @@ type Metastore interface {
 	Mark(Processor, Source, Metadata) error
 }
 
+// Metaitem represents the source metadata combination.
 type Metaitem struct {
 	Source   Source
 	Metadata Metadata

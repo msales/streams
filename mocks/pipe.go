@@ -141,22 +141,22 @@ func (p *Pipe) ShouldError() {
 	p.shouldError = true
 }
 
-// ExpectForward registers an expectation of a Forward of the Pipe.
+// ExpectMark registers an expectation of a Mark on the Pipe.
 func (p *Pipe) ExpectMark(k, v interface{}) {
 	p.expectMark = append(p.expectMark, record{k, v, -1})
 }
 
-// ExpectForward registers an expectation of a Forward of the Pipe.
+// ExpectForward registers an expectation of a Forward on the Pipe.
 func (p *Pipe) ExpectForward(k, v interface{}) {
 	p.expectForward = append(p.expectForward, record{k, v, -1})
 }
 
-// ExpectForwardToChild registers an expectation of a ForwardToChild the Pipe.
+// ExpectForwardToChild registers an expectation of a ForwardToChild on the Pipe.
 func (p *Pipe) ExpectForwardToChild(k, v interface{}, index int) {
 	p.expectForward = append(p.expectForward, record{k, v, index})
 }
 
-// ExpectCommit registers an expectation of a Commit the Pipe.
+// ExpectCommit registers an expectation of a Commit on the Pipe.
 func (p *Pipe) ExpectCommit() {
 	p.expectCommit = true
 }
