@@ -9,7 +9,6 @@ import (
 	"github.com/msales/streams/sql"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 func TestNewSink(t *testing.T) {

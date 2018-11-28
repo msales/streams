@@ -30,17 +30,21 @@ var _ = (TimedPipe)(&processorPipe{})
 
 // processorPipe represents the pipe for processors.
 type processorPipe struct {
-	store    Metastore
-	children []Pump
+	store      Metastore
+	supervisor Supervisor
+	owner      Processor
+	children   []Pump
 
 	duration time.Duration
 }
 
 // NewPipe create a new processorPipe instance.
-func NewPipe(store Metastore, children []Pump) Pipe {
+func NewPipe(store Metastore, supervisor Supervisor, owner Processor, children []Pump) Pipe {
 	return &processorPipe{
-		store:    store,
-		children: children,
+		store:      store,
+		supervisor: supervisor,
+		owner:      owner,
+		children:   children,
 	}
 }
 
@@ -92,7 +96,7 @@ func (p *processorPipe) Commit(msg *Message) error {
 		return err
 	}
 
-	return nil //TODO: Call commit on the Controller
+	return p.supervisor.Commit(p.owner)
 }
 
 // time adds the duration of the function to the pipe accumulative duration.

@@ -74,6 +74,15 @@ func (s *MockMetastore) Mark(p streams.Processor, src streams.Source, meta strea
 	return args.Error(0)
 }
 
+type MockSupervisor struct {
+	mock.Mock
+}
+
+func (s *MockSupervisor) Commit(p streams.Processor) error {
+	args := s.Called(p)
+	return args.Error(0)
+}
+
 var _ = (streams.TimedPipe)(&MockTimedPipe{})
 
 type MockTimedPipe struct {
@@ -101,6 +110,11 @@ func (p *MockPump) Accept(msg *streams.Message) error {
 }
 
 func (p *MockPump) Close() error {
+	args := p.Called()
+	return args.Error(0)
+}
+
+func (p *MockPump) WithLock(func() error) error {
 	args := p.Called()
 	return args.Error(0)
 }

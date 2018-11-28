@@ -23,7 +23,6 @@ type streamTask struct {
 	running bool
 	errorFn ErrorFunc
 
-	store    Metastore
 	srcPumps SourcePumps
 	pumps    map[Node]Pump
 }
@@ -32,7 +31,6 @@ type streamTask struct {
 func NewTask(topology *Topology) Task {
 	return &streamTask{
 		topology: topology,
-		store:    NewMetastore(),
 		srcPumps: SourcePumps{},
 		pumps:    map[Node]Pump{},
 	}
@@ -52,10 +50,13 @@ func (t *streamTask) Start() error {
 }
 
 func (t *streamTask) setupTopology() {
+	store := NewMetastore()
+	supervisor := NewSupervisor(store, t.pumps)
+
 	nodes := flattenNodeTree(t.topology.Sources())
 	reverseNodes(nodes)
 	for _, node := range nodes {
-		pipe := NewPipe(t.store, t.resolvePumps(node.Children()))
+		pipe := NewPipe(store, supervisor, node.Processor(), t.resolvePumps(node.Children()))
 		node.Processor().WithPipe(pipe)
 
 		pump := NewPump(node, pipe.(TimedPipe), t.handleError)
