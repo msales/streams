@@ -125,6 +125,32 @@ func (p *MockProcessor) Close() error {
 	return args.Error(0)
 }
 
+var _ = (streams.Processor)(&MockCommitter{})
+var _ = (streams.Committer)(&MockCommitter{})
+
+type MockCommitter struct {
+	mock.Mock
+}
+
+func (p *MockCommitter) WithPipe(pipe streams.Pipe) {
+	p.Called(pipe)
+}
+
+func (p *MockCommitter) Process(msg *streams.Message) error {
+	args := p.Called(msg)
+	return args.Error(0)
+}
+
+func (p *MockCommitter) Commit() error {
+	args := p.Called()
+	return args.Error(0)
+}
+
+func (p *MockCommitter) Close() error {
+	args := p.Called()
+	return args.Error(0)
+}
+
 var _ = (streams.Source)(&MockSource{})
 
 type MockSource struct {

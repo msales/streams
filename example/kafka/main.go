@@ -63,7 +63,8 @@ func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 		Map("to-string", stringMapper).
 		Process("kafka-sink", sink)
 
-	task := streams.NewTask(builder.Build())
+	tp, _ := builder.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -90,7 +91,8 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 		Map("to-int", intMapper).
 		Print("print")
 
-	task := streams.NewTask(builder.Build())
+	tp, _ := builder.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})

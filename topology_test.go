@@ -84,8 +84,9 @@ func TestTopologyBuilder_AddSource(t *testing.T) {
 	tb := streams.NewTopologyBuilder()
 
 	n := tb.AddSource("test", s)
-	to := tb.Build()
+	to, errs := tb.Build()
 
+	assert.Len(t, errs, 0)
 	assert.IsType(t, &streams.SourceNode{}, n)
 	assert.Equal(t, "test", n.(*streams.SourceNode).Name())
 	assert.Len(t, to.Sources(), 1)
@@ -98,8 +99,9 @@ func TestTopologyBuilder_AddProcessor(t *testing.T) {
 	tb := streams.NewTopologyBuilder()
 
 	n := tb.AddProcessor("test", p, []streams.Node{pn})
-	to := tb.Build()
+	to, errs := tb.Build()
 
+	assert.Len(t, errs, 0)
 	assert.IsType(t, &streams.ProcessorNode{}, n)
 	assert.Equal(t, "test", n.(*streams.ProcessorNode).Name())
 	assert.Len(t, pn.Children(), 1)
@@ -108,11 +110,32 @@ func TestTopologyBuilder_AddProcessor(t *testing.T) {
 	assert.Equal(t, n, to.Processors()[0])
 }
 
+func TestTopologyBuilder_BuildChecksConnectedSources(t *testing.T) {
+	tb := streams.NewTopologyBuilder()
+	_ = tb.AddSource("src", new(MockSource))
+	_ = tb.AddSource("src", new(MockSource))
+
+	_, errs := tb.Build()
+
+	assert.Len(t, errs, 1)
+}
+
+func TestTopologyBuilder_BuildChecksConnectedCommitters(t *testing.T) {
+	tb := streams.NewTopologyBuilder()
+	n1 := tb.AddProcessor("1", new(MockCommitter), []streams.Node{})
+	n2 := tb.AddProcessor("1", new(MockProcessor), []streams.Node{n1})
+	_ = tb.AddProcessor("1", new(MockCommitter), []streams.Node{n2})
+
+	_, errs := tb.Build()
+
+	assert.Len(t, errs, 1)
+}
+
 func TestTopology_Sources(t *testing.T) {
 	s := new(MockSource)
 	tb := streams.NewTopologyBuilder()
 	sn := tb.AddSource("test", s)
-	to := tb.Build()
+	to, _ := tb.Build()
 
 	sources := to.Sources()
 
@@ -124,7 +147,7 @@ func TestTopology_Processors(t *testing.T) {
 	p := new(MockProcessor)
 	tb := streams.NewTopologyBuilder()
 	pn := tb.AddProcessor("test2", p, []streams.Node{})
-	to := tb.Build()
+	to, _ := tb.Build()
 
 	processors := to.Processors()
 

@@ -38,7 +38,8 @@ func main() {
 	s[1].Map("negative-mapper", negativeMapper).
 		Print("print-negative")
 
-	task := streams.NewTask(builder.Build())
+	tp, _ := builder.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})

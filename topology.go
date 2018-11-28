@@ -1,5 +1,7 @@
 package streams
 
+import "errors"
+
 // Node represents a topology node.
 type Node interface {
 	// Name gets the node name.
@@ -103,15 +105,25 @@ func (t Topology) Processors() []Node {
 	return t.processors
 }
 
+// topologyTest represents a test that should be performed on the topology.
+type topologyTest func(map[Source]Node, []Node) error
+
 // TopologyBuilder represents a topology builder.
 type TopologyBuilder struct {
+	tests      []topologyTest
 	sources    map[Source]Node
 	processors []Node
 }
 
 // NewTopologyBuilder creates a new TopologyBuilder.
 func NewTopologyBuilder() *TopologyBuilder {
+	tests := []topologyTest{
+		sourcesConnectedTest,
+		committersConnectedTests,
+	}
+
 	return &TopologyBuilder{
+		tests:      tests,
 		sources:    map[Source]Node{},
 		processors: []Node{},
 	}
@@ -139,11 +151,87 @@ func (tb *TopologyBuilder) AddProcessor(name string, processor Processor, parent
 }
 
 // Build creates an immutable Topology.
-func (tb *TopologyBuilder) Build() *Topology {
+func (tb *TopologyBuilder) Build() (*Topology, []error) {
+	var errs []error
+	for _, test := range tb.tests {
+		if err := test(tb.sources, tb.processors); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	return &Topology{
 		sources:    tb.sources,
 		processors: tb.processors,
+	}, errs
+}
+
+func sourcesConnectedTest(srcs map[Source]Node, _ []Node) error {
+	nodes := make([]Node, 0, len(srcs))
+	for _, node := range srcs {
+		nodes = append(nodes, node)
 	}
+
+	if len(nodes) <= 1 {
+		return nil
+	}
+
+	if !nodesConnected(nodes) {
+		return errors.New("streams: not all sources are connected")
+	}
+
+	return nil
+}
+
+func committersConnectedTests(_ map[Source]Node, procs []Node) error {
+	var nodes []Node
+	for _, node := range procs {
+		if _, ok := node.Processor().(Committer); !ok {
+			continue
+		}
+
+		nodes = append(nodes, node)
+	}
+
+	if len(nodes) <= 1 {
+		return nil
+	}
+
+	if nodesConnected(nodes) {
+		return errors.New("streams: committers are inline")
+	}
+
+	return nil
+}
+
+func nodesConnected(roots []Node) bool {
+	if len(roots) <= 1 {
+		return true
+	}
+
+	var nodes []Node
+	var visit []Node
+	connections := 0
+
+	for _, node := range roots {
+		visit = append(visit, node)
+	}
+
+	for len(visit) > 0 {
+		var n Node
+		n, visit = visit[0], visit[1:]
+		nodes = append(nodes, n)
+
+		for _, c := range n.Children() {
+			if contains(c, visit) || contains(c, nodes) {
+				connections++
+				continue
+			}
+
+			visit = append(visit, c)
+		}
+	}
+
+	return connections == len(roots)-1
 }
 
 func flattenNodeTree(roots map[Source]Node) []Node {
@@ -163,7 +251,7 @@ func flattenNodeTree(roots map[Source]Node) []Node {
 		}
 
 		for _, c := range n.Children() {
-			if contains(c, visit) {
+			if contains(c, visit) || contains(c, nodes) {
 				continue
 			}
 

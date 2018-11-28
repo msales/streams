@@ -34,7 +34,8 @@ func TestStreamTask_ConsumesMessages(t *testing.T) {
 		Map("pass-through", passThroughMapper).
 		Process("processor", p)
 
-	task := streams.NewTask(b.Build())
+	tp, _ := b.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		t.FailNow()
 	})
@@ -48,7 +49,7 @@ func TestStreamTask_ConsumesMessages(t *testing.T) {
 
 	time.Sleep(time.Millisecond)
 
-	task.Close()
+	_ = task.Close()
 
 	p.AssertExpectations(t)
 }
@@ -67,7 +68,8 @@ func TestStreamTask_Throughput(t *testing.T) {
 			return msg, nil
 		})
 
-	task := streams.NewTask(b.Build())
+	tp, _ := b.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		t.FailNow()
 	})
@@ -83,7 +85,7 @@ func TestStreamTask_Throughput(t *testing.T) {
 
 	time.Sleep(time.Millisecond)
 
-	task.Close()
+	_ = task.Close()
 
 	assert.Equal(t, 100, count)
 }
@@ -94,16 +96,17 @@ func TestStreamTask_CannotStartTwice(t *testing.T) {
 	b := streams.NewStreamBuilder()
 	b.Source("src", &chanSource{msgs: msgs})
 
-	task := streams.NewTask(b.Build())
+	tp, _ := b.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		t.FailNow()
 	})
 
-	task.Start()
+	_ = task.Start()
 
 	err := task.Start()
 
-	task.Close()
+	_ = task.Close()
 
 	assert.Error(t, err)
 }
@@ -118,16 +121,17 @@ func TestStreamTask_HandleSourceError(t *testing.T) {
 	b := streams.NewStreamBuilder()
 	b.Source("src", s)
 
-	task := streams.NewTask(b.Build())
+	tp, _ := b.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		gotError = true
 	})
 
-	task.Start()
+	_ = task.Start()
 
 	time.Sleep(time.Millisecond)
 
-	task.Close()
+	_ = task.Close()
 
 	assert.True(t, gotError)
 }
@@ -147,18 +151,19 @@ func TestStreamTask_HandleProcessorError(t *testing.T) {
 	b.Source("src", &chanSource{msgs: msgs}).
 		Process("processor", p)
 
-	task := streams.NewTask(b.Build())
+	tp, _ := b.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		gotError = true
 	})
 
-	task.Start()
+	_ = task.Start()
 
 	msgs <- msg
 
 	time.Sleep(time.Millisecond)
 
-	task.Close()
+	_ = task.Close()
 
 	assert.True(t, gotError)
 }
@@ -176,8 +181,9 @@ func TestStreamTask_HandleCloseWithProcessorError(t *testing.T) {
 	b.Source("src", s).
 		Process("processor", p)
 
-	task := streams.NewTask(b.Build())
-	task.Start()
+	tp, _ := b.Build()
+	task := streams.NewTask(tp)
+	_ = task.Start()
 
 	time.Sleep(time.Millisecond)
 
@@ -194,8 +200,9 @@ func TestStreamTask_HandleCloseWithSourceError(t *testing.T) {
 	b := streams.NewStreamBuilder()
 	b.Source("src", s)
 
-	task := streams.NewTask(b.Build())
-	task.Start()
+	tp, _ := b.Build()
+	task := streams.NewTask(tp)
+	_ = task.Start()
 
 	time.Sleep(time.Millisecond)
 

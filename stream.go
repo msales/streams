@@ -20,7 +20,7 @@ func (sb *StreamBuilder) Source(name string, source Source) *Stream {
 }
 
 // Build builds the stream Topology.
-func (sb *StreamBuilder) Build() *Topology {
+func (sb *StreamBuilder) Build() (*Topology, []error) {
 	return sb.tp.Build()
 }
 

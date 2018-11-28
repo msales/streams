@@ -23,8 +23,9 @@ func TestStreamBuilder_Build(t *testing.T) {
 	builder := NewStreamBuilder()
 	builder.Source("test", source).Process("test1", proc)
 
-	top := builder.Build()
+	top, errs := builder.Build()
 
+	assert.Len(t, errs, 0)
 	assert.Len(t, top.Sources(), 1)
 	assert.Len(t, top.Processors(), 1)
 	assert.Contains(t, top.Sources(), source)
