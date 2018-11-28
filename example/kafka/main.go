@@ -60,7 +60,7 @@ func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 
 	builder := streams.NewStreamBuilder()
 	builder.Source("rand-source", newRandIntSource(ctx)).
-		Map("to-string", stringMapper).
+		MapFunc("to-string", stringMapper).
 		Process("kafka-sink", sink)
 
 	tp, _ := builder.Build()
@@ -88,7 +88,7 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 
 	builder := streams.NewStreamBuilder()
 	builder.Source("kafka-source", src).
-		Map("to-int", intMapper).
+		MapFunc("to-int", intMapper).
 		Print("print")
 
 	tp, _ := builder.Build()

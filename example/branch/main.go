@@ -29,13 +29,13 @@ func main() {
 	builder := streams.NewStreamBuilder()
 
 	s := builder.Source("rand-source", newRandIntSource(ctx)).
-		Branch("branch", branchEvenNumberFilter, branchOddNumberFilter)
+		BranchFunc("branch", branchEvenNumberFilter, branchOddNumberFilter)
 
 	// Event numbers
 	s[0].Print("print-event")
 
 	// Odd Numbers
-	s[1].Map("negative-mapper", negativeMapper).
+	s[1].MapFunc("negative-mapper", negativeMapper).
 		Print("print-negative")
 
 	tp, _ := builder.Build()
