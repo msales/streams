@@ -10,6 +10,7 @@ import (
 
 	"github.com/msales/pkg/v3/stats"
 	"github.com/msales/streams"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 func main() {
