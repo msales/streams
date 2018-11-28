@@ -74,8 +74,8 @@ func (m MergedMetadata) Merge(v streams.Metadata) streams.Metadata {
 		_, ok := merged[partition]
 		if !ok || offset < merged[partition] {
 			merged[partition] = offset
-			}
 		}
+	}
 
 	return merged
 }
@@ -181,7 +181,7 @@ func (s *Source) Commit(v interface{}) error {
 	state := v.(MergedMetadata)
 	for partition, offset := range state {
 		s.consumer.MarkPartitionOffset(s.topic, partition, offset, "")
-		}
+	}
 
 	if err := s.consumer.CommitOffsets(); err != nil {
 		return errors.Wrap(err, "streams: could not commit kafka offset")

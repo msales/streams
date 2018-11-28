@@ -8,7 +8,7 @@ import (
 
 func TestSourcesConnectedTest(t *testing.T) {
 	node5 := &testNode{
-		children:  []Node{},
+		children: []Node{},
 	}
 	node1 := &testNode{
 		children: []Node{node5},
@@ -43,15 +43,15 @@ func TestSourcesConnectedTest_Error(t *testing.T) {
 
 func TestCommittersConnectedTests(t *testing.T) {
 	node1 := &testNode{
-		children: []Node{},
+		children:  []Node{},
 		processor: &testCommitter{},
 	}
 	node2 := &testNode{
-		children: []Node{},
+		children:  []Node{},
 		processor: &testCommitter{},
 	}
 
-	err := committersConnectedTests(map[Source]Node{}, []Node{node1, node2,})
+	err := committersConnectedTests(map[Source]Node{}, []Node{node1, node2})
 
 	assert.NoError(t, err)
 }
@@ -65,7 +65,7 @@ func TestCommittersConnectedTests_Error(t *testing.T) {
 		children: []Node{node3},
 	}
 	node1 := &testNode{
-		children: []Node{node2},
+		children:  []Node{node2},
 		processor: &testCommitter{},
 	}
 
@@ -76,16 +76,16 @@ func TestCommittersConnectedTests_Error(t *testing.T) {
 
 func TestNodesConnected_Connected(t *testing.T) {
 	node5 := &testNode{
-		children:  []Node{},
+		children: []Node{},
 	}
 	node3 := &testNode{
-		children:  []Node{node5},
+		children: []Node{node5},
 	}
 	node1 := &testNode{
 		children: []Node{node3},
 	}
 	node4 := &testNode{
-		children:  []Node{node5},
+		children: []Node{node5},
 	}
 	node2 := &testNode{
 		children: []Node{node4},
@@ -98,13 +98,13 @@ func TestNodesConnected_Connected(t *testing.T) {
 
 func TestNodesConnected_NotConnected(t *testing.T) {
 	node3 := &testNode{
-		children:  []Node{},
+		children: []Node{},
 	}
 	node1 := &testNode{
 		children: []Node{node3},
 	}
 	node4 := &testNode{
-		children:  []Node{},
+		children: []Node{},
 	}
 	node2 := &testNode{
 		children: []Node{node4},

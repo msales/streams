@@ -19,7 +19,7 @@ type Metastore interface {
 }
 
 type Metaitem struct {
-	Source Source
+	Source   Source
 	Metadata Metadata
 }
 
@@ -78,5 +78,3 @@ func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
 	procMeta[p] = items
 	return nil
 }
-
-

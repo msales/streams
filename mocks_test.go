@@ -38,7 +38,7 @@ func (mn *MockNode) Children() []streams.Node {
 	return args.Get(0).([]streams.Node)
 }
 
-func (mn *MockNode) Processor() (streams.Processor) {
+func (mn *MockNode) Processor() streams.Processor {
 	args := mn.Called()
 	return args.Get(0).(streams.Processor)
 }

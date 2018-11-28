@@ -155,4 +155,3 @@ func TestProcessorPipe_CommitMarkError(t *testing.T) {
 	assert.Error(t, err)
 	store.AssertExpectations(t)
 }
-
