@@ -45,6 +45,8 @@ func NewSupervisor(store Metastore, pumps map[Node]Pump) Supervisor {
 }
 
 // Perform a global commit sequence.
+//
+// TODO: ensure that a Commit cannot be called when another Commit is in progress.
 func (s *supervisor) Commit(p Processor) error {
 	metadata, err := s.store.PullAll()
 	if err != nil {
