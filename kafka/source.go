@@ -184,7 +184,7 @@ func (s *Source) Commit(v interface{}) error {
 	}
 
 	if err := s.consumer.CommitOffsets(); err != nil {
-		return errors.Wrap(err, "streams: could not commit kafka offset")
+		return errors.Wrap(err, "kafka: could not commit kafka offset")
 	}
 
 	return nil
