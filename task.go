@@ -23,14 +23,17 @@ type streamTask struct {
 	running bool
 	errorFn ErrorFunc
 
-	srcPumps SourcePumps
-	pumps    map[Node]Pump
+	store      Metastore
+	supervisor Supervisor
+	srcPumps   SourcePumps
+	pumps      map[Node]Pump
 }
 
 // NewTask creates a new streams task.
 func NewTask(topology *Topology) Task {
 	return &streamTask{
 		topology: topology,
+		store:    NewMetastore(),
 		srcPumps: SourcePumps{},
 		pumps:    map[Node]Pump{},
 	}
@@ -50,18 +53,20 @@ func (t *streamTask) Start() error {
 }
 
 func (t *streamTask) setupTopology() {
-	store := NewMetastore()
-	supervisor := NewSupervisor(store, t.pumps)
+	//TODO: this should be move to the constructor once WithPumps is implemented.
+	t.supervisor = NewSupervisor(t.store, t.pumps)
 
 	nodes := flattenNodeTree(t.topology.Sources())
 	reverseNodes(nodes)
 	for _, node := range nodes {
-		pipe := NewPipe(store, supervisor, node.Processor(), t.resolvePumps(node.Children()))
+		pipe := NewPipe(t.store, t.supervisor, node.Processor(), t.resolvePumps(node.Children()))
 		node.Processor().WithPipe(pipe)
 
 		pump := NewPump(node, pipe.(TimedPipe), t.handleError)
 		t.pumps[node] = pump
 	}
+
+	//TODO: Call t.supervisor.WithPumps(t.pumps)
 
 	for source, node := range t.topology.Sources() {
 		srcPump := NewSourcePump(node.Name(), source, t.resolvePumps(node.Children()), t.handleError)
@@ -91,6 +96,10 @@ func (t *streamTask) closeTopology() error {
 		if err := t.pumps[node].Close(); err != nil {
 			return err
 		}
+	}
+
+	if err := t.supervisor.Commit(nil); err != nil {
+		return err
 	}
 
 	for _, srcPump := range t.srcPumps {

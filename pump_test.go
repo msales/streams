@@ -55,6 +55,18 @@ func TestProcessorPump_AcceptError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestProcessorPump_WithLock(t *testing.T) {
+	processor := new(MockProcessor)
+	node := streams.NewProcessorNode("test", processor)
+	p := streams.NewPump(node, nil, func(error) {})
+
+	err := p.WithLock(func() error {
+		return errors.New("test")
+	})
+
+	assert.Error(t, err)
+}
+
 func TestProcessorPump_Close(t *testing.T) {
 	processor := new(MockProcessor)
 	processor.On("Close").Return(nil)

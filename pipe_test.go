@@ -52,13 +52,14 @@ func TestProcessorPipe_Reset(t *testing.T) {
 }
 
 func TestProcessorPipe_Mark(t *testing.T) {
+	proc := new(MockProcessor)
 	src := new(MockSource)
 	store := new(MockMetastore)
 	supervisor := new(MockSupervisor)
 	meta := new(MockMetadata)
-	store.On("Mark", nil, src, meta).Return(errors.New("test"))
+	store.On("Mark", proc, src, meta).Return(errors.New("test"))
 	msg := streams.NewMessage("test", "test").WithMetadata(src, meta)
-	pipe := streams.NewPipe(store, supervisor, nil, []streams.Pump{})
+	pipe := streams.NewPipe(store, supervisor, proc, []streams.Pump{})
 
 	err := pipe.Mark(msg)
 
@@ -142,7 +143,7 @@ func TestProcessorPipe_Commit(t *testing.T) {
 	supervisor := new(MockSupervisor)
 	meta := new(MockMetadata)
 	proc := new(MockProcessor)
-	store.On("Mark", nil, src, meta).Return(nil)
+	store.On("Mark", proc, src, meta).Return(nil)
 	supervisor.On("Commit", proc).Return(nil)
 	msg := streams.NewMessage(nil, nil).WithMetadata(src, meta)
 	pipe := streams.NewPipe(store, supervisor, proc, []streams.Pump{})
@@ -159,7 +160,7 @@ func TestProcessorPipe_CommitMarkError(t *testing.T) {
 	supervisor := new(MockSupervisor)
 	meta := new(MockMetadata)
 	proc := new(MockProcessor)
-	store.On("Mark", nil, src, meta).Return(errors.New("test"))
+	store.On("Mark", proc, src, meta).Return(errors.New("test"))
 	msg := streams.NewMessage(nil, nil).WithMetadata(src, meta)
 	pipe := streams.NewPipe(store, supervisor, proc, []streams.Pump{})
 
@@ -175,7 +176,7 @@ func TestProcessorPipe_CommitSupervisorError(t *testing.T) {
 	supervisor := new(MockSupervisor)
 	meta := new(MockMetadata)
 	proc := new(MockProcessor)
-	store.On("Mark", nil, src, meta).Return(nil)
+	store.On("Mark", proc, src, meta).Return(nil)
 	supervisor.On("Commit", proc).Return(errors.New("test"))
 	msg := streams.NewMessage(nil, nil).WithMetadata(src, meta)
 	pipe := streams.NewPipe(store, supervisor, proc, []streams.Pump{})

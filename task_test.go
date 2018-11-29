@@ -192,6 +192,31 @@ func TestStreamTask_HandleCloseWithProcessorError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestStreamTask_HandleCloseWithSupervisorError(t *testing.T) {
+	meta := new(MockMetadata)
+	meta.On("Merge", mock.Anything).Return(meta)
+	s := new(MockSource)
+	s.On("Consume").Return(streams.NewMessage(nil, "foo").WithMetadata(s, meta), nil)
+	s.On("Commit", meta).Return(errors.New("test error"))
+	s.On("Close").Return(nil)
+
+	b := streams.NewStreamBuilder()
+	b.Source("src", s).
+		FilterFunc("filter", func(_ *streams.Message) (bool, error) {
+			return false, nil
+		})
+
+	tp, _ := b.Build()
+	task := streams.NewTask(tp)
+	_ = task.Start()
+
+	time.Sleep(time.Millisecond)
+
+	err := task.Close()
+
+	assert.Error(t, err)
+}
+
 func TestStreamTask_HandleCloseWithSourceError(t *testing.T) {
 	s := new(MockSource)
 	s.On("Consume").Return(streams.NewMessage(nil, nil), nil)

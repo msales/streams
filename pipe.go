@@ -60,7 +60,7 @@ func (p *processorPipe) Duration() time.Duration {
 
 // Mark indicates that the message has been delt with
 func (p *processorPipe) Mark(msg *Message) error {
-	return p.store.Mark(nil, msg.source, msg.metadata)
+	return p.store.Mark(p.owner, msg.source, msg.metadata)
 }
 
 // Forward queues the data to all processor children in the topology.
@@ -92,7 +92,7 @@ func (p *processorPipe) ForwardToChild(msg *Message, index int) error {
 func (p *processorPipe) Commit(msg *Message) error {
 	defer p.time(time.Now())
 
-	if err := p.store.Mark(nil, msg.source, msg.metadata); err != nil {
+	if err := p.store.Mark(p.owner, msg.source, msg.metadata); err != nil {
 		return err
 	}
 

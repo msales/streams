@@ -53,6 +53,42 @@ func TestMetastore_Mark(t *testing.T) {
 	assert.Equal(t, map[streams.Processor][]streams.Metaitem{p: {{Source: src, Metadata: meta3}}}, procMeta)
 }
 
+func TestMetastore_MarkNilProcessor(t *testing.T) {
+	src := new(MockSource)
+	meta := new(MockMetadata)
+	s := streams.NewMetastore()
+
+	err := s.Mark(nil, src, meta)
+
+	assert.NoError(t, err)
+	procMeta, _ := s.PullAll()
+	assert.Equal(t, map[streams.Processor][]streams.Metaitem{}, procMeta)
+}
+
+func TestMetastore_MarkNilSource(t *testing.T) {
+	p := new(MockProcessor)
+	meta := new(MockMetadata)
+	s := streams.NewMetastore()
+
+	err := s.Mark(p, nil, meta)
+
+	assert.NoError(t, err)
+	procMeta, _ := s.PullAll()
+	assert.Equal(t, map[streams.Processor][]streams.Metaitem{}, procMeta)
+}
+
+func TestMetastore_MarkNilMetadata(t *testing.T) {
+	p := new(MockProcessor)
+	src := new(MockSource)
+	s := streams.NewMetastore()
+
+	err := s.Mark(p, src, nil)
+
+	assert.NoError(t, err)
+	procMeta, _ := s.PullAll()
+	assert.Equal(t, map[streams.Processor][]streams.Metaitem{}, procMeta)
+}
+
 func TestMetastore_MarkMultipleSources(t *testing.T) {
 	p := new(MockProcessor)
 	src1 := new(MockSource)

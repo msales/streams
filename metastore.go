@@ -60,6 +60,10 @@ func (s *metastore) PullAll() (map[Processor][]Metaitem, error) {
 
 // Mark sets metadata for a processor.
 func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
+	if p == nil || src == nil || meta == nil {
+		return nil
+	}
+
 	procMeta := s.metadata.Load().(map[Processor][]Metaitem)
 
 	items, ok := procMeta[p]

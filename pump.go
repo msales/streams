@@ -29,8 +29,8 @@ type processorPump struct {
 
 	ch chan *Message
 
-	sync.Mutex
-	wg sync.WaitGroup
+	lock sync.Mutex
+	wg   sync.WaitGroup
 }
 
 // NewPump creates a new processorPump instance.
@@ -55,21 +55,20 @@ func (p *processorPump) run() {
 	tags := []interface{}{"name", p.name}
 
 	for msg := range p.ch {
-		var latency time.Duration
+		p.pipe.Reset()
 
-		err := p.WithLock(func() error {
-			p.pipe.Reset()
-			start := time.Now()
+		p.lock.Lock()
 
-			err := p.processor.Process(msg)
-
-			latency = time.Since(start) - p.pipe.Duration()
-
-			return err
-		})
+		start := time.Now()
+		err := p.processor.Process(msg)
 		if err != nil {
+			p.lock.Unlock()
 			p.errFn(err)
+			return
 		}
+		latency := time.Since(start) - p.pipe.Duration()
+
+		p.lock.Unlock()
 
 		withStats(msg.Ctx, func(s stats.Stats) {
 			s.Timing("node.latency", latency, 0.1, tags...)
@@ -80,10 +79,11 @@ func (p *processorPump) run() {
 }
 
 func (p *processorPump) WithLock(fn func() error) error {
-	p.Lock()
-	defer p.Unlock()
+	p.lock.Lock()
+	err := fn()
+	p.lock.Unlock()
 
-	return fn()
+	return err
 }
 
 // Accept takes a message to be processed in the Pump.
