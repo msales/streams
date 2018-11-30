@@ -3,18 +3,11 @@ package streams
 import (
 	"errors"
 	"io"
-	"sync/atomic"
-	"time"
+
+	"github.com/msales/streams/pkg/syncx"
 )
 
-const (
-	unlocked uint32 = iota
-	locked
-
-	closeRetry = 10 * time.Millisecond
-)
-
-var ErrUnknownPump = errors.New("supervisor: encountered an unknown pump")
+var ErrUnknownPump = errors.New("streams: encountered an unknown pump")
 
 // Supervisor represents a concurrency-safe stream supervisor.
 //
@@ -36,7 +29,7 @@ type supervisor struct {
 
 	pumps map[Processor]Pump
 
-	locked uint32
+	mx syncx.Mutex
 }
 
 // NewSupervisor returns a new Supervisor instance.
@@ -46,28 +39,31 @@ func NewSupervisor(store Metastore) Supervisor {
 	}
 }
 
-// Permanently locks the supervisor, ensuring that no commit will be executed.
+// Permanently locks the supervisor, ensuring that no commit will ever be executed.
 func (s *supervisor) Close() error {
-	for !s.tryLock() {
-		time.Sleep(closeRetry)
-	}
+	s.mx.Lock()
 
 	return nil
 }
 
 // WithPumps sets map of Pumps.
 func (s *supervisor) WithPumps(pumps map[Node]Pump) {
-	s.pumps = remapPumps(pumps)
+	mapped := make(map[Processor]Pump, len(pumps))
+	for node, pump := range pumps {
+		mapped[node.Processor()] = pump
+	}
+
+	s.pumps = mapped
 }
 
 // Perform a global commit sequence.
 //
 // If triggered by a Pipe, the associated Processor should be passed.
 func (s *supervisor) Commit(p Processor) error {
-	if ok := s.tryLock(); !ok {
+	if ok := s.mx.TryLock(); !ok {
 		return nil
 	}
-	defer s.unlock()
+	defer s.mx.Unlock()
 
 	metadata, err := s.store.PullAll()
 	if err != nil {
@@ -93,18 +89,6 @@ func (s *supervisor) Commit(p Processor) error {
 	}
 
 	return nil
-}
-
-// tryLock tries to lock the supervisor for the commit and returns the result.
-// Must be called before any commit-related actions.
-func (s *supervisor) tryLock() bool {
-	return atomic.CompareAndSwapUint32(&s.locked, unlocked, locked)
-}
-
-// unlock unlocks the supervisor.
-// Must be called after the commit is done, whatever the result.
-func (s *supervisor) unlock() {
-	atomic.StoreUint32(&s.locked, unlocked)
 }
 
 func (s *supervisor) commit(proc Processor, items []*Metaitem) ([]*Metaitem, error) {
@@ -142,7 +126,7 @@ func (s *supervisor) commit(proc Processor, items []*Metaitem) ([]*Metaitem, err
 type sourceMetadata map[Source]Metadata
 
 // Merge merges metadata from metaitems.
-func (m sourceMetadata) Merge(items []*Metaitem) sourceMetadata {
+func (m sourceMetadata) Merge(items []*Metaitem) {
 	for _, item := range items {
 		src, ok := m[item.Source]
 		if ok {
@@ -151,13 +135,4 @@ func (m sourceMetadata) Merge(items []*Metaitem) sourceMetadata {
 			m[item.Source] = item.Metadata
 		}
 	}
-	return m
-}
-
-func remapPumps(pumps map[Node]Pump) map[Processor]Pump {
-	mapped := make(map[Processor]Pump, len(pumps))
-	for node, pump := range pumps {
-		mapped[node.Processor()] = pump
-	}
-	return mapped
 }

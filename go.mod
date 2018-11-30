@@ -14,6 +14,7 @@ require (
 	github.com/gogo/protobuf v1.1.1 // indirect
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/kisielk/gotool v1.0.0 // indirect
+	github.com/magiconair/properties v1.8.0
 	github.com/marwan-at-work/mod v0.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/msales/pkg/v3 v3.0.0
