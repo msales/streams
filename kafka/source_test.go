@@ -93,11 +93,14 @@ func TestMergedMetadata_WithOrigin(t *testing.T) {
 }
 
 func TestMergedMetadata_Update(t *testing.T) {
-	meta := &kafka.MergedMetadata{}
+	meta1 := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3}}
+	meta2 := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 2}}
 
-	assert.Panics(t, func() {
-		meta.Update(nil)
-	})
+	res := meta1.Update(meta2)
+
+	assert.IsType(t, kafka.MergedMetadata{}, res)
+	meta1 = res.(kafka.MergedMetadata)
+	assert.Equal(t, kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3}}, meta1)
 }
 
 func TestMergedMetadata_Merge(t *testing.T) {

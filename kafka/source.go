@@ -76,13 +76,30 @@ func (m MergedMetadata) find(topic string, partition int32) (int, *Metadata) {
 }
 
 // WithOrigin sets the MetadataOrigin on the metadata.
-func (m MergedMetadata) WithOrigin(streams.MetadataOrigin) {
+func (m MergedMetadata) WithOrigin(_ streams.MetadataOrigin) {
 	panic("kafka: cannot set MetadataOrigin on MergedMetadata")
 }
 
 // Update updates the given metadata with the contained metadata.
-func (m MergedMetadata) Update(streams.Metadata) streams.Metadata {
-	panic("kafka: cannot update MergedMetadata")
+func (m MergedMetadata) Update(v streams.Metadata) streams.Metadata {
+	if v == nil {
+		return m
+	}
+
+	merged := v.(MergedMetadata)
+	for _, newMeta := range m {
+		i, oldMeta := merged.find(newMeta.Topic, newMeta.Partition)
+		if oldMeta == nil {
+			merged = append(merged, newMeta)
+			continue
+		}
+
+		if newMeta.Offset > oldMeta.Offset {
+			merged[i] = newMeta
+		}
+	}
+
+	return merged
 }
 
 // Merge merges the contained metadata into the given the metadata.
