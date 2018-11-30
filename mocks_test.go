@@ -58,24 +58,24 @@ type MockMetastore struct {
 	mock.Mock
 }
 
-func (s *MockMetastore) Pull(p streams.Processor) ([]*streams.Metaitem, error) {
+func (s *MockMetastore) Pull(p streams.Processor) (streams.Metaitems, error) {
 	args := s.Called(p)
 
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 
-	return args.Get(0).([]*streams.Metaitem), args.Error(1)
+	return args.Get(0).(streams.Metaitems), args.Error(1)
 }
 
-func (s *MockMetastore) PullAll() (map[streams.Processor][]*streams.Metaitem, error) {
+func (s *MockMetastore) PullAll() (map[streams.Processor]streams.Metaitems, error) {
 	args := s.Called()
 
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 
-	return args.Get(0).(map[streams.Processor][]*streams.Metaitem), args.Error(1)
+	return args.Get(0).(map[streams.Processor]streams.Metaitems), args.Error(1)
 }
 
 func (s *MockMetastore) Mark(p streams.Processor, src streams.Source, meta streams.Metadata) error {

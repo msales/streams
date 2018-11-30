@@ -92,7 +92,7 @@ func (s *supervisor) Commit(p Processor) error {
 	return nil
 }
 
-func (s *supervisor) commit(proc Processor, items []*Metaitem) ([]*Metaitem, error) {
+func (s *supervisor) commit(proc Processor, items Metaitems) (Metaitems, error) {
 	if cmt, ok := proc.(Committer); ok {
 		pump, ok := s.pumps[proc]
 		if !ok {
@@ -111,7 +111,7 @@ func (s *supervisor) commit(proc Processor, items []*Metaitem) ([]*Metaitem, err
 				return err
 			}
 
-			items = append(items, newItems...)
+			items = items.Join(newItems)
 
 			return nil
 		})
@@ -127,13 +127,8 @@ func (s *supervisor) commit(proc Processor, items []*Metaitem) ([]*Metaitem, err
 type sourceMetadata map[Source]Metadata
 
 // Merge merges metadata from metaitems.
-func (m sourceMetadata) Merge(items []*Metaitem) {
+func (m sourceMetadata) Merge(items Metaitems) {
 	for _, item := range items {
-		src, ok := m[item.Source]
-		if ok {
-			m[item.Source] = src.Merge(item.Metadata)
-		} else {
-			m[item.Source] = item.Metadata
-		}
+		m[item.Source] = item.Metadata.Merge(m[item.Source])
 	}
 }

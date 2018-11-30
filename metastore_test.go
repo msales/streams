@@ -5,7 +5,39 @@ import (
 
 	"github.com/msales/streams"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
+
+func TestMetaitems_Join(t *testing.T) {
+	src1 := new(MockSource)
+	src2 := new(MockSource)
+	src3 := new(MockSource)
+
+	meta1 := new(MockMetadata)
+	meta2 := new(MockMetadata)
+	meta3 := new(MockMetadata)
+	meta4 := new(MockMetadata)
+	meta5 := new(MockMetadata) // == meta2.Update(meta4)
+
+	item1 := &streams.Metaitem{Source: src1, Metadata: meta1}
+	item2 := &streams.Metaitem{Source: src2, Metadata: meta2}
+	item3 := &streams.Metaitem{Source: src3, Metadata: meta3}
+	item4 := &streams.Metaitem{Source: src2, Metadata: meta4} // src2!
+
+	items := streams.Metaitems{item1, item2}
+	other := streams.Metaitems{item3, item4}
+
+	meta2.On("Update", mock.Anything).Return(meta5)
+
+	joined := items.Join(other)
+
+	assert.Len(t, joined, 3)
+	assert.True(t, joined[0] == item1)
+	assert.True(t, joined[1] == item2)
+	assert.True(t, joined[2] == item3)
+	assert.True(t, meta5 == item2.Metadata)
+	meta2.AssertCalled(t, "Update", meta4)
+}
 
 func TestMetastore_PullAll(t *testing.T) {
 	p := new(MockProcessor)
@@ -18,7 +50,7 @@ func TestMetastore_PullAll(t *testing.T) {
 	procMeta, err := s.PullAll()
 
 	assert.NoError(t, err)
-	assert.Equal(t, map[streams.Processor][]*streams.Metaitem{p: {{Source: src, Metadata: meta}}}, procMeta)
+	assert.Equal(t, map[streams.Processor]streams.Metaitems{p: {{Source: src, Metadata: meta}}}, procMeta)
 }
 
 func TestMetastore_PullAllClearsMetastore(t *testing.T) {
@@ -33,7 +65,7 @@ func TestMetastore_PullAllClearsMetastore(t *testing.T) {
 	procMeta, err := s.PullAll()
 
 	assert.NoError(t, err)
-	assert.Equal(t, map[streams.Processor][]*streams.Metaitem{}, procMeta)
+	assert.Equal(t, map[streams.Processor]streams.Metaitems{}, procMeta)
 }
 
 func TestMetastore_Mark(t *testing.T) {
@@ -54,7 +86,7 @@ func TestMetastore_Mark(t *testing.T) {
 	assert.NoError(t, err)
 
 	procMeta, _ := s.PullAll()
-	assert.Equal(t, map[streams.Processor][]*streams.Metaitem{p: {{Source: src, Metadata: newMeta}}}, procMeta)
+	assert.Equal(t, map[streams.Processor]streams.Metaitems{p: {{Source: src, Metadata: newMeta}}}, procMeta)
 }
 
 func TestMetastore_MarkNilProcessor(t *testing.T) {
@@ -66,7 +98,7 @@ func TestMetastore_MarkNilProcessor(t *testing.T) {
 
 	assert.NoError(t, err)
 	procMeta, _ := s.PullAll()
-	assert.Equal(t, map[streams.Processor][]*streams.Metaitem{}, procMeta)
+	assert.Equal(t, map[streams.Processor]streams.Metaitems{}, procMeta)
 }
 
 func TestMetastore_MarkNilSource(t *testing.T) {
@@ -78,7 +110,7 @@ func TestMetastore_MarkNilSource(t *testing.T) {
 
 	assert.NoError(t, err)
 	procMeta, _ := s.PullAll()
-	assert.Equal(t, map[streams.Processor][]*streams.Metaitem{}, procMeta)
+	assert.Equal(t, map[streams.Processor]streams.Metaitems{}, procMeta)
 }
 
 func TestMetastore_MarkNilMetadata(t *testing.T) {
@@ -90,7 +122,7 @@ func TestMetastore_MarkNilMetadata(t *testing.T) {
 
 	assert.NoError(t, err)
 	procMeta, _ := s.PullAll()
-	assert.Equal(t, map[streams.Processor][]*streams.Metaitem{}, procMeta)
+	assert.Equal(t, map[streams.Processor]streams.Metaitems{}, procMeta)
 }
 
 func TestMetastore_MarkMultipleSources(t *testing.T) {
@@ -108,7 +140,7 @@ func TestMetastore_MarkMultipleSources(t *testing.T) {
 	assert.NoError(t, err)
 
 	procMeta, _ := s.PullAll()
-	assert.Equal(t, map[streams.Processor][]*streams.Metaitem{p: {{Source: src1, Metadata: meta}, {Source: src2, Metadata: meta}}}, procMeta)
+	assert.Equal(t, map[streams.Processor]streams.Metaitems{p: {{Source: src1, Metadata: meta}, {Source: src2, Metadata: meta}}}, procMeta)
 }
 
 func TestMetastore_Pull(t *testing.T) {
@@ -122,7 +154,7 @@ func TestMetastore_Pull(t *testing.T) {
 	pulled, err := s.Pull(p)
 
 	assert.NoError(t, err)
-	assert.Equal(t, []*streams.Metaitem{{Source: src, Metadata: meta}}, pulled)
+	assert.Equal(t, streams.Metaitems{{Source: src, Metadata: meta}}, pulled)
 }
 
 func TestMetastore_PullClearsProcessor(t *testing.T) {
@@ -137,7 +169,7 @@ func TestMetastore_PullClearsProcessor(t *testing.T) {
 	pulled, err := s.Pull(p)
 
 	assert.NoError(t, err)
-	assert.Equal(t, []*streams.Metaitem(nil), pulled)
+	assert.Equal(t, streams.Metaitems(nil), pulled)
 }
 
 func TestMetastore_PullReturnsNilIfDoesntExist(t *testing.T) {
@@ -147,7 +179,7 @@ func TestMetastore_PullReturnsNilIfDoesntExist(t *testing.T) {
 	pulled, err := s.Pull(p)
 
 	assert.NoError(t, err)
-	assert.Equal(t, []*streams.Metaitem(nil), pulled)
+	assert.Equal(t, streams.Metaitems(nil), pulled)
 }
 
 func BenchmarkMetastore_Mark(b *testing.B) {
