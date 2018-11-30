@@ -10,6 +10,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const blah streams.MetadataOrigin = 1
+
 // SourceConfig represents the configuration for a Kafka stream source.
 type SourceConfig struct {
 	sarama.Config
@@ -61,19 +63,44 @@ func (c *SourceConfig) Validate() error {
 }
 
 // MergedMetadata represents an accumulative position in the stream.
-type MergedMetadata map[int32]int64
+type MergedMetadata []*Metadata
 
-// Merge merges the current metadata into another MergedMetadata.
+func (m MergedMetadata) find(topic string, partition int32) (int, *Metadata) {
+	for i, meta := range m {
+		if meta.Topic == topic && meta.Partition == partition {
+			return i, meta
+		}
+	}
+
+	return -1, nil
+}
+
+// WithOrigin sets the MetadataOrigin on the metadata.
+func (m MergedMetadata) WithOrigin(streams.MetadataOrigin) {
+	panic("kafka: cannot set MetadataOrigin on MergedMetadata")
+}
+
+// Update updates the given metadata with the contained metadata.
+func (m MergedMetadata) Update(streams.Metadata) streams.Metadata {
+	panic("kafka: cannot update MergedMetadata")
+}
+
+// Merge merges the contained metadata into the given the metadata.
 func (m MergedMetadata) Merge(v streams.Metadata) streams.Metadata {
 	if v == nil {
 		return m
 	}
 
 	merged := v.(MergedMetadata)
-	for partition, offset := range m {
-		_, ok := merged[partition]
-		if !ok || offset < merged[partition] {
-			merged[partition] = offset
+	for _, newMeta := range m {
+		i, oldMeta := merged.find(newMeta.Topic, newMeta.Partition)
+		if oldMeta == nil {
+			merged = append(merged, newMeta)
+			continue
+		}
+
+		if (newMeta.Origin == oldMeta.Origin && newMeta.Offset < oldMeta.Offset) || (newMeta.Origin < oldMeta.Origin) {
+			merged[i] = newMeta
 		}
 	}
 
@@ -82,24 +109,40 @@ func (m MergedMetadata) Merge(v streams.Metadata) streams.Metadata {
 
 // Metadata represents the position in the stream of a message.
 type Metadata struct {
+	Origin streams.MetadataOrigin
+
 	Topic     string
 	Partition int32
 	Offset    int64
 }
 
-// Merge merges Metadata into MergedMetadata.
-func (m *Metadata) Merge(v streams.Metadata) streams.Metadata {
+// WithOrigin sets the MetadataOrigin on the metadata.
+func (m *Metadata) WithOrigin(o streams.MetadataOrigin) {
+	m.Origin = o
+}
+
+// Update updates the given metadata with the contained metadata.
+func (m *Metadata) Update(v streams.Metadata) streams.Metadata {
 	if v == nil {
-		return MergedMetadata{m.Partition: m.Offset}
+		return MergedMetadata{m}
 	}
 
 	merged := v.(MergedMetadata)
-	_, ok := merged[m.Partition]
-	if !ok || m.Offset < merged[m.Partition] {
-		merged[m.Partition] = m.Offset
+	i, oldMeta := merged.find(m.Topic, m.Partition)
+	if oldMeta == nil {
+		return append(merged, m)
+	}
+
+	if m.Offset > oldMeta.Offset {
+		merged[i] = m
 	}
 
 	return merged
+}
+
+// Merge merges the contained metadata into the given the metadata.
+func (m *Metadata) Merge(v streams.Metadata) streams.Metadata {
+	panic("kafka: Metadata cannot be merged")
 }
 
 // Source represents a Kafka stream source.
@@ -179,8 +222,8 @@ func (s *Source) Commit(v interface{}) error {
 	}
 
 	state := v.(MergedMetadata)
-	for partition, offset := range state {
-		s.consumer.MarkPartitionOffset(s.topic, partition, offset, "")
+	for _, meta := range state {
+		s.consumer.MarkPartitionOffset(meta.Topic, meta.Partition, meta.Offset, "")
 	}
 
 	if err := s.consumer.CommitOffsets(); err != nil {

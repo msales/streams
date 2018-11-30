@@ -7,6 +7,7 @@ import (
 // MetadataOrigin represents the metadata origin type.
 type MetadataOrigin uint8
 
+// MetadataOrigin types
 const (
 	CommitterOrigin MetadataOrigin = iota
 	ProcessorOrigin
@@ -27,7 +28,7 @@ type Metadata interface {
 	WithOrigin(MetadataOrigin)
 	// Update updates the given metadata with the contained metadata.
 	Update(Metadata) Metadata
-	// Merge merges two pieces of metadata.
+	// Merge merges the contained metadata into the given the metadata.
 	Merge(Metadata) Metadata
 }
 
