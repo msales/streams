@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/msales/streams/pkg/syncx"
 )
@@ -16,14 +17,14 @@ var ErrUnknownPump = errors.New("streams: encountered an unknown pump")
 // The Supervisor performs a commit in a concurrently-safe manner.
 // There can only ever be 1 ongoing commit at any given time.
 type Supervisor interface {
-	io.Closer
-
 	// Commit performs a global commit sequence.
 	//
 	// If triggered by a Pipe, the associated Processor should be passed.
 	Commit(Processor) error
-	// WithPumps sets map of Pumps.
+	// WithPumps sets a map of Pumps.
 	WithPumps(pumps map[Node]Pump)
+
+	io.Closer
 }
 
 type supervisor struct {
@@ -48,7 +49,7 @@ func (s *supervisor) Close() error {
 	return nil
 }
 
-// WithPumps sets map of Pumps.
+// WithPumps sets a map of Pumps.
 func (s *supervisor) WithPumps(pumps map[Node]Pump) {
 	mapped := make(map[Processor]Pump, len(pumps))
 	for node, pump := range pumps {
@@ -75,9 +76,13 @@ func (s *supervisor) Commit(caller Processor) error {
 	srcMeta := make(sourceMetadata)
 
 	for proc, items := range metadata {
-		items, err := s.commit(caller, proc, items)
-		if err != nil {
-			return err
+		if comm, ok := proc.(Committer); ok {
+			newItems, err := s.commit(caller, comm)
+			if err != nil {
+				return err
+			}
+
+			items = items.Join(newItems)
 		}
 
 		srcMeta.Merge(items)
@@ -93,31 +98,22 @@ func (s *supervisor) Commit(caller Processor) error {
 	return nil
 }
 
-func (s *supervisor) commit(caller, proc Processor, items Metaitems) (Metaitems, error) {
-	if cmt, ok := proc.(Committer); ok {
-		locker, err := s.getLocker(caller, proc)
-		if err != nil {
-			return nil, err
-		}
-
-		locker.Lock()
-		defer locker.Unlock()
-
-		err = cmt.Commit()
-		if err != nil {
-			return nil, err
-		}
-
-		// Pull metadata of messages that have been processed between the initial pull and the lock
-		newItems, err := s.store.Pull(proc)
-		if err != nil {
-			return nil, err
-		}
-
-		items = items.Join(newItems)
+func (s *supervisor) commit(caller Processor, comm Committer) (Metaitems, error) {
+	locker, err := s.getLocker(caller, comm)
+	if err != nil {
+		return nil, err
 	}
 
-	return items, nil
+	locker.Lock()
+	defer locker.Unlock()
+
+	err = comm.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	// Pull metadata of messages that have been processed between the initial pull and the lock.
+	return s.store.Pull(comm)
 }
 
 func (s *supervisor) getLocker(caller, proc Processor) (sync.Locker, error) {
@@ -141,4 +137,48 @@ func (m sourceMetadata) Merge(items Metaitems) {
 	for _, item := range items {
 		m[item.Source] = item.Metadata.Merge(m[item.Source])
 	}
+}
+
+type timedSupervisor struct {
+	s Supervisor
+
+	t *time.Ticker
+}
+
+func newTimedSupervisor(inner Supervisor, d time.Duration, errFn *ErrorFunc) *timedSupervisor {
+	s := &timedSupervisor{
+		s: inner,
+
+		t: time.NewTicker(d),
+	}
+
+	go func() {
+		for range s.t.C {
+			err := s.Commit(nil)
+			if err != nil {
+				(*errFn)(err)
+			}
+		}
+	}()
+
+	return s
+}
+
+// Close stops the timer and closes the inner supervisor.
+func (s *timedSupervisor) Close() error {
+	s.t.Stop()
+
+	return s.s.Close()
+}
+
+// Commit performs a global commit sequence.
+//
+// If triggered by a Pipe, the associated Processor should be passed.
+func (s *timedSupervisor) Commit(Processor) error {
+	return s.s.Commit(nil)
+}
+
+// WithPumps sets a map of Pumps.
+func (s *timedSupervisor) WithPumps(pumps map[Node]Pump) {
+	s.s.WithPumps(pumps)
 }

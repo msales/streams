@@ -5,7 +5,6 @@ import (
 
 	"github.com/msales/streams/pkg/syncx"
 	"github.com/stretchr/testify/assert"
-
 )
 
 func TestSupervisor_WithPumps(t *testing.T) {

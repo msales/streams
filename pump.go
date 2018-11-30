@@ -10,13 +10,12 @@ import (
 
 // Pump represent a Message pump.
 type Pump interface {
-	sync.Locker
-
 	// Accept takes a message to be processed in the Pump.
 	Accept(*Message) error
-
 	// Close closes the pump.
 	Close() error
+
+	sync.Locker
 }
 
 // processorPump is an asynchronous Message Pump.

@@ -2,6 +2,7 @@ package streams
 
 import (
 	"errors"
+	"time"
 )
 
 // ErrorFunc represents a streams error handling function.
@@ -30,16 +31,22 @@ type streamTask struct {
 }
 
 // NewTask creates a new streams task.
-func NewTask(topology *Topology) Task {
+func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 	store := NewMetastore()
 
-	return &streamTask{
+	t := &streamTask{
 		topology:   topology,
 		store:      store,
 		supervisor: NewSupervisor(store),
 		srcPumps:   SourcePumps{},
 		pumps:      map[Node]Pump{},
 	}
+
+	for _, optFn := range opts {
+		optFn(t)
+	}
+
+	return t
 }
 
 // Start starts the streams processors.
@@ -125,4 +132,14 @@ func (t *streamTask) handleError(err error) {
 // OnError sets the error handler.
 func (t *streamTask) OnError(fn ErrorFunc) {
 	t.errorFn = fn
+}
+
+// TaskOptFunc represents a function that sets up the Task.
+type TaskOptFunc func(t *streamTask)
+
+// CommitInterval defines an interval of automatic commits.
+func CommitInterval(d time.Duration) TaskOptFunc {
+	return func(t *streamTask) {
+		t.supervisor = newTimedSupervisor(t.supervisor, d, &t.errorFn)
+	}
 }

@@ -8,6 +8,8 @@ import (
 type Committer interface {
 	//Commit commits a processors batch.
 	Commit() error
+
+	Processor
 }
 
 // Processor represents a stream processor.
