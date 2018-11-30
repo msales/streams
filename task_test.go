@@ -194,7 +194,8 @@ func TestStreamTask_HandleCloseWithProcessorError(t *testing.T) {
 
 func TestStreamTask_HandleCloseWithSupervisorError(t *testing.T) {
 	meta := new(MockMetadata)
-	meta.On("Merge", mock.Anything).Return(meta)
+	meta.On("WithOrigin", streams.ProcessorOrigin)
+	meta.On("Update", mock.Anything).Return(meta)
 	s := new(MockSource)
 	s.On("Consume").Return(streams.NewMessage(nil, "foo").WithMetadata(s, meta), nil)
 	s.On("Commit", meta).Return(errors.New("test error"))

@@ -4,8 +4,29 @@ import (
 	"context"
 )
 
+// MetadataOrigin represents the metadata origin type.
+type MetadataOrigin uint8
+
+const (
+	CommitterOrigin MetadataOrigin = iota
+	ProcessorOrigin
+)
+
+// metadataOrigin is a helper function determining the MetadataOrigin of a Processor.
+func metadataOrigin(p Processor) MetadataOrigin {
+	if _, ok := p.(Committer); ok {
+		return CommitterOrigin
+	}
+
+	return ProcessorOrigin
+}
+
 // Metadata represents metadata that can be merged.
 type Metadata interface {
+	// WithOrigin sets the MetadataOrigin on the metadata.
+	WithOrigin(MetadataOrigin)
+	// Update updates the given metadata with the contained metadata.
+	Update(Metadata) Metadata
 	// Merge merges two pieces of metadata.
 	Merge(Metadata) Metadata
 }

@@ -107,7 +107,7 @@ func (s *supervisor) unlock() {
 	atomic.StoreUint32(&s.locked, unlocked)
 }
 
-func (s *supervisor) commit(proc Processor, items []Metaitem) ([]Metaitem, error) {
+func (s *supervisor) commit(proc Processor, items []*Metaitem) ([]*Metaitem, error) {
 	if cmt, ok := proc.(Committer); ok {
 		pump, ok := s.pumps[proc]
 		if !ok {
@@ -142,7 +142,7 @@ func (s *supervisor) commit(proc Processor, items []Metaitem) ([]Metaitem, error
 type sourceMetadata map[Source]Metadata
 
 // Merge merges metadata from metaitems.
-func (m sourceMetadata) Merge(items []Metaitem) sourceMetadata {
+func (m sourceMetadata) Merge(items []*Metaitem) sourceMetadata {
 	for _, item := range items {
 		src, ok := m[item.Source]
 		if ok {

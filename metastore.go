@@ -11,9 +11,9 @@ import (
 // to avoid locks and improve performance.
 type Metastore interface {
 	// Pull gets and clears the processors metadata.
-	Pull(Processor) ([]Metaitem, error)
+	Pull(Processor) ([]*Metaitem, error)
 	// PullAll gets and clears all metadata.
-	PullAll() (map[Processor][]Metaitem, error)
+	PullAll() (map[Processor][]*Metaitem, error)
 	// Mark sets metadata for a processor.
 	Mark(Processor, Source, Metadata) error
 }
@@ -25,20 +25,20 @@ type Metaitem struct {
 }
 
 type metastore struct {
-	metadata atomic.Value // map[Processor]map[Source]Metadata
+	metadata atomic.Value // map[Processor][]Metaitem
 }
 
 // NewMetastore creates a new Metastore instance.
 func NewMetastore() Metastore {
 	s := &metastore{}
-	s.metadata.Store(map[Processor][]Metaitem{})
+	s.metadata.Store(map[Processor][]*Metaitem{})
 
 	return s
 }
 
 // Pull gets and clears the processors metadata.
-func (s *metastore) Pull(p Processor) ([]Metaitem, error) {
-	meta := s.metadata.Load().(map[Processor][]Metaitem)
+func (s *metastore) Pull(p Processor) ([]*Metaitem, error) {
+	meta := s.metadata.Load().(map[Processor][]*Metaitem)
 
 	items, ok := meta[p]
 	if ok {
@@ -50,10 +50,10 @@ func (s *metastore) Pull(p Processor) ([]Metaitem, error) {
 }
 
 // PullAll gets and clears all metadata.
-func (s *metastore) PullAll() (map[Processor][]Metaitem, error) {
-	meta := s.metadata.Load().(map[Processor][]Metaitem)
+func (s *metastore) PullAll() (map[Processor][]*Metaitem, error) {
+	meta := s.metadata.Load().(map[Processor][]*Metaitem)
 
-	s.metadata.Store(map[Processor][]Metaitem{})
+	s.metadata.Store(map[Processor][]*Metaitem{})
 
 	return meta, nil
 }
@@ -64,22 +64,24 @@ func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
 		return nil
 	}
 
-	procMeta := s.metadata.Load().(map[Processor][]Metaitem)
+	procMeta := s.metadata.Load().(map[Processor][]*Metaitem)
+
+	meta.WithOrigin(metadataOrigin(p))
 
 	items, ok := procMeta[p]
 	if !ok {
-		procMeta[p] = []Metaitem{{Source: src, Metadata: meta}}
+		procMeta[p] = []*Metaitem{{Source: src, Metadata: meta}}
 		return nil
 	}
 
 	for _, item := range items {
 		if item.Source == src {
-			item.Metadata = meta.Merge(item.Metadata)
+			item.Metadata = meta.Update(item.Metadata)
 			return nil
 		}
 	}
 
-	items = append(items, Metaitem{Source: src, Metadata: meta})
+	items = append(items, &Metaitem{Source: src, Metadata: meta})
 	procMeta[p] = items
 	return nil
 }

@@ -13,6 +13,15 @@ type MockMetadata struct {
 	mock.Mock
 }
 
+func (m *MockMetadata) WithOrigin(o streams.MetadataOrigin) {
+	m.Called(o)
+}
+
+func (m *MockMetadata) Update(v streams.Metadata) streams.Metadata {
+	args := m.Called(v)
+	return args.Get(0).(streams.Metadata)
+}
+
 func (m *MockMetadata) Merge(v streams.Metadata) streams.Metadata {
 	args := m.Called(v)
 	return args.Get(0).(streams.Metadata)
@@ -49,24 +58,24 @@ type MockMetastore struct {
 	mock.Mock
 }
 
-func (s *MockMetastore) Pull(p streams.Processor) ([]streams.Metaitem, error) {
+func (s *MockMetastore) Pull(p streams.Processor) ([]*streams.Metaitem, error) {
 	args := s.Called(p)
 
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 
-	return args.Get(0).([]streams.Metaitem), args.Error(1)
+	return args.Get(0).([]*streams.Metaitem), args.Error(1)
 }
 
-func (s *MockMetastore) PullAll() (map[streams.Processor][]streams.Metaitem, error) {
+func (s *MockMetastore) PullAll() (map[streams.Processor][]*streams.Metaitem, error) {
 	args := s.Called()
 
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 
-	return args.Get(0).(map[streams.Processor][]streams.Metaitem), args.Error(1)
+	return args.Get(0).(map[streams.Processor][]*streams.Metaitem), args.Error(1)
 }
 
 func (s *MockMetastore) Mark(p streams.Processor, src streams.Source, meta streams.Metadata) error {
