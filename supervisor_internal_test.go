@@ -3,7 +3,9 @@ package streams
 import (
 	"testing"
 
-	"github.com/magiconair/properties/assert"
+	"github.com/msales/streams/pkg/syncx"
+	"github.com/stretchr/testify/assert"
+
 )
 
 func TestSupervisor_WithPumps(t *testing.T) {
@@ -26,17 +28,28 @@ func TestSupervisor_WithPumps(t *testing.T) {
 	assert.Equal(t, expected, supervisor.pumps)
 }
 
+func TestSupervisor_Commit_CommitPending(t *testing.T) {
+	mx := syncx.Mutex{}
+	mx.Lock()
+
+	supervisor := &supervisor{mx: mx}
+
+	err := supervisor.Commit(nil)
+
+	assert.NoError(t, err)
+}
+
 type mockPump struct {}
+
+func (*mockPump) Lock() {}
+
+func (*mockPump) Unlock() {}
 
 func (*mockPump) Accept(*Message) error {
 	return nil
 }
 
 func (*mockPump) Close() error {
-	return nil
-}
-
-func (*mockPump) WithLock(func() error) error {
 	return nil
 }
 

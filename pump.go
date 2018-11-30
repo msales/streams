@@ -10,14 +10,13 @@ import (
 
 // Pump represent a Message pump.
 type Pump interface {
+	sync.Locker
+
 	// Accept takes a message to be processed in the Pump.
 	Accept(*Message) error
 
 	// Close closes the pump.
 	Close() error
-
-	// With lock executes a function after the pump is safely paused.
-	WithLock(func() error) error
 }
 
 // processorPump is an asynchronous Message Pump.
@@ -29,8 +28,9 @@ type processorPump struct {
 
 	ch chan *Message
 
-	lock sync.Mutex
 	wg   sync.WaitGroup
+
+	sync.Mutex
 }
 
 // NewPump creates a new processorPump instance.
@@ -57,18 +57,18 @@ func (p *processorPump) run() {
 	for msg := range p.ch {
 		p.pipe.Reset()
 
-		p.lock.Lock()
+		p.Lock()
 
 		start := time.Now()
 		err := p.processor.Process(msg)
 		if err != nil {
-			p.lock.Unlock()
+			p.Unlock()
 			p.errFn(err)
 			return
 		}
 		latency := time.Since(start) - p.pipe.Duration()
 
-		p.lock.Unlock()
+		p.Unlock()
 
 		withStats(msg.Ctx, func(s stats.Stats) {
 			s.Timing("node.latency", latency, 0.1, tags...)
@@ -76,14 +76,6 @@ func (p *processorPump) run() {
 			s.Gauge("node.back-pressure", pressure(p.ch), 0.1, tags...)
 		})
 	}
-}
-
-func (p *processorPump) WithLock(fn func() error) error {
-	p.lock.Lock()
-	err := fn()
-	p.lock.Unlock()
-
-	return err
 }
 
 // Accept takes a message to be processed in the Pump.

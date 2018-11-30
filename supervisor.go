@@ -3,6 +3,7 @@ package streams
 import (
 	"errors"
 	"io"
+	"sync"
 
 	"github.com/msales/streams/pkg/syncx"
 )
@@ -60,8 +61,7 @@ func (s *supervisor) WithPumps(pumps map[Node]Pump) {
 // Commit performs a global commit sequence.
 //
 // If triggered by a Pipe, the associated Processor should be passed.
-// TODO: avoid locking pump for p
-func (s *supervisor) Commit(p Processor) error {
+func (s *supervisor) Commit(caller Processor) error {
 	if ok := s.mx.TryLock(); !ok {
 		return nil
 	}
@@ -75,7 +75,7 @@ func (s *supervisor) Commit(p Processor) error {
 	srcMeta := make(sourceMetadata)
 
 	for proc, items := range metadata {
-		items, err := s.commit(proc, items)
+		items, err := s.commit(caller, proc, items)
 		if err != nil {
 			return err
 		}
@@ -93,35 +93,44 @@ func (s *supervisor) Commit(p Processor) error {
 	return nil
 }
 
-func (s *supervisor) commit(proc Processor, items Metaitems) (Metaitems, error) {
+func (s *supervisor) commit(caller, proc Processor, items Metaitems) (Metaitems, error) {
 	if cmt, ok := proc.(Committer); ok {
-		pump, ok := s.pumps[proc]
-		if !ok {
-			return nil, ErrUnknownPump
-		}
-
-		err := pump.WithLock(func() error {
-			err := cmt.Commit()
-			if err != nil {
-				return err
-			}
-
-			// Pull metadata of messages that have been processed between the initial pull and the lock
-			newItems, err := s.store.Pull(proc)
-			if err != nil {
-				return err
-			}
-
-			items = items.Join(newItems)
-
-			return nil
-		})
+		locker, err := s.getLocker(caller, proc)
 		if err != nil {
 			return nil, err
 		}
+
+		locker.Lock()
+		defer locker.Unlock()
+
+		err = cmt.Commit()
+		if err != nil {
+			return nil, err
+		}
+
+		// Pull metadata of messages that have been processed between the initial pull and the lock
+		newItems, err := s.store.Pull(proc)
+		if err != nil {
+			return nil, err
+		}
+
+		items = items.Join(newItems)
 	}
 
 	return items, nil
+}
+
+func (s *supervisor) getLocker(caller, proc Processor) (sync.Locker, error) {
+	if caller == proc {
+		return &syncx.NopLocker{}, nil
+	}
+
+	pump, ok := s.pumps[proc]
+	if !ok {
+		return nil, ErrUnknownPump
+	}
+
+	return pump, nil
 }
 
 // sourceMetadata maps Metadata to each known Source.

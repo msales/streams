@@ -1,6 +1,7 @@
 package syncx
 
 import (
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -10,6 +11,12 @@ const (
 	locked
 
 	defaultRetry = 10 * time.Millisecond
+)
+
+// Compile-time interface checks.
+var (
+	_ sync.Locker = (*Mutex)(nil)
+	_ sync.Locker = (*NopLocker)(nil)
 )
 
 // Mutex represents a standard mutex with an added capability to immediately return if unable to acquire a lock.
@@ -40,3 +47,12 @@ func (m *Mutex) TryLock() bool {
 func (m *Mutex) Unlock() {
 	atomic.StoreUint32(&m.locked, unlocked)
 }
+
+// NopLocker is a no-op implementation of Locker interface.
+type NopLocker struct {}
+
+// Lock performs no action.
+func (*NopLocker) Lock() {}
+
+// Unlock performs no action.
+func (*NopLocker) Unlock() {}

@@ -122,6 +122,14 @@ type MockPump struct {
 	mock.Mock
 }
 
+func (p *MockPump) Lock() {
+	p.Called()
+}
+
+func (p *MockPump) Unlock() {
+	p.Called()
+}
+
 func (p *MockPump) Accept(msg *streams.Message) error {
 	args := p.Called(msg)
 	return args.Error(0)
