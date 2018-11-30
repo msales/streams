@@ -1,72 +1,90 @@
 package streams
 
-// Supervisor represents a commit supervisor.
+import (
+	"errors"
+	"io"
+	"sync/atomic"
+	"time"
+)
+
+const (
+	locked uint32 = iota
+	unlocked
+
+	closeRetry = 10 * time.Millisecond
+)
+
+var ErrUnknownPump = errors.New("supervisor: encountered an unknown pump")
+
+// Supervisor represents a concurrency-safe stream supervisor.
 //
 // The Supervisor performs a commit in a concurrently-safe manner.
 // There can only ever be 1 ongoing commit at any given time.
 type Supervisor interface {
+	io.Closer
+
 	// Perform a global commit sequence.
 	//
-	// If triggered by a Node, that node should be passed as an argument to Commit.
+	// If triggered by a Pipe, the associated Processor should be passed.
 	Commit(Processor) error
+	// WithPumps sets map of Pumps.
+	WithPumps(pumps map[Node]Pump)
 }
-
-type sourceMetadata map[Source]Metadata
-
-// Merge merges metadata from metaitems.
-//
-// TODO: Incorporate merge strategies.
-func (m sourceMetadata) Merge(items []Metaitem) sourceMetadata {
-	for _, item := range items {
-		m[item.Source] = item.Metadata.Merge(m[item.Source])
-	}
-	return m
-}
-
-// Compile-type interface check.
-var _ Supervisor = (*supervisor)(nil)
 
 type supervisor struct {
 	store Metastore
 
 	pumps map[Processor]Pump
 
-	committerMeta []Metaitem
-	markerMeta    []Metaitem
+	locked uint32
 }
 
 // NewSupervisor returns a new Supervisor instance.
-func NewSupervisor(store Metastore, pumps map[Node]Pump) Supervisor {
+func NewSupervisor(store Metastore) Supervisor {
 	return &supervisor{
 		store: store,
-
-		pumps: remapPumps(pumps),
 	}
+}
+
+// Permanently locks the supervisor, ensuring that no commit will be executed.
+func (s *supervisor) Close() error {
+	for !s.tryLock() {
+		time.Sleep(closeRetry)
+	}
+
+	return nil
+}
+
+// WithPumps sets map of Pumps.
+func (s *supervisor) WithPumps(pumps map[Node]Pump) {
+	s.pumps = remapPumps(pumps)
 }
 
 // Perform a global commit sequence.
 //
-// TODO: ensure that a Commit cannot be called when another Commit is in progress.
+// If triggered by a Pipe, the associated Processor should be passed.
 func (s *supervisor) Commit(p Processor) error {
+	if ok := s.tryLock(); !ok {
+		return nil
+	}
+	defer s.unlock()
+
 	metadata, err := s.store.PullAll()
 	if err != nil {
 		return err
 	}
 
-	// 1. Process all processors that have submitted any metadata.
+	srcMeta := make(sourceMetadata)
+
 	for proc, items := range metadata {
-		err := s.commit(proc, items)
+		items, err := s.commit(proc, items)
 		if err != nil {
 			return err
 		}
+
+		srcMeta.Merge(items)
 	}
 
-	// 2. Merge all metadata and group by source.
-	srcMeta := make(sourceMetadata).
-		Merge(s.committerMeta).
-		Merge(s.markerMeta)
-
-	// 3. Commit the merged metadata on each source.
 	for src, meta := range srcMeta {
 		err := src.Commit(meta)
 		if err != nil {
@@ -74,44 +92,66 @@ func (s *supervisor) Commit(p Processor) error {
 		}
 	}
 
-	s.reset()
-
 	return nil
 }
 
-func (s *supervisor) commit(proc Processor, items []Metaitem) error {
-	var updatedItems []Metaitem
+// tryLock tries to lock the supervisor for the commit and returns the result.
+// Must be called before any commit-related actions.
+func (s *supervisor) tryLock() bool {
+	return atomic.CompareAndSwapUint32(&s.locked, unlocked, locked)
+}
 
+// unlock unlocks the supervisor.
+// Must be called after the commit is done, whatever the result.
+func (s *supervisor) unlock() {
+	atomic.StoreUint32(&s.locked, unlocked)
+}
+
+func (s *supervisor) commit(proc Processor, items []Metaitem) ([]Metaitem, error) {
 	if cmt, ok := proc.(Committer); ok {
-		s.committerMeta = append(s.committerMeta, items...)
+		pump, ok := s.pumps[proc]
+		if !ok {
+			return nil, ErrUnknownPump
+		}
 
-		err := s.pumps[proc].WithLock(func() error {
+		err := pump.WithLock(func() error {
 			err := cmt.Commit()
 			if err != nil {
 				return err
 			}
 
-			updatedItems, err = s.store.Pull(proc)
+			// Pull metadata of messages that have been processed between the initial pull and the lock
+			newItems, err := s.store.Pull(proc)
+			if err != nil {
+				return err
+			}
 
-			return err
+			items = append(items, newItems...)
+
+			return nil
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		s.committerMeta = append(s.committerMeta, updatedItems...)
-
-		return nil
 	}
 
-	s.markerMeta = append(s.markerMeta, items...)
-
-	return nil
+	return items, nil
 }
 
-func (s *supervisor) reset() {
-	s.committerMeta = s.committerMeta[:0]
-	s.markerMeta = s.markerMeta[:0]
+// sourceMetadata maps Metadata to each known Source.
+type sourceMetadata map[Source]Metadata
+
+// Merge merges metadata from metaitems.
+func (m sourceMetadata) Merge(items []Metaitem) sourceMetadata {
+	for _, item := range items {
+		src, ok := m[item.Source]
+		if ok {
+			m[item.Source] = src.Merge(item.Metadata)
+		} else {
+			m[item.Source] = item.Metadata
+		}
+	}
+	return m
 }
 
 func remapPumps(pumps map[Node]Pump) map[Processor]Pump {

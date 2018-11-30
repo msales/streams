@@ -102,6 +102,10 @@ func (t *streamTask) closeTopology() error {
 		return err
 	}
 
+	if err := t.supervisor.Close(); err != nil {
+		return err
+	}
+
 	for _, srcPump := range t.srcPumps {
 		if err := srcPump.Close(); err != nil {
 			return err
