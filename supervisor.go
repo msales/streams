@@ -4,27 +4,44 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/msales/streams/pkg/syncx"
 )
 
-// ErrUnknownPump is returned when the supervisor is unable to find a pump for a given processor.
-var ErrUnknownPump = errors.New("streams: encountered an unknown pump")
+const (
+	stopped uint32 = iota
+	running
+)
+
+var (
+	// ErrNotRunning is returned when trying to perform an action that requires a running supervisor.
+	ErrNotRunning = errors.New("streams: supervisor not running")
+	// ErrAlreadyRunning is returned when starting a supervisor that has already been started.
+	ErrAlreadyRunning = errors.New("streams: supervisor already running")
+	// ErrUnknownPump is returned when the supervisor is unable to find a pump for a given processor.
+	ErrUnknownPump = errors.New("streams: encountered an unknown pump")
+)
 
 // Supervisor represents a concurrency-safe stream supervisor.
 //
 // The Supervisor performs a commit in a concurrently-safe manner.
 // There can only ever be 1 ongoing commit at any given time.
 type Supervisor interface {
+	io.Closer
+
+	// WithPumps sets a map of Pumps.
+	WithPumps(pumps map[Node]Pump)
+	// Start starts the supervisor.
+	//
+	// This function should initiate all the background tasks of the Supervisor.
+	// It must not be a blocking call.
+	Start() error
 	// Commit performs a global commit sequence.
 	//
 	// If triggered by a Pipe, the associated Processor should be passed.
 	Commit(Processor) error
-	// WithPumps sets a map of Pumps.
-	WithPumps(pumps map[Node]Pump)
-
-	io.Closer
 }
 
 type supervisor struct {
@@ -42,10 +59,11 @@ func NewSupervisor(store Metastore) Supervisor {
 	}
 }
 
-// Permanently locks the supervisor, ensuring that no commit will ever be executed.
-func (s *supervisor) Close() error {
-	s.mx.Lock()
-
+// Start starts the supervisor.
+//
+// This function should initiate all the background tasks of the Supervisor.
+// It must not be a blocking call.
+func (s *supervisor) Start() error {
 	return nil
 }
 
@@ -57,6 +75,13 @@ func (s *supervisor) WithPumps(pumps map[Node]Pump) {
 	}
 
 	s.pumps = mapped
+}
+
+// Permanently locks the supervisor, ensuring that no commit will ever be executed.
+func (s *supervisor) Close() error {
+	s.mx.Lock()
+
+	return nil
 }
 
 // Commit performs a global commit sequence.
@@ -140,45 +165,97 @@ func (m sourceMetadata) Merge(items Metaitems) {
 }
 
 type timedSupervisor struct {
-	s Supervisor
+	inner Supervisor
+	d     time.Duration
+	errFn *ErrorFunc
 
-	t *time.Ticker
+	t       *time.Ticker
+	resetCh chan struct{}
+	running uint32
 }
 
-func newTimedSupervisor(inner Supervisor, d time.Duration, errFn *ErrorFunc) *timedSupervisor {
-	s := &timedSupervisor{
-		s: inner,
-
-		t: time.NewTicker(d),
+// NewTimedSupervisor returns a supervisor that commits automatically.
+func NewTimedSupervisor(inner Supervisor, d time.Duration, errFn *ErrorFunc) Supervisor {
+	return &timedSupervisor{
+		inner: inner,
+		d:     d,
+		errFn: errFn,
 	}
+}
+
+// WithPumps sets a map of Pumps.
+func (s *timedSupervisor) WithPumps(pumps map[Node]Pump) {
+	s.inner.WithPumps(pumps)
+}
+
+// Start starts the supervisor.
+//
+// This function should initiate all the background tasks of the Supervisor.
+// It must not be a blocking call.
+func (s *timedSupervisor) Start() error {
+	if !s.setRunning() {
+		return ErrAlreadyRunning
+	}
+	s.t = time.NewTicker(s.d)
 
 	go func() {
-		for range s.t.C {
-			err := s.Commit(nil)
-			if err != nil {
-				(*errFn)(err)
+		for {
+			select {
+			case <-s.t.C:
+				err := s.Commit(nil)
+				if err != nil {
+					(*s.errFn)(err)
+				}
+			case <-s.resetCh:
+				s.t.Stop()
+				s.t = time.NewTicker(s.d)
 			}
 		}
 	}()
 
-	return s
+	return s.inner.Start()
 }
 
 // Close stops the timer and closes the inner supervisor.
 func (s *timedSupervisor) Close() error {
+	if err := s.inner.Close(); err != nil {
+		return err
+	}
+
+	if !s.setStopped() {
+		return ErrNotRunning
+	}
+
 	s.t.Stop()
 
-	return s.s.Close()
+	return nil
 }
 
 // Commit performs a global commit sequence.
 //
 // If triggered by a Pipe, the associated Processor should be passed.
-func (s *timedSupervisor) Commit(Processor) error {
-	return s.s.Commit(nil)
+func (s *timedSupervisor) Commit(caller Processor) error {
+	if !s.isRunning() {
+		return ErrNotRunning
+	}
+
+	err := s.inner.Commit(caller)
+	if err != nil {
+		return err
+	}
+	s.resetCh <- struct{}{}
+
+	return nil
 }
 
-// WithPumps sets a map of Pumps.
-func (s *timedSupervisor) WithPumps(pumps map[Node]Pump) {
-	s.s.WithPumps(pumps)
+func (s *timedSupervisor) setRunning() bool {
+	return atomic.CompareAndSwapUint32(&s.running, stopped, running)
+}
+
+func (s *timedSupervisor) isRunning() bool {
+	return running == atomic.LoadUint32(&s.running)
+}
+
+func (s *timedSupervisor) setStopped() bool {
+	return atomic.CompareAndSwapUint32(&s.running, running, stopped)
 }

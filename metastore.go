@@ -24,7 +24,7 @@ type Metaitem struct {
 	Metadata Metadata
 }
 
-// Metaitem represents a slice of Metaitem pointers.
+// Metaitems represents a slice of Metaitem pointers.
 type Metaitems []*Metaitem
 
 // Join combines contents of 2 Metaitems objects, updating the Metadata where necessary.

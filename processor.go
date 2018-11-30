@@ -6,10 +6,10 @@ import (
 
 // Committer represents a processor that can commit.
 type Committer interface {
+	Processor
+
 	//Commit commits a processors batch.
 	Commit() error
-
-	Processor
 }
 
 // Processor represents a stream processor.

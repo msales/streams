@@ -87,6 +87,11 @@ type MockSupervisor struct {
 	mock.Mock
 }
 
+func (s *MockSupervisor) Start() error {
+	args := s.Called()
+	return args.Error(0)
+}
+
 func (s *MockSupervisor) Close() error {
 	args := s.Called()
 	return args.Error(0)

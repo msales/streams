@@ -20,7 +20,7 @@ type Pipe interface {
 	Mark(*Message) error
 	// Forward queues the message with all processor children in the topology.
 	Forward(*Message) error
-	// Forward queues the message with the the given processor(s) child in the topology.
+	// Forward queues the message with the the given processor(inner) child in the topology.
 	ForwardToChild(*Message, int) error
 	// Commit commits the current state in the related sources.
 	Commit(*Message) error
@@ -76,7 +76,7 @@ func (p *processorPipe) Forward(msg *Message) error {
 	return nil
 }
 
-// Forward queues the data to the the given processor(s) child in the topology.
+// Forward queues the data to the the given processor(inner) child in the topology.
 func (p *processorPipe) ForwardToChild(msg *Message, index int) error {
 	defer p.time(time.Now())
 

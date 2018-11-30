@@ -38,6 +38,9 @@ func TestSupervisor_Commit_CommitPending(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestTimedSupervisor_Start(t *testing.T) {
+}
+
 type mockPump struct {}
 
 func (*mockPump) Lock() {}

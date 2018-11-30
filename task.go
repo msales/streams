@@ -53,13 +53,13 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 func (t *streamTask) Start() error {
 	// If we are already running, exit
 	if t.running {
-		return errors.New("streams: task already started")
+		return errors.New("streams: task already running")
 	}
 	t.running = true
 
 	t.setupTopology()
 
-	return nil
+	return t.supervisor.Start()
 }
 
 func (t *streamTask) setupTopology() {
@@ -140,6 +140,6 @@ type TaskOptFunc func(t *streamTask)
 // CommitInterval defines an interval of automatic commits.
 func CommitInterval(d time.Duration) TaskOptFunc {
 	return func(t *streamTask) {
-		t.supervisor = newTimedSupervisor(t.supervisor, d, &t.errorFn)
+		t.supervisor = NewTimedSupervisor(t.supervisor, d, &t.errorFn)
 	}
 }
