@@ -60,6 +60,7 @@ func (s *supervisor) WithPumps(pumps map[Node]Pump) {
 // Commit performs a global commit sequence.
 //
 // If triggered by a Pipe, the associated Processor should be passed.
+// TODO: avoid locking pump for p
 func (s *supervisor) Commit(p Processor) error {
 	if ok := s.mx.TryLock(); !ok {
 		return nil
