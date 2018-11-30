@@ -7,6 +7,7 @@ import (
 	"github.com/msales/streams/pkg/syncx"
 )
 
+// ErrUnknownPump is returned when the supervisor is unable to find a pump for a given processor.
 var ErrUnknownPump = errors.New("streams: encountered an unknown pump")
 
 // Supervisor represents a concurrency-safe stream supervisor.
@@ -16,7 +17,7 @@ var ErrUnknownPump = errors.New("streams: encountered an unknown pump")
 type Supervisor interface {
 	io.Closer
 
-	// Perform a global commit sequence.
+	// Commit performs a global commit sequence.
 	//
 	// If triggered by a Pipe, the associated Processor should be passed.
 	Commit(Processor) error
@@ -56,7 +57,7 @@ func (s *supervisor) WithPumps(pumps map[Node]Pump) {
 	s.pumps = mapped
 }
 
-// Perform a global commit sequence.
+// Commit performs a global commit sequence.
 //
 // If triggered by a Pipe, the associated Processor should be passed.
 func (s *supervisor) Commit(p Processor) error {
