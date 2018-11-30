@@ -84,130 +84,103 @@ func TestSourceConfig_ValidateErrors(t *testing.T) {
 	}
 }
 
-func TestMergedMetadata_WithOrigin(t *testing.T) {
-	meta := &kafka.MergedMetadata{}
-
-	assert.Panics(t, func() {
-		meta.WithOrigin(streams.CommitterOrigin)
-	})
-}
-
-func TestMergedMetadata_Update(t *testing.T) {
-	meta1 := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3}}
-	meta2 := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 2}}
-
-	res := meta1.Update(meta2)
-
-	assert.IsType(t, kafka.MergedMetadata{}, res)
-	meta1 = res.(kafka.MergedMetadata)
-	assert.Equal(t, kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3}}, meta1)
-}
-
-func TestMergedMetadata_Merge(t *testing.T) {
-	meta1 := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3}}
-	meta2 := kafka.MergedMetadata{{Topic: "foo", Partition: 1, Offset: 2}}
-
-	res := meta2.Merge(meta1)
-
-	assert.IsType(t, kafka.MergedMetadata{}, res)
-	meta1 = res.(kafka.MergedMetadata)
-	assert.Equal(t, kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3}, {Topic: "foo", Partition: 1, Offset: 2}}, meta1)
-}
-
-func TestMergedMetadata_MergeTakesCommitterOverProcessor(t *testing.T) {
-	meta1 := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 2, Origin: streams.ProcessorOrigin}}
-	meta2 := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3, Origin: streams.CommitterOrigin}}
-
-	res := meta2.Merge(meta1)
-
-	assert.IsType(t, kafka.MergedMetadata{}, res)
-	meta1 = res.(kafka.MergedMetadata)
-	assert.Equal(t, kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3, Origin: streams.CommitterOrigin}}, meta1)
-}
-
-func TestMergedMetadata_MergeTakesLowestWhenTheSameOrigin(t *testing.T) {
-	meta1 := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3, Origin: streams.ProcessorOrigin}}
-	meta2 := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 2, Origin: streams.ProcessorOrigin}}
-
-	res := meta2.Merge(meta1)
-
-	assert.IsType(t, kafka.MergedMetadata{}, res)
-	meta1 = res.(kafka.MergedMetadata)
-	assert.Equal(t, kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 2, Origin: streams.ProcessorOrigin}}, meta1)
-}
-
-func TestMergedMetadata_MergeNilMerged(t *testing.T) {
-	b := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3}}
-
-	res := b.Merge(nil)
-
-	assert.IsType(t, kafka.MergedMetadata{}, res)
-	a := res.(kafka.MergedMetadata)
-	assert.Equal(t, kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3}}, a)
-}
-
 func TestMetadata_WithOrigin(t *testing.T) {
-	meta := &kafka.Metadata{Topic: "foo", Partition: 1, Offset: 10}
+	meta := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3}}
 
 	meta.WithOrigin(streams.CommitterOrigin)
 
-	assert.Equal(t, streams.CommitterOrigin, meta.Origin)
+	assert.Equal(t, kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3, Origin: streams.CommitterOrigin}}, meta)
 }
 
 func TestMetadata_Update(t *testing.T) {
-	merged := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3}, {Topic: "foo", Partition: 1, Offset: 2}}
-	meta := &kafka.Metadata{Topic: "foo", Partition: 1, Offset: 10}
+	meta1 := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3}}
+	meta2 := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 2}}
 
-	res := meta.Update(merged)
+	res := meta1.Update(meta2)
 
-	assert.IsType(t, kafka.MergedMetadata{}, res)
-	merged = res.(kafka.MergedMetadata)
-	assert.Equal(t, kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 3}, {Topic: "foo", Partition: 1, Offset: 10}}, merged)
+	assert.IsType(t, kafka.Metadata{}, res)
+	meta1 = res.(kafka.Metadata)
+	assert.Equal(t, kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3}}, meta1)
 }
 
 func TestMetadata_UpdatePicksHighest(t *testing.T) {
-	merged := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 10}}
-	meta := &kafka.Metadata{Topic: "foo", Partition: 0, Offset: 3}
+	meta1 := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 10}}
+	meta2 := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3}}
 
-	res := meta.Update(merged)
+	res := meta1.Update(meta2)
 
-	assert.IsType(t, kafka.MergedMetadata{}, res)
-	merged = res.(kafka.MergedMetadata)
-	assert.Equal(t, kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 10}}, merged)
+	assert.IsType(t, kafka.Metadata{}, res)
+	merged := res.(kafka.Metadata)
+	assert.Equal(t, kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 10}}, merged)
 }
 
 func TestMetadata_UpdateNilMerged(t *testing.T) {
-	meta := &kafka.Metadata{Topic: "baz", Partition: 1, Offset: 10}
+	meta := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3}}
 
 	res := meta.Update(nil)
 
-	assert.IsType(t, kafka.MergedMetadata{}, res)
-	merged := res.(kafka.MergedMetadata)
-	assert.Equal(t, kafka.MergedMetadata{{Topic: "baz", Partition: 1, Offset: 10}}, merged)
+	assert.IsType(t, kafka.Metadata{}, res)
+	merged := res.(kafka.Metadata)
+	assert.Equal(t, kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3}}, merged)
 }
 
 func TestMetadata_UpdateNewPartition(t *testing.T) {
-	merged := kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 10}}
-	meta := &kafka.Metadata{Topic: "foo", Partition: 1, Offset: 10}
+	meta1 := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 10}}
+	meta2 := kafka.Metadata{{Topic: "foo", Partition: 1, Offset: 3}}
 
-	res := meta.Update(merged)
+	res := meta2.Update(meta1)
 
-	assert.IsType(t, kafka.MergedMetadata{}, res)
-	merged = res.(kafka.MergedMetadata)
-	assert.Equal(t, kafka.MergedMetadata{{Topic: "foo", Partition: 0, Offset: 10},{Topic: "foo", Partition: 1, Offset: 10}}, merged)
+	assert.IsType(t, kafka.Metadata{}, res)
+	merged := res.(kafka.Metadata)
+	assert.Equal(t, kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 10},{Topic: "foo", Partition: 1, Offset: 3}}, merged)
 }
 
-func TestMetadata_MergePanics(t *testing.T) {
-	meta := &kafka.Metadata{Topic: "foo", Partition: 1, Offset: 10}
+func TestMetadata_Merge(t *testing.T) {
+	meta1 := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3}}
+	meta2 := kafka.Metadata{{Topic: "foo", Partition: 1, Offset: 2}}
 
-	assert.Panics(t, func() {
-		_ = meta.Merge(nil)
-	})
+	res := meta2.Merge(meta1)
+
+	assert.IsType(t, kafka.Metadata{}, res)
+	meta1 = res.(kafka.Metadata)
+	assert.Equal(t, kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3}, {Topic: "foo", Partition: 1, Offset: 2}}, meta1)
 }
 
-func BenchmarkMergedMetadata_Merge(b *testing.B) {
-	var meta streams.Metadata = kafka.MergedMetadata{{Topic: "test", Partition: 1, Offset: 2}}
-	other := kafka.Metadata{Topic: "test", Partition: 2, Offset: 2}
+func TestMetadata_MergeTakesCommitterOverProcessor(t *testing.T) {
+	meta1 := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 2, Origin: streams.ProcessorOrigin}}
+	meta2 := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3, Origin: streams.CommitterOrigin}}
+
+	res := meta2.Merge(meta1)
+
+	assert.IsType(t, kafka.Metadata{}, res)
+	meta1 = res.(kafka.Metadata)
+	assert.Equal(t, kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3, Origin: streams.CommitterOrigin}}, meta1)
+}
+
+func TestMetadata_MergeTakesLowestWhenTheSameOrigin(t *testing.T) {
+	meta1 := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3, Origin: streams.ProcessorOrigin}}
+	meta2 := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 2, Origin: streams.ProcessorOrigin}}
+
+	res := meta2.Merge(meta1)
+
+	assert.IsType(t, kafka.Metadata{}, res)
+	meta1 = res.(kafka.Metadata)
+	assert.Equal(t, kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 2, Origin: streams.ProcessorOrigin}}, meta1)
+}
+
+func TestMetadata_MergeNilMerged(t *testing.T) {
+	b := kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3}}
+
+	res := b.Merge(nil)
+
+	assert.IsType(t, kafka.Metadata{}, res)
+	a := res.(kafka.Metadata)
+	assert.Equal(t, kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 3}}, a)
+}
+
+func BenchmarkMetadata_Merge(b *testing.B) {
+	var meta streams.Metadata = kafka.Metadata{{Topic: "test", Partition: 1, Offset: 2}}
+	other := kafka.Metadata{{Topic: "test", Partition: 2, Offset: 2}}
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -384,7 +357,7 @@ func TestSource_Commit(t *testing.T) {
 	c.GroupID = "test_group"
 	s, _ := kafka.NewSource(c)
 	defer s.Close()
-	meta := kafka.MergedMetadata{{Topic: "test_topic", Partition: 0, Offset: 10}}
+	meta := kafka.Metadata{{Topic: "test_topic", Partition: 0, Offset: 10}}
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -493,7 +466,7 @@ func TestSource_CommitReturnError(t *testing.T) {
 	c.GroupID = "test_group"
 	s, _ := kafka.NewSource(c)
 	defer s.Close()
-	meta := kafka.MergedMetadata{{Topic: "test_topic", Partition: 0, Offset: 10}}
+	meta := kafka.Metadata{{Topic: "test_topic", Partition: 0, Offset: 10}}
 
 	time.Sleep(100 * time.Millisecond)
 
