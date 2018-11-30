@@ -88,7 +88,7 @@ func (s *supervisor) Close() error {
 //
 // If triggered by a Pipe, the associated Processor should be passed.
 func (s *supervisor) Commit(caller Processor) error {
-	if ok := s.mx.TryLock(); !ok {
+	if !s.mx.TryLock() {
 		return nil
 	}
 	defer s.mx.Unlock()
@@ -196,6 +196,7 @@ func (s *timedSupervisor) Start() error {
 	if !s.setRunning() {
 		return ErrAlreadyRunning
 	}
+
 	s.t = time.NewTicker(s.d)
 
 	go func() {
