@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	locked uint32 = iota
-	unlocked
+	unlocked uint32 = iota
+	locked
 
 	closeRetry = 10 * time.Millisecond
 )

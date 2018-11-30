@@ -31,11 +31,14 @@ type streamTask struct {
 
 // NewTask creates a new streams task.
 func NewTask(topology *Topology) Task {
+	store := NewMetastore()
+
 	return &streamTask{
-		topology: topology,
-		store:    NewMetastore(),
-		srcPumps: SourcePumps{},
-		pumps:    map[Node]Pump{},
+		topology:   topology,
+		store:      store,
+		supervisor: NewSupervisor(store),
+		srcPumps:   SourcePumps{},
+		pumps:      map[Node]Pump{},
 	}
 }
 
@@ -53,9 +56,6 @@ func (t *streamTask) Start() error {
 }
 
 func (t *streamTask) setupTopology() {
-	//TODO: this should be move to the constructor once WithPumps is implemented.
-	t.supervisor = NewSupervisor(t.store, t.pumps)
-
 	nodes := flattenNodeTree(t.topology.Sources())
 	reverseNodes(nodes)
 	for _, node := range nodes {
@@ -66,7 +66,7 @@ func (t *streamTask) setupTopology() {
 		t.pumps[node] = pump
 	}
 
-	//TODO: Call t.supervisor.WithPumps(t.pumps)
+	t.supervisor.WithPumps(t.pumps)
 
 	for source, node := range t.topology.Sources() {
 		srcPump := NewSourcePump(node.Name(), source, t.resolvePumps(node.Children()), t.handleError)

@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewSupervisor(t *testing.T) {
-	supervisor := streams.NewSupervisor(nil, nil)
+	supervisor := streams.NewSupervisor(nil)
 
 	assert.Implements(t, (*streams.Supervisor)(nil), supervisor)
 }

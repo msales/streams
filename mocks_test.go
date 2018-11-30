@@ -78,6 +78,15 @@ type MockSupervisor struct {
 	mock.Mock
 }
 
+func (s *MockSupervisor) Close() error {
+	args := s.Called()
+	return args.Error(0)
+}
+
+func (s *MockSupervisor) WithPumps(pumps map[streams.Node]streams.Pump) {
+	s.Called(pumps)
+}
+
 func (s *MockSupervisor) Commit(p streams.Processor) error {
 	args := s.Called(p)
 	return args.Error(0)
