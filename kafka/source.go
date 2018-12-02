@@ -75,8 +75,8 @@ func (m Metadata) find(topic string, partition int32) (int, *PartitionOffset) {
 
 // WithOrigin sets the MetadataOrigin on the metadata.
 func (m Metadata) WithOrigin(o streams.MetadataOrigin) {
-	for _, meta := range m {
-		meta.Origin = o
+	for _, pos := range m {
+		pos.Origin = o
 	}
 }
 
