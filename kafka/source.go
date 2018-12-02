@@ -61,12 +61,12 @@ func (c *SourceConfig) Validate() error {
 }
 
 // Metadata represents an the kafka topic metadata.
-type Metadata []*PartitionOffsets
+type Metadata []*PartitionOffset
 
-func (m Metadata) find(topic string, partition int32) (int, *PartitionOffsets) {
-	for i, meta := range m {
-		if meta.Topic == topic && meta.Partition == partition {
-			return i, meta
+func (m Metadata) find(topic string, partition int32) (int, *PartitionOffset) {
+	for i, pos := range m {
+		if pos.Topic == topic && pos.Partition == partition {
+			return i, pos
 		}
 	}
 
@@ -86,20 +86,20 @@ func (m Metadata) Update(v streams.Metadata) streams.Metadata {
 		return m
 	}
 
-	merged := v.(Metadata)
-	for _, newMeta := range m {
-		i, oldMeta := merged.find(newMeta.Topic, newMeta.Partition)
-		if oldMeta == nil {
-			merged = append(merged, newMeta)
+	metadata := v.(Metadata)
+	for _, newPos := range m {
+		i, oldPos := metadata.find(newPos.Topic, newPos.Partition)
+		if oldPos == nil {
+			metadata = append(metadata, newPos)
 			continue
 		}
 
-		if newMeta.Offset > oldMeta.Offset {
-			merged[i] = newMeta
+		if newPos.Offset > oldPos.Offset {
+			metadata[i] = newPos
 		}
 	}
 
-	return merged
+	return metadata
 }
 
 // Merge merges the contained metadata into the given the metadata.
@@ -108,24 +108,24 @@ func (m Metadata) Merge(v streams.Metadata) streams.Metadata {
 		return m
 	}
 
-	merged := v.(Metadata)
-	for _, newMeta := range m {
-		i, oldMeta := merged.find(newMeta.Topic, newMeta.Partition)
-		if oldMeta == nil {
-			merged = append(merged, newMeta)
+	metadata := v.(Metadata)
+	for _, newPos := range m {
+		i, oldPos := metadata.find(newPos.Topic, newPos.Partition)
+		if oldPos == nil {
+			metadata = append(metadata, newPos)
 			continue
 		}
 
-		if (newMeta.Origin == oldMeta.Origin && newMeta.Offset < oldMeta.Offset) || (newMeta.Origin < oldMeta.Origin) {
-			merged[i] = newMeta
+		if (newPos.Origin == oldPos.Origin && newPos.Offset < oldPos.Offset) || (newPos.Origin < oldPos.Origin) {
+			metadata[i] = newPos
 		}
 	}
 
-	return merged
+	return metadata
 }
 
-// PartitionOffsets represents the position in the stream of a message.
-type PartitionOffsets struct {
+// PartitionOffset represents the position in the stream of a message.
+type PartitionOffset struct {
 	Origin streams.MetadataOrigin
 
 	Topic     string
@@ -227,7 +227,7 @@ func (s *Source) Close() error {
 }
 
 func (s *Source) createMetadata(msg *sarama.ConsumerMessage) Metadata {
-	return Metadata{&PartitionOffsets{
+	return Metadata{&PartitionOffset{
 		Topic:     msg.Topic,
 		Partition: msg.Partition,
 		Offset:    msg.Offset,
