@@ -39,6 +39,26 @@ func TestMetaitems_Join(t *testing.T) {
 	meta2.AssertCalled(t, "Update", meta4)
 }
 
+func BenchmarkMetaitems_Join(b *testing.B) {
+	src1 := new(MockSource)
+	src2 := new(MockSource)
+	src3 := new(MockSource)
+
+	meta1 := &fakeMetadata{}
+	meta2 := &fakeMetadata{}
+	meta3 := &fakeMetadata{}
+	meta4 := &fakeMetadata{}
+
+	items1 := streams.Metaitems{{Source: src1, Metadata: meta1}, {Source: src2, Metadata: meta2}}
+	items2 := streams.Metaitems{{Source: src3, Metadata: meta3}, {Source: src2, Metadata: meta4}}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		items1.Join(items2)
+	}
+}
+
 func TestMetastore_PullAll(t *testing.T) {
 	p := new(MockProcessor)
 	src := new(MockSource)

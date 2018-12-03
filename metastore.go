@@ -27,30 +27,21 @@ type Metaitem struct {
 // Metaitems represents a slice of Metaitem pointers.
 type Metaitems []*Metaitem
 
-// Join combines contents of 2 Metaitems objects, updating the Metadata where necessary.
+// Join combines contents of two Metaitems objects, updating the Metadata where necessary.
 func (m Metaitems) Join(other Metaitems) Metaitems {
-	joined := make(Metaitems, 0, len(m))
-	seen := make(map[*Metaitem]struct{}, len(m))
-
-	for _, i1 := range m {
-		joined = append(joined, i1)
-
-		for _, i2 := range other {
-			if i1.Source == i2.Source {
-				i1.Metadata = i1.Metadata.Update(i2.Metadata)
-				seen[i2] = struct{}{}
-				break
+	OUTER:
+	for _, newItem := range other {
+		for _, oldItem := range m {
+			if oldItem.Source == newItem.Source {
+				oldItem.Metadata = oldItem.Metadata.Update(newItem.Metadata)
+				continue OUTER
 			}
 		}
+
+		m = append(m, newItem)
 	}
 
-	for _, i := range other { // Add all unseen items from the second slice.
-		if _, ok := seen[i]; !ok {
-			joined = append(joined, i)
-		}
-	}
-
-	return joined
+	return m
 }
 
 type metastore struct {
