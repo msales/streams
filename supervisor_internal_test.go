@@ -3,7 +3,6 @@ package streams
 import (
 	"testing"
 
-	"github.com/msales/streams/pkg/syncx"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,10 +27,8 @@ func TestSupervisor_WithPumps(t *testing.T) {
 }
 
 func TestSupervisor_Commit_CommitPending(t *testing.T) {
-	mx := syncx.Mutex{}
-	mx.Lock()
-
-	supervisor := &supervisor{mx: mx}
+	supervisor := &supervisor{}
+	supervisor.mx.Lock()
 
 	err := supervisor.Commit(nil)
 
