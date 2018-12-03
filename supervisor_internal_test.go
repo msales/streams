@@ -10,8 +10,8 @@ import (
 func TestSupervisor_WithPumps(t *testing.T) {
 	supervisor := &supervisor{}
 
-	pump := &mockPump{}
-	processor := &mockProcessor{}
+	pump := &fakePump{}
+	processor := &fakeProcessor{}
 	node := newMockNode(processor)
 
 	input := map[Node]Pump{
@@ -38,53 +38,53 @@ func TestSupervisor_Commit_CommitPending(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestTimedSupervisor_Start(t *testing.T) {
-}
+type fakePump struct{}
 
-type mockPump struct{}
+func (*fakePump) Lock() {}
 
-func (*mockPump) Lock() {}
+func (*fakePump) Unlock() {}
 
-func (*mockPump) Unlock() {}
-
-func (*mockPump) Accept(*Message) error {
+func (*fakePump) Accept(*Message) error {
 	return nil
 }
 
-func (*mockPump) Close() error {
+func (*fakePump) Stop() {
+}
+
+func (*fakePump) Close() error {
 	return nil
 }
 
-type mockProcessor struct{}
+type fakeProcessor struct{}
 
-func (*mockProcessor) WithPipe(Pipe) {}
+func (*fakeProcessor) WithPipe(Pipe) {}
 
-func (*mockProcessor) Process(*Message) error {
+func (*fakeProcessor) Process(*Message) error {
 	return nil
 }
 
-func (*mockProcessor) Close() error {
+func (*fakeProcessor) Close() error {
 	return nil
 }
 
-type mockNode struct {
+type fakeNode struct {
 	p Processor
 }
 
-func newMockNode(p Processor) *mockNode {
-	return &mockNode{p: p}
+func newMockNode(p Processor) *fakeNode {
+	return &fakeNode{p: p}
 }
 
-func (*mockNode) Name() string {
+func (*fakeNode) Name() string {
 	return ""
 }
 
-func (*mockNode) AddChild(n Node) {}
+func (*fakeNode) AddChild(n Node) {}
 
-func (*mockNode) Children() []Node {
+func (*fakeNode) Children() []Node {
 	return nil
 }
 
-func (n *mockNode) Processor() Processor {
+func (n *fakeNode) Processor() Processor {
 	return n.p
 }

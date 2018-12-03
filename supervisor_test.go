@@ -3,6 +3,7 @@ package streams_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/msales/streams"
 	"github.com/stretchr/testify/assert"
@@ -241,21 +242,22 @@ func TestTimedSupervisor_Close_NotRunning(t *testing.T) {
 
 	err := supervisor.Close()
 
-	inner.AssertCalled(t, "Close")
 	assert.Error(t, err)
 }
 
 func TestTimedSupervisor_Close_WithError(t *testing.T) {
 	wantErr := errors.New("error")
 	inner := new(MockSupervisor)
+	inner.On("Start").Return(nil)
 	inner.On("Close").Return(wantErr)
 
-	supervisor := streams.NewTimedSupervisor(inner, 0, nil)
+	supervisor := streams.NewTimedSupervisor(inner, 1 * time.Second, nil)
+	_ = supervisor.Start()
 
 	err := supervisor.Close()
 
-	inner.AssertCalled(t, "Close")
 	assert.Equal(t, wantErr, err)
+	inner.AssertCalled(t, "Close")
 }
 
 func TestTimedSupervisor_Commit(t *testing.T) {

@@ -210,8 +210,8 @@ func (s *Source) Commit(v interface{}) error {
 	}
 
 	state := v.(Metadata)
-	for _, meta := range state {
-		s.consumer.MarkPartitionOffset(meta.Topic, meta.Partition, meta.Offset, "")
+	for _, pos := range state {
+		s.consumer.MarkPartitionOffset(pos.Topic, pos.Partition, pos.Offset, "")
 	}
 
 	if err := s.consumer.CommitOffsets(); err != nil {

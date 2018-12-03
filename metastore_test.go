@@ -68,7 +68,7 @@ func TestMetastore_PullAllClearsMetastore(t *testing.T) {
 	assert.Equal(t, map[streams.Processor]streams.Metaitems{}, procMeta)
 }
 
-func TestMetastore_Mark(t *testing.T) {
+func TestMetastore_MarkProcessor(t *testing.T) {
 	p := new(MockProcessor)
 	src := new(MockSource)
 	meta1 := new(MockMetadata)
@@ -76,6 +76,27 @@ func TestMetastore_Mark(t *testing.T) {
 	newMeta := new(MockMetadata)
 	meta2 := new(MockMetadata)
 	meta2.On("WithOrigin", streams.ProcessorOrigin)
+	meta2.On("Update", meta1).Return(newMeta)
+	s := streams.NewMetastore()
+
+	err := s.Mark(p, src, meta1)
+	assert.NoError(t, err)
+
+	err = s.Mark(p, src, meta2)
+	assert.NoError(t, err)
+
+	procMeta, _ := s.PullAll()
+	assert.Equal(t, map[streams.Processor]streams.Metaitems{p: {{Source: src, Metadata: newMeta}}}, procMeta)
+}
+
+func TestMetastore_MarkCommitter(t *testing.T) {
+	p := new(MockCommitter)
+	src := new(MockSource)
+	meta1 := new(MockMetadata)
+	meta1.On("WithOrigin", streams.CommitterOrigin)
+	newMeta := new(MockMetadata)
+	meta2 := new(MockMetadata)
+	meta2.On("WithOrigin", streams.CommitterOrigin)
 	meta2.On("Update", meta1).Return(newMeta)
 	s := streams.NewMetastore()
 

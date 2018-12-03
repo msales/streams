@@ -96,13 +96,6 @@ func (s *supervisor) WithPumps(pumps map[Node]Pump) {
 	s.pumps = mapped
 }
 
-// Permanently locks the supervisor, ensuring that no commit will ever be executed.
-func (s *supervisor) Close() error {
-	s.mx.Lock()
-
-	return nil
-}
-
 // Commit performs a global commit sequence.
 //
 // If triggered by a Pipe, the associated Processor should be passed.
@@ -171,6 +164,13 @@ func (s *supervisor) getLocker(caller, proc Processor) (sync.Locker, error) {
 	}
 
 	return pump, nil
+}
+
+// Permanently locks the supervisor, ensuring that no commit will ever be executed.
+func (s *supervisor) Close() error {
+	s.mx.Lock()
+
+	return nil
 }
 
 type timedSupervisor struct {
