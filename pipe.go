@@ -32,18 +32,18 @@ var _ = (TimedPipe)(&processorPipe{})
 type processorPipe struct {
 	store      Metastore
 	supervisor Supervisor
-	owner      Processor
+	proc       Processor
 	children   []Pump
 
 	duration time.Duration
 }
 
 // NewPipe create a new processorPipe instance.
-func NewPipe(store Metastore, supervisor Supervisor, owner Processor, children []Pump) Pipe {
+func NewPipe(store Metastore, supervisor Supervisor, proc Processor, children []Pump) Pipe {
 	return &processorPipe{
 		store:      store,
 		supervisor: supervisor,
-		owner:      owner,
+		proc:       proc,
 		children:   children,
 	}
 }
@@ -60,7 +60,7 @@ func (p *processorPipe) Duration() time.Duration {
 
 // Mark indicates that the message has been delt with
 func (p *processorPipe) Mark(msg *Message) error {
-	return p.store.Mark(p.owner, msg.source, msg.metadata)
+	return p.store.Mark(p.proc, msg.source, msg.metadata)
 }
 
 // Forward queues the data to all processor children in the topology.
@@ -92,11 +92,11 @@ func (p *processorPipe) ForwardToChild(msg *Message, index int) error {
 func (p *processorPipe) Commit(msg *Message) error {
 	defer p.time(time.Now())
 
-	if err := p.store.Mark(p.owner, msg.source, msg.metadata); err != nil {
+	if err := p.store.Mark(p.proc, msg.source, msg.metadata); err != nil {
 		return err
 	}
 
-	return p.supervisor.Commit(p.owner)
+	return p.supervisor.Commit(p.proc)
 }
 
 // time adds the duration of the function to the pipe accumulative duration.

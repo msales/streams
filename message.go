@@ -13,15 +13,6 @@ const (
 	ProcessorOrigin
 )
 
-// metadataOrigin is a helper function determining the MetadataOrigin of a Processor.
-func metadataOrigin(p Processor) MetadataOrigin {
-	if _, ok := p.(Committer); ok {
-		return CommitterOrigin
-	}
-
-	return ProcessorOrigin
-}
-
 // Metadata represents metadata that can be merged.
 type Metadata interface {
 	// WithOrigin sets the MetadataOrigin on the metadata.

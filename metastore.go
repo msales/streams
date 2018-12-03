@@ -96,7 +96,12 @@ func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
 	procMeta := s.metadata.Load().(*map[Processor]Metaitems)
 
 	if meta != nil {
-		meta.WithOrigin(metadataOrigin(p))
+		o := ProcessorOrigin
+		if _, ok := p.(Committer); ok {
+			o = CommitterOrigin
+		}
+
+		meta.WithOrigin(o)
 	}
 
 	items, ok := (*procMeta)[p]
