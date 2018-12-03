@@ -105,9 +105,9 @@ func (t *streamTask) closeTopology() error {
 		}
 	}
 
-	if err := t.supervisor.Commit(nil); err != nil {
-		return err
-	}
+	//if err := t.supervisor.Commit(nil); err != nil {
+	//	return err
+	//}
 
 	if err := t.supervisor.Close(); err != nil {
 		return err

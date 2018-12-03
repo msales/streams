@@ -60,18 +60,18 @@ type metastore struct {
 // NewMetastore creates a new Metastore instance.
 func NewMetastore() Metastore {
 	s := &metastore{}
-	s.metadata.Store(map[Processor]Metaitems{})
+	s.metadata.Store(&map[Processor]Metaitems{})
 
 	return s
 }
 
 // Pull gets and clears the processors metadata.
 func (s *metastore) Pull(p Processor) (Metaitems, error) {
-	meta := s.metadata.Load().(map[Processor]Metaitems)
+	meta := s.metadata.Load().(*map[Processor]Metaitems)
 
-	items, ok := meta[p]
+	items, ok := (*meta)[p]
 	if ok {
-		delete(meta, p)
+		delete(*meta, p)
 		return items, nil
 	}
 
@@ -80,26 +80,32 @@ func (s *metastore) Pull(p Processor) (Metaitems, error) {
 
 // PullAll gets and clears all metadata.
 func (s *metastore) PullAll() (map[Processor]Metaitems, error) {
-	meta := s.metadata.Load().(map[Processor]Metaitems)
+	meta := s.metadata.Load().(*map[Processor]Metaitems)
 
-	s.metadata.Store(map[Processor]Metaitems{})
+	s.metadata.Store(&map[Processor]Metaitems{})
 
-	return meta, nil
+	return *meta, nil
 }
 
 // Mark sets metadata for a processor.
 func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
-	if p == nil || src == nil || meta == nil {
+	if p == nil {
 		return nil
 	}
 
-	procMeta := s.metadata.Load().(map[Processor]Metaitems)
+	procMeta := s.metadata.Load().(*map[Processor]Metaitems)
 
-	meta.WithOrigin(metadataOrigin(p))
+	if meta != nil {
+		meta.WithOrigin(metadataOrigin(p))
+	}
 
-	items, ok := procMeta[p]
+	items, ok := (*procMeta)[p]
 	if !ok {
-		procMeta[p] = Metaitems{{Source: src, Metadata: meta}}
+		(*procMeta)[p] = Metaitems{{Source: src, Metadata: meta}}
+		return nil
+	}
+
+	if src == nil || meta == nil {
 		return nil
 	}
 
@@ -111,6 +117,6 @@ func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
 	}
 
 	items = append(items, &Metaitem{Source: src, Metadata: meta})
-	procMeta[p] = items
+	(*procMeta)[p] = items
 	return nil
 }

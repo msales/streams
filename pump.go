@@ -20,6 +20,8 @@ type Pump interface {
 
 // processorPump is an asynchronous Message Pump.
 type processorPump struct {
+	sync.Mutex
+
 	name      string
 	processor Processor
 	pipe      TimedPipe
@@ -28,8 +30,6 @@ type processorPump struct {
 	ch chan *Message
 
 	wg   sync.WaitGroup
-
-	sync.Mutex
 }
 
 // NewPump creates a new processorPump instance.

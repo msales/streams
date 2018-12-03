@@ -24,6 +24,25 @@ var (
 	ErrUnknownPump = errors.New("streams: encountered an unknown pump")
 )
 
+// sourceMetadata maps Metadata to each known Source.
+type sourceMetadata map[Source]Metadata
+
+// Merge merges metadata from metaitems.
+func (m sourceMetadata) Merge(items Metaitems) {
+	for _, item := range items {
+		if item.Source == nil {
+			continue
+		}
+
+		if item.Metadata == nil {
+			m[item.Source] = nil
+			continue
+		}
+
+		m[item.Source] = item.Metadata.Merge(m[item.Source])
+	}
+}
+
 // Supervisor represents a concurrency-safe stream supervisor.
 //
 // The Supervisor performs a commit in a concurrently-safe manner.
@@ -152,16 +171,6 @@ func (s *supervisor) getLocker(caller, proc Processor) (sync.Locker, error) {
 	}
 
 	return pump, nil
-}
-
-// sourceMetadata maps Metadata to each known Source.
-type sourceMetadata map[Source]Metadata
-
-// Merge merges metadata from metaitems.
-func (m sourceMetadata) Merge(items Metaitems) {
-	for _, item := range items {
-		m[item.Source] = item.Metadata.Merge(m[item.Source])
-	}
 }
 
 type timedSupervisor struct {

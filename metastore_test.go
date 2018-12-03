@@ -95,8 +95,11 @@ func TestMetastore_MarkNilProcessor(t *testing.T) {
 	s := streams.NewMetastore()
 
 	err := s.Mark(nil, src, meta)
-
 	assert.NoError(t, err)
+
+	err = s.Mark(nil, src, meta)
+	assert.NoError(t, err)
+
 	procMeta, _ := s.PullAll()
 	assert.Equal(t, map[streams.Processor]streams.Metaitems{}, procMeta)
 }
@@ -104,13 +107,17 @@ func TestMetastore_MarkNilProcessor(t *testing.T) {
 func TestMetastore_MarkNilSource(t *testing.T) {
 	p := new(MockProcessor)
 	meta := new(MockMetadata)
+	meta.On("WithOrigin", streams.ProcessorOrigin)
 	s := streams.NewMetastore()
 
 	err := s.Mark(p, nil, meta)
-
 	assert.NoError(t, err)
+
+	err = s.Mark(p, nil, meta)
+	assert.NoError(t, err)
+
 	procMeta, _ := s.PullAll()
-	assert.Equal(t, map[streams.Processor]streams.Metaitems{}, procMeta)
+	assert.Equal(t, map[streams.Processor]streams.Metaitems{p: {{Source: nil, Metadata: meta}}}, procMeta)
 }
 
 func TestMetastore_MarkNilMetadata(t *testing.T) {
@@ -119,10 +126,13 @@ func TestMetastore_MarkNilMetadata(t *testing.T) {
 	s := streams.NewMetastore()
 
 	err := s.Mark(p, src, nil)
-
 	assert.NoError(t, err)
+
+	err = s.Mark(p, src, nil)
+	assert.NoError(t, err)
+
 	procMeta, _ := s.PullAll()
-	assert.Equal(t, map[streams.Processor]streams.Metaitems{}, procMeta)
+	assert.Equal(t, map[streams.Processor]streams.Metaitems{p: {{Source: src, Metadata: nil}}}, procMeta)
 }
 
 func TestMetastore_MarkMultipleSources(t *testing.T) {
