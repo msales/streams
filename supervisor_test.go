@@ -169,6 +169,40 @@ func TestSupervisor_Commit_CommitterError(t *testing.T) {
 	pump.AssertCalled(t, "Unlock", mock.Anything)
 }
 
+func BenchmarkSupervisor_Commit(b *testing.B) {
+	p := &fakeCommitter{}
+	src := &fakeSource{}
+	meta := &fakeMetadata{}
+	store := &fakeMetastore{Metadata: map[streams.Processor]streams.Metaitems{p: {{Source: src, Metadata: meta}}}}
+	node := &fakeNode{Proc: p}
+	pump := &fakePump{}
+	supervisor := streams.NewSupervisor(store)
+	supervisor.WithPumps(map[streams.Node]streams.Pump{node: pump})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = supervisor.Commit(p)
+	}
+}
+
+func BenchmarkSupervisor_CommitGlobal(b *testing.B) {
+	p := &fakeCommitter{}
+	src := &fakeSource{}
+	meta := &fakeMetadata{}
+	store := &fakeMetastore{Metadata: map[streams.Processor]streams.Metaitems{p: {{Source: src, Metadata: meta}}}}
+	node := &fakeNode{Proc: p}
+	pump := &fakePump{}
+	supervisor := streams.NewSupervisor(store)
+	supervisor.WithPumps(map[streams.Node]streams.Pump{node: pump})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = supervisor.Commit(nil)
+	}
+}
+
 func TestNewTimedSupervisor(t *testing.T) {
 	supervisor := streams.NewTimedSupervisor(nil, 0, nil)
 

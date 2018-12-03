@@ -163,7 +163,7 @@ func (p *sourcePump) run() {
 		case <-p.quit:
 			return
 		default:
-			start := time.Now()
+			start := nanotime()
 
 			msg, err := p.source.Consume()
 			if err != nil {
@@ -175,7 +175,7 @@ func (p *sourcePump) run() {
 				continue
 			}
 
-			latency := time.Since(start)
+			latency := time.Duration(nanotime() - start)
 			withStats(msg.Ctx, func(s stats.Stats) {
 				s.Timing("node.latency", latency, 0.1, tags...)
 				s.Inc("node.throughput", 1, 0.1, tags...)

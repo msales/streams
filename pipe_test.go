@@ -186,3 +186,31 @@ func TestProcessorPipe_CommitSupervisorError(t *testing.T) {
 	assert.Error(t, err)
 	store.AssertExpectations(t)
 }
+
+func BenchmarkProcessorPipe_Mark(b *testing.B) {
+	store := &fakeMetastore{}
+	supervisor := &fakeSupervisor{}
+	proc := &fakeCommitter{}
+	msg := streams.NewMessage(nil, "test")
+	pipe := streams.NewPipe(store, supervisor, proc, []streams.Pump{})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = pipe.Mark(msg)
+	}
+}
+
+func BenchmarkProcessorPipe_Commit(b *testing.B) {
+	store := &fakeMetastore{}
+	supervisor := &fakeSupervisor{}
+	proc := &fakeCommitter{}
+	msg := streams.NewMessage(nil, "test")
+	pipe := streams.NewPipe(store, supervisor, proc, []streams.Pump{})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = pipe.Commit(msg)
+	}
+}

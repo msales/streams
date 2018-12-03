@@ -245,16 +245,3 @@ func BenchmarkMetastore_Mark(b *testing.B) {
 		_ = s.Mark(p, src, meta)
 	}
 }
-
-type fakeMetadata struct{}
-
-func (m *fakeMetadata) WithOrigin(streams.MetadataOrigin) {
-}
-
-func (m *fakeMetadata) Update(streams.Metadata) streams.Metadata {
-	return m
-}
-
-func (m *fakeMetadata) Merge(v streams.Metadata) streams.Metadata {
-	return m
-}
