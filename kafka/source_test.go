@@ -132,7 +132,7 @@ func TestMetadata_UpdateNewPartition(t *testing.T) {
 
 	assert.IsType(t, kafka.Metadata{}, res)
 	merged := res.(kafka.Metadata)
-	assert.Equal(t, kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 10},{Topic: "foo", Partition: 1, Offset: 3}}, merged)
+	assert.Equal(t, kafka.Metadata{{Topic: "foo", Partition: 0, Offset: 10}, {Topic: "foo", Partition: 1, Offset: 3}}, merged)
 }
 
 func TestMetadata_Merge(t *testing.T) {
@@ -207,12 +207,12 @@ func TestNewSource(t *testing.T) {
 		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
 			Err: sarama.ErrNoError,
 			MemberAssignment: []byte{
-				0, 1,                                                    // Version
-				0, 0, 0, 1,                                              // Topic array length
+				0, 1, // Version
+				0, 0, 0, 1, // Topic array length
 				0, 10, 't', 'e', 's', 't', '_', 't', 'o', 'p', 'i', 'c', // Topic one
-				0, 0, 0, 1,                                              // Topic one, partition array length
-				0, 0, 0, 0,                                              // 0
-				0, 0, 0, 3, 0x01, 0x02, 0x03,                            // Userdata
+				0, 0, 0, 1, // Topic one, partition array length
+				0, 0, 0, 0, // 0
+				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
 			},
 		}),
 		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t),
@@ -275,12 +275,12 @@ func TestSource_Consume(t *testing.T) {
 		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
 			Err: sarama.ErrNoError,
 			MemberAssignment: []byte{
-				0, 1,                                                    // Version
-				0, 0, 0, 1,                                              // Topic array length
+				0, 1, // Version
+				0, 0, 0, 1, // Topic array length
 				0, 10, 't', 'e', 's', 't', '_', 't', 'o', 'p', 'i', 'c', // Topic one
-				0, 0, 0, 1,                                              // Topic one, partition array length
-				0, 0, 0, 0,                                              // 0
-				0, 0, 0, 3, 0x01, 0x02, 0x03,                            // Userdata
+				0, 0, 0, 1, // Topic one, partition array length
+				0, 0, 0, 0, // 0
+				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
 			},
 		}),
 		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t).
@@ -330,12 +330,12 @@ func TestSource_Commit(t *testing.T) {
 		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
 			Err: sarama.ErrNoError,
 			MemberAssignment: []byte{
-				0, 1,                                                    // Version
-				0, 0, 0, 1,                                              // Topic array length
+				0, 1, // Version
+				0, 0, 0, 1, // Topic array length
 				0, 10, 't', 'e', 's', 't', '_', 't', 'o', 'p', 'i', 'c', // Topic one
-				0, 0, 0, 1,                                              // Topic one, partition array length
-				0, 0, 0, 0,                                              // 0
-				0, 0, 0, 3, 0x01, 0x02, 0x03,                            // Userdata
+				0, 0, 0, 1, // Topic one, partition array length
+				0, 0, 0, 0, // 0
+				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
 			},
 		}),
 		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t).
@@ -385,12 +385,12 @@ func TestSource_CommitNilMetadata(t *testing.T) {
 		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
 			Err: sarama.ErrNoError,
 			MemberAssignment: []byte{
-				0, 1,                                                    // Version
-				0, 0, 0, 1,                                              // Topic array length
+				0, 1, // Version
+				0, 0, 0, 1, // Topic array length
 				0, 10, 't', 'e', 's', 't', '_', 't', 'o', 'p', 'i', 'c', // Topic one
-				0, 0, 0, 1,                                              // Topic one, partition array length
-				0, 0, 0, 0,                                              // 0
-				0, 0, 0, 3, 0x01, 0x02, 0x03,                            // Userdata
+				0, 0, 0, 1, // Topic one, partition array length
+				0, 0, 0, 0, // 0
+				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
 			},
 		}),
 		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t).
@@ -438,12 +438,12 @@ func TestSource_CommitReturnError(t *testing.T) {
 		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
 			Err: sarama.ErrNoError,
 			MemberAssignment: []byte{
-				0, 1,                                                    // Version
-				0, 0, 0, 1,                                              // Topic array length
+				0, 1, // Version
+				0, 0, 0, 1, // Topic array length
 				0, 10, 't', 'e', 's', 't', '_', 't', 'o', 'p', 'i', 'c', // Topic one
-				0, 0, 0, 1,                                              // Topic one, partition array length
-				0, 0, 0, 0,                                              // 0
-				0, 0, 0, 3, 0x01, 0x02, 0x03,                            // Userdata
+				0, 0, 0, 1, // Topic one, partition array length
+				0, 0, 0, 0, // 0
+				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
 			},
 		}),
 		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t).

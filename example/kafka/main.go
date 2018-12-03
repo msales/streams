@@ -4,12 +4,10 @@ import (
 	"context"
 	"log"
 	"math/rand"
-	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 
 	"github.com/Shopify/sarama"
+	"github.com/msales/pkg/v3/clix"
 	"github.com/msales/pkg/v3/stats"
 	"github.com/msales/streams"
 	"github.com/msales/streams/kafka"
@@ -42,8 +40,7 @@ func main() {
 	defer c.Close()
 	defer p.Close()
 
-	// Wait for SIGTERM
-	<-waitForSignals()
+	<-clix.WaitForSignals()
 }
 
 func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (streams.Task, error) {
@@ -86,10 +83,12 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 		return nil, err
 	}
 
+	sink := newCommitProcessor(1000)
+
 	builder := streams.NewStreamBuilder()
 	builder.Source("kafka-source", src).
 		MapFunc("to-int", intMapper).
-		Print("print")
+		Process("commit-sink", sink)
 
 	tp, _ := builder.Build()
 	task := streams.NewTask(tp)
@@ -143,9 +142,39 @@ func intMapper(msg *streams.Message) (*streams.Message, error) {
 	return msg, nil
 }
 
-func waitForSignals() chan os.Signal {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+type commitProcessor struct {
+	pipe streams.Pipe
 
-	return sigs
+	batch int
+	count int
+}
+
+func newCommitProcessor(batch int) streams.Processor {
+	return &commitProcessor{
+		batch: batch,
+	}
+}
+
+func (p *commitProcessor) WithPipe(pipe streams.Pipe) {
+	p.pipe = pipe
+}
+
+func (p *commitProcessor) Process(msg *streams.Message) error {
+	p.count++
+
+	if p.count >= p.batch {
+		return p.pipe.Commit(msg)
+	}
+
+	return p.pipe.Mark(msg)
+}
+
+func (p *commitProcessor) Commit() error {
+	p.count = 0
+
+	return nil
+}
+
+func (p *commitProcessor) Close() error {
+	return nil
 }

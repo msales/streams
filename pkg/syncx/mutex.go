@@ -49,7 +49,7 @@ func (m *Mutex) Unlock() {
 }
 
 // NopLocker is a no-op implementation of Locker interface.
-type NopLocker struct {}
+type NopLocker struct{}
 
 // Lock performs no action.
 func (*NopLocker) Lock() {}

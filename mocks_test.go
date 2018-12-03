@@ -140,6 +140,10 @@ func (p *MockPump) Accept(msg *streams.Message) error {
 	return args.Error(0)
 }
 
+func (p *MockPump) Stop() {
+	p.Called()
+}
+
 func (p *MockPump) Close() error {
 	args := p.Called()
 	return args.Error(0)

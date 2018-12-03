@@ -8,6 +8,16 @@ import (
 // ErrorFunc represents a streams error handling function.
 type ErrorFunc func(error)
 
+// TaskOptFunc represents a function that sets up the Task.
+type TaskOptFunc func(t *streamTask)
+
+// CommitInterval defines an interval of automatic commits.
+func CommitInterval(d time.Duration) TaskOptFunc {
+	return func(t *streamTask) {
+		t.supervisor = NewTimedSupervisor(t.supervisor, d, t.errorFn)
+	}
+}
+
 // Task represents a streams task.
 type Task interface {
 	// Start starts the streams processors.
@@ -98,21 +108,30 @@ func (t *streamTask) Close() error {
 }
 
 func (t *streamTask) closeTopology() error {
+	// Stop the pumps
 	nodes := flattenNodeTree(t.topology.Sources())
+	for _, node := range nodes {
+		t.pumps[node].Stop()
+	}
+
+	// Commit any outstanding batches and metadata
+	if err := t.supervisor.Commit(nil); err != nil {
+		return err
+	}
+
+	// Close the supervisor
+	if err := t.supervisor.Close(); err != nil {
+		return err
+	}
+
+	// Close the pumps
 	for _, node := range nodes {
 		if err := t.pumps[node].Close(); err != nil {
 			return err
 		}
 	}
 
-	//if err := t.supervisor.Commit(nil); err != nil {
-	//	return err
-	//}
-
-	if err := t.supervisor.Close(); err != nil {
-		return err
-	}
-
+	// Close the sources
 	for _, srcPump := range t.srcPumps {
 		if err := srcPump.Close(); err != nil {
 			return err
@@ -132,14 +151,4 @@ func (t *streamTask) handleError(err error) {
 // OnError sets the error handler.
 func (t *streamTask) OnError(fn ErrorFunc) {
 	t.errorFn = fn
-}
-
-// TaskOptFunc represents a function that sets up the Task.
-type TaskOptFunc func(t *streamTask)
-
-// CommitInterval defines an interval of automatic commits.
-func CommitInterval(d time.Duration) TaskOptFunc {
-	return func(t *streamTask) {
-		t.supervisor = NewTimedSupervisor(t.supervisor, d, &t.errorFn)
-	}
 }

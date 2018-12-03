@@ -65,14 +65,14 @@ func TestSupervisor_Commit_WithCaller(t *testing.T) {
 	pump := pump()
 
 	meta := map[streams.Processor]streams.Metaitems{
-		comm: {{Source: src, Metadata: metadata()},},
+		comm: {{Source: src, Metadata: metadata()}},
 	}
 
 	store := new(MockMetastore)
 	store.On("PullAll").Return(meta, nil)
 	store.On("Pull", comm).Return(nil, nil)
 
-	pumps := map[streams.Node]streams.Pump{node(comm): pump,}
+	pumps := map[streams.Node]streams.Pump{node(comm): pump}
 
 	supervisor := streams.NewSupervisor(store)
 	supervisor.WithPumps(pumps)
@@ -102,14 +102,14 @@ func TestSupervisor_Commit_PullError(t *testing.T) {
 	pump := pump()
 
 	meta := map[streams.Processor]streams.Metaitems{
-		comm: {{Source: src, Metadata: metadata()},},
+		comm: {{Source: src, Metadata: metadata()}},
 	}
 
 	store := new(MockMetastore)
 	store.On("PullAll").Return(meta, nil)
 	store.On("Pull", comm).Return(nil, errors.New("error"))
 
-	pumps := map[streams.Node]streams.Pump{node(comm): pump,}
+	pumps := map[streams.Node]streams.Pump{node(comm): pump}
 
 	supervisor := streams.NewSupervisor(store)
 	supervisor.WithPumps(pumps)
@@ -149,13 +149,13 @@ func TestSupervisor_Commit_CommitterError(t *testing.T) {
 	pump := pump()
 
 	meta := map[streams.Processor]streams.Metaitems{
-		comm: {{Source: src, Metadata: metadata()},},
+		comm: {{Source: src, Metadata: metadata()}},
 	}
 
 	store := new(MockMetastore)
 	store.On("PullAll").Return(meta, nil)
 
-	pumps := map[streams.Node]streams.Pump{node(comm): pump,}
+	pumps := map[streams.Node]streams.Pump{node(comm): pump}
 
 	supervisor := streams.NewSupervisor(store)
 	supervisor.WithPumps(pumps)

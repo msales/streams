@@ -176,7 +176,7 @@ func (s *supervisor) getLocker(caller, proc Processor) (sync.Locker, error) {
 type timedSupervisor struct {
 	inner Supervisor
 	d     time.Duration
-	errFn *ErrorFunc
+	errFn ErrorFunc
 
 	t       *time.Ticker
 	resetCh chan struct{}
@@ -184,11 +184,12 @@ type timedSupervisor struct {
 }
 
 // NewTimedSupervisor returns a supervisor that commits automatically.
-func NewTimedSupervisor(inner Supervisor, d time.Duration, errFn *ErrorFunc) Supervisor {
+func NewTimedSupervisor(inner Supervisor, d time.Duration, errFn ErrorFunc) Supervisor {
 	return &timedSupervisor{
-		inner: inner,
-		d:     d,
-		errFn: errFn,
+		inner:   inner,
+		d:       d,
+		errFn:   errFn,
+		resetCh: make(chan struct{}, 1),
 	}
 }
 
@@ -212,10 +213,11 @@ func (s *timedSupervisor) Start() error {
 		for {
 			select {
 			case <-s.t.C:
-				err := s.Commit(nil)
+				err := s.inner.Commit(nil)
 				if err != nil {
-					(*s.errFn)(err)
+					s.errFn(err)
 				}
+
 			case <-s.resetCh:
 				s.t.Stop()
 				s.t = time.NewTicker(s.d)
@@ -228,17 +230,13 @@ func (s *timedSupervisor) Start() error {
 
 // Close stops the timer and closes the inner supervisor.
 func (s *timedSupervisor) Close() error {
-	if err := s.inner.Close(); err != nil {
-		return err
-	}
-
 	if !s.setStopped() {
 		return ErrNotRunning
 	}
 
 	s.t.Stop()
 
-	return nil
+	return s.inner.Close()
 }
 
 // Commit performs a global commit sequence.

@@ -12,7 +12,7 @@ import (
 func TestSink_ConsumeReturnsKeyEncodeError(t *testing.T) {
 	s := Sink{
 		keyEncoder: errorEncoder{},
-		buf: []*sarama.ProducerMessage{},
+		buf:        []*sarama.ProducerMessage{},
 	}
 
 	err := s.Process(streams.NewMessage("foo", "foo"))
@@ -22,9 +22,9 @@ func TestSink_ConsumeReturnsKeyEncodeError(t *testing.T) {
 
 func TestSink_ConsumeReturnsValueEncodeError(t *testing.T) {
 	s := Sink{
-		keyEncoder: StringEncoder{},
+		keyEncoder:   StringEncoder{},
 		valueEncoder: errorEncoder{},
-		buf: []*sarama.ProducerMessage{},
+		buf:          []*sarama.ProducerMessage{},
 	}
 
 	err := s.Process(streams.NewMessage("foo", "foo"))
@@ -32,9 +32,8 @@ func TestSink_ConsumeReturnsValueEncodeError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-type errorEncoder struct {}
+type errorEncoder struct{}
 
 func (errorEncoder) Encode(interface{}) ([]byte, error) {
 	return nil, errors.New("test")
 }
-

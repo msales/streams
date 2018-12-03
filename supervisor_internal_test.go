@@ -41,7 +41,7 @@ func TestSupervisor_Commit_CommitPending(t *testing.T) {
 func TestTimedSupervisor_Start(t *testing.T) {
 }
 
-type mockPump struct {}
+type mockPump struct{}
 
 func (*mockPump) Lock() {}
 
@@ -55,7 +55,7 @@ func (*mockPump) Close() error {
 	return nil
 }
 
-type mockProcessor struct {}
+type mockProcessor struct{}
 
 func (*mockProcessor) WithPipe(Pipe) {}
 

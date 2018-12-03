@@ -22,11 +22,11 @@ func TestSource_ConsumeReturnsLastError(t *testing.T) {
 func TestSource_ConsumeReturnsKeyDecodeError(t *testing.T) {
 	s := Source{
 		keyDecoder: errorDecoder{},
-		buf: make(chan *sarama.ConsumerMessage, 1),
+		buf:        make(chan *sarama.ConsumerMessage, 1),
 	}
 
 	s.buf <- &sarama.ConsumerMessage{
-		Key: []byte(nil),
+		Key:   []byte(nil),
 		Value: []byte("foo"),
 	}
 
@@ -37,13 +37,13 @@ func TestSource_ConsumeReturnsKeyDecodeError(t *testing.T) {
 
 func TestSource_ConsumeReturnsValueDecodeError(t *testing.T) {
 	s := Source{
-		keyDecoder: ByteDecoder{},
+		keyDecoder:   ByteDecoder{},
 		valueDecoder: errorDecoder{},
-		buf: make(chan *sarama.ConsumerMessage, 1),
+		buf:          make(chan *sarama.ConsumerMessage, 1),
 	}
 
 	s.buf <- &sarama.ConsumerMessage{
-		Key: []byte(nil),
+		Key:   []byte(nil),
 		Value: []byte("foo"),
 	}
 
@@ -64,9 +64,8 @@ func TestSource_ConsumeTimesOut(t *testing.T) {
 	assert.Equal(t, nil, msg.Value)
 }
 
-type errorDecoder struct {}
+type errorDecoder struct{}
 
 func (errorDecoder) Decode([]byte) (interface{}, error) {
 	return nil, errors.New("test")
 }
-
