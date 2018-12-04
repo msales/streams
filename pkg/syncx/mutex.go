@@ -3,14 +3,11 @@ package syncx
 import (
 	"sync"
 	"sync/atomic"
-	"time"
+	"unsafe"
 )
 
 const (
-	unlocked uint32 = iota
-	locked
-
-	defaultRetry = 10 * time.Millisecond
+	mutexLocked = 1 << iota
 )
 
 // Compile-time interface checks.
@@ -19,33 +16,31 @@ var (
 	_ sync.Locker = (*NopLocker)(nil)
 )
 
-// Mutex represents a standard mutex with an added capability to immediately return if unable to acquire a lock.
+// Mutex is simple sync.Mutex with the ability to try to Lock.
 type Mutex struct {
-	Retry time.Duration
-
-	locked uint32
+	in sync.Mutex
 }
 
-// Lock locks the mutex. If already locked, it blocks.
+// Lock locks m.
+// If the lock is already in use, the calling goroutine
+// blocks until the mutex is available.
 func (m *Mutex) Lock() {
-	retry := m.Retry
-	if retry == 0 {
-		retry = defaultRetry
-	}
-
-	for !m.TryLock() {
-		time.Sleep(retry)
-	}
+	m.in.Lock()
 }
 
-// TryLock attempts to lock the mutex. It returns immediately with the result of the lock.
-func (m *Mutex) TryLock() bool {
-	return atomic.CompareAndSwapUint32(&m.locked, unlocked, locked)
-}
-
-// Unlock unlocks the mutex.
+// Unlock unlocks m.
+// It is a run-time error if m is not locked on entry to Unlock.
+//
+// A locked Mutex is not associated with a particular goroutine.
+// It is allowed for one goroutine to lock a Mutex and then
+// arrange for another goroutine to unlock it.
 func (m *Mutex) Unlock() {
-	atomic.StoreUint32(&m.locked, unlocked)
+	m.in.Unlock()
+}
+
+// TryLock tries to lock m. It returns true in case of success, false otherwise.
+func (m *Mutex) TryLock() bool {
+	return atomic.CompareAndSwapInt32((*int32)(unsafe.Pointer(&m.in)), 0, mutexLocked)
 }
 
 // NopLocker is a no-op implementation of Locker interface.

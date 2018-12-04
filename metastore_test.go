@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestMetaitems_Join(t *testing.T) {
+func TestMetaitems_Update(t *testing.T) {
 	src1 := new(MockSource)
 	src2 := new(MockSource)
 	src3 := new(MockSource)
@@ -29,7 +29,7 @@ func TestMetaitems_Join(t *testing.T) {
 
 	meta2.On("Update", mock.Anything).Return(meta5)
 
-	joined := items.Join(other)
+	joined := items.Update(other)
 
 	assert.Len(t, joined, 3)
 	assert.True(t, joined[0] == item1)
@@ -39,10 +39,59 @@ func TestMetaitems_Join(t *testing.T) {
 	meta2.AssertCalled(t, "Update", meta4)
 }
 
-func BenchmarkMetaitems_Join(b *testing.B) {
+func TestMetaitems_UpdateHandlesNilSourceAndMetadata(t *testing.T) {
+	items := streams.Metaitems{{Source: nil, Metadata: nil}}
+	other := streams.Metaitems{{Source: nil, Metadata: nil}}
+
+	joined := items.Update(other)
+
+	assert.Len(t, joined, 1)
+}
+
+func TestMetaitems_Merge(t *testing.T) {
 	src1 := new(MockSource)
 	src2 := new(MockSource)
 	src3 := new(MockSource)
+
+	meta1 := new(MockMetadata)
+	meta2 := new(MockMetadata)
+	meta3 := new(MockMetadata)
+	meta4 := new(MockMetadata)
+	meta5 := new(MockMetadata) // == meta2.Update(meta4)
+
+	item1 := &streams.Metaitem{Source: src1, Metadata: meta1}
+	item2 := &streams.Metaitem{Source: src2, Metadata: meta2}
+	item3 := &streams.Metaitem{Source: src3, Metadata: meta3}
+	item4 := &streams.Metaitem{Source: src2, Metadata: meta4} // src2!
+
+	items := streams.Metaitems{item1, item2}
+	other := streams.Metaitems{item3, item4}
+
+	meta2.On("Merge", mock.Anything).Return(meta5)
+
+	merged := items.Merge(other)
+
+	assert.Len(t, merged, 3)
+	assert.True(t, merged[0] == item1)
+	assert.True(t, merged[1] == item2)
+	assert.True(t, merged[2] == item3)
+	assert.True(t, meta5 == item2.Metadata)
+	meta2.AssertCalled(t, "Merge", meta4)
+}
+
+func TestMetaitems_MergeHandlesNilSourceAndMetadata(t *testing.T) {
+	items := streams.Metaitems{{Source: nil, Metadata: nil}}
+	other := streams.Metaitems{{Source: nil, Metadata: nil}}
+
+	joined := items.Merge(other)
+
+	assert.Len(t, joined, 1)
+}
+
+func BenchmarkMetaitems_Update(b *testing.B) {
+	src1 := &fakeSource{}
+	src2 := &fakeSource{}
+	src3 := &fakeSource{}
 
 	meta1 := &fakeMetadata{}
 	meta2 := &fakeMetadata{}
@@ -55,7 +104,27 @@ func BenchmarkMetaitems_Join(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		items1.Join(items2)
+		items1.Update(items2)
+	}
+}
+
+func BenchmarkMetaitems_Merge(b *testing.B) {
+	src1 := &fakeSource{}
+	src2 := &fakeSource{}
+	src3 := &fakeSource{}
+
+	meta1 := &fakeMetadata{}
+	meta2 := &fakeMetadata{}
+	meta3 := &fakeMetadata{}
+	meta4 := &fakeMetadata{}
+
+	items1 := streams.Metaitems{{Source: src1, Metadata: meta1}, {Source: src2, Metadata: meta2}}
+	items2 := streams.Metaitems{{Source: src3, Metadata: meta3}, {Source: src2, Metadata: meta4}}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		items1.Merge(items2)
 	}
 }
 

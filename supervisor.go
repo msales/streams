@@ -24,25 +24,6 @@ var (
 	ErrUnknownPump = errors.New("streams: encountered an unknown pump")
 )
 
-// sourceMetadata maps Metadata to each known Source.
-type sourceMetadata map[Source]Metadata
-
-// Merge merges metadata from metaitems.
-func (m sourceMetadata) Merge(items Metaitems) {
-	for _, item := range items {
-		if item.Source == nil {
-			continue
-		}
-
-		if item.Metadata == nil {
-			m[item.Source] = nil
-			continue
-		}
-
-		m[item.Source] = item.Metadata.Merge(m[item.Source])
-	}
-}
-
 // Supervisor represents a concurrency-safe stream supervisor.
 //
 // The Supervisor performs a commit in a concurrently-safe manner.
@@ -52,11 +33,13 @@ type Supervisor interface {
 
 	// WithPumps sets a map of Pumps.
 	WithPumps(pumps map[Node]Pump)
+
 	// Start starts the supervisor.
 	//
 	// This function should initiate all the background tasks of the Supervisor.
 	// It must not be a blocking call.
 	Start() error
+
 	// Commit performs a global commit sequence.
 	//
 	// If triggered by a Pipe, the associated Processor should be passed.
@@ -68,7 +51,7 @@ type supervisor struct {
 
 	pumps map[Processor]Pump
 
-	mx syncx.Mutex
+	commitMu syncx.Mutex
 }
 
 // NewSupervisor returns a new Supervisor instance.
@@ -100,18 +83,18 @@ func (s *supervisor) WithPumps(pumps map[Node]Pump) {
 //
 // If triggered by a Pipe, the associated Processor should be passed.
 func (s *supervisor) Commit(caller Processor) error {
-	if !s.mx.TryLock() {
+	if !s.commitMu.TryLock() {
+		// We are already committing.
 		return nil
 	}
-	defer s.mx.Unlock()
+	defer s.commitMu.Unlock()
 
 	metadata, err := s.store.PullAll()
 	if err != nil {
 		return err
 	}
 
-	srcMeta := make(sourceMetadata)
-
+	var metaItems Metaitems
 	for proc, items := range metadata {
 		if comm, ok := proc.(Committer); ok {
 			newItems, err := s.commit(caller, comm)
@@ -119,14 +102,18 @@ func (s *supervisor) Commit(caller Processor) error {
 				return err
 			}
 
-			items = items.Join(newItems)
+			items = items.Update(newItems)
 		}
 
-		srcMeta.Merge(items)
+		metaItems = metaItems.Merge(items)
 	}
 
-	for src, meta := range srcMeta {
-		err := src.Commit(meta)
+	for _, item := range metaItems {
+		if item.Source == nil {
+			continue
+		}
+
+		err := item.Source.Commit(item.Metadata)
 		if err != nil {
 			return err
 		}
@@ -168,7 +155,7 @@ func (s *supervisor) getLocker(caller, proc Processor) (sync.Locker, error) {
 
 // Permanently locks the supervisor, ensuring that no commit will ever be executed.
 func (s *supervisor) Close() error {
-	s.mx.Lock()
+	s.commitMu.Lock()
 
 	return nil
 }

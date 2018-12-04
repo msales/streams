@@ -6,17 +6,20 @@ import (
 	"github.com/msales/streams"
 )
 
-type fakeSource struct {}
-
-func (*fakeSource) Consume() (*streams.Message, error) {
-	return streams.NewMessage(nil, nil), nil
+type fakeSource struct {
+	Key   interface{}
+	Value interface{}
 }
 
-func (*fakeSource) Commit(interface{}) error {
+func (s *fakeSource) Consume() (*streams.Message, error) {
+	return streams.NewMessage(s.Key, s.Value), nil
+}
+
+func (s *fakeSource) Commit(interface{}) error {
 	return nil
 }
 
-func (*fakeSource) Close() error {
+func (s *fakeSource) Close() error {
 	return nil
 }
 

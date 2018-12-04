@@ -60,14 +60,14 @@ func (p *processorPump) run() {
 
 		p.Lock()
 
-		start := time.Now()
+		start := nanotime()
 		err := p.processor.Process(msg)
 		if err != nil {
 			p.Unlock()
 			p.errFn(err)
 			return
 		}
-		latency := time.Since(start) - p.pipe.Duration()
+		latency := time.Duration(nanotime() - start) - p.pipe.Duration()
 
 		p.Unlock()
 

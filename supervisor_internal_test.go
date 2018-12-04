@@ -28,7 +28,7 @@ func TestSupervisor_WithPumps(t *testing.T) {
 
 func TestSupervisor_Commit_CommitPending(t *testing.T) {
 	supervisor := &supervisor{}
-	supervisor.mx.Lock()
+	supervisor.commitMu.Lock()
 
 	err := supervisor.Commit(nil)
 

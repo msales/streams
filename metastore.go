@@ -27,13 +27,28 @@ type Metaitem struct {
 // Metaitems represents a slice of Metaitem pointers.
 type Metaitems []*Metaitem
 
-// Join combines contents of two Metaitems objects, updating the Metadata where necessary.
-func (m Metaitems) Join(other Metaitems) Metaitems {
-	OUTER:
-	for _, newItem := range other {
+// Update combines contents of two Metaitems objects, updating the Metadata where necessary.
+func (m Metaitems) Update(items Metaitems) Metaitems {
+	return m.join(items, func(old, new Metadata) Metadata {
+		return old.Update(new)
+	})
+}
+
+// Merge combines contents of two Metaitems objects, merging the Metadata where necessary.
+func (m Metaitems) Merge(items Metaitems) Metaitems {
+	return m.join(items, func(old, new Metadata) Metadata {
+		return old.Merge(new)
+	})
+}
+
+func (m Metaitems) join(items Metaitems, fn func(old, new Metadata) Metadata) Metaitems {
+OUTER:
+	for _, newItem := range items {
 		for _, oldItem := range m {
 			if oldItem.Source == newItem.Source {
-				oldItem.Metadata = oldItem.Metadata.Update(newItem.Metadata)
+				if oldItem.Metadata != nil {
+					oldItem.Metadata = fn(oldItem.Metadata, newItem.Metadata)
+				}
 				continue OUTER
 			}
 		}
