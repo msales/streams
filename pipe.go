@@ -6,8 +6,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-
-
 // TimedPipe represents a pipe that can accumulate execution time.
 type TimedPipe interface {
 	// Reset resets the accumulative pipe duration.

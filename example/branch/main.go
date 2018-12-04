@@ -4,25 +4,18 @@ import (
 	"context"
 	"log"
 	"math/rand"
-	"os"
-	"os/signal"
-	"syscall"
 
+	"github.com/msales/pkg/v3/clix"
 	"github.com/msales/pkg/v3/stats"
 	"github.com/msales/streams"
-	"gopkg.in/inconshreveable/log15.v2"
 )
 
 func main() {
 	ctx := context.Background()
 
-	logger := log15.New()
-	logger.SetHandler(log15.LazyHandler(log15.StreamHandler(os.Stderr, log15.LogfmtFormat())))
-
 	client, err := stats.NewStatsd("localhost:8125", "streams.example")
 	if err != nil {
-		logger.Error(err.Error())
-		os.Exit(1)
+		log.Fatal(err)
 	}
 	ctx = stats.WithStats(ctx, client)
 
@@ -31,12 +24,17 @@ func main() {
 	s := builder.Source("rand-source", newRandIntSource(ctx)).
 		BranchFunc("branch", branchEvenNumberFilter, branchOddNumberFilter)
 
+	sink1 := newCommitProcessor(1000)
+	sink2 := newCommitProcessor(1000)
+
 	// Event numbers
-	s[0].Print("print-event")
+	s[0].Print("print-event").
+		Process("commit-sink1", sink1)
 
 	// Odd Numbers
 	s[1].MapFunc("negative-mapper", negativeMapper).
-		Print("print-negative")
+		Print("print-negative").
+		Process("commit-sink2", sink2)
 
 	tp, _ := builder.Build()
 	task := streams.NewTask(tp)
@@ -47,7 +45,7 @@ func main() {
 	defer task.Close()
 
 	// Wait for SIGTERM
-	<-waitForSignals()
+	<-clix.WaitForSignals()
 }
 
 type randIntSource struct {
@@ -74,6 +72,43 @@ func (s *randIntSource) Close() error {
 	return nil
 }
 
+type commitProcessor struct {
+	pipe streams.Pipe
+
+	batch int
+	count int
+}
+
+func newCommitProcessor(batch int) streams.Processor {
+	return &commitProcessor{
+		batch: batch,
+	}
+}
+
+func (p *commitProcessor) WithPipe(pipe streams.Pipe) {
+	p.pipe = pipe
+}
+
+func (p *commitProcessor) Process(msg *streams.Message) error {
+	p.count++
+
+	if p.count >= p.batch {
+		return p.pipe.Commit(msg)
+	}
+
+	return p.pipe.Mark(msg)
+}
+
+func (p *commitProcessor) Commit() error {
+	p.count = 0
+
+	return nil
+}
+
+func (p *commitProcessor) Close() error {
+	return nil
+}
+
 func branchOddNumberFilter(msg *streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
@@ -91,11 +126,4 @@ func negativeMapper(msg *streams.Message) (*streams.Message, error) {
 	msg.Value = num * -1
 
 	return msg, nil
-}
-
-func waitForSignals() chan os.Signal {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	return sigs
 }
