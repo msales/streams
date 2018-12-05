@@ -68,7 +68,7 @@ func (p *processorPump) run() {
 
 			return
 		}
-		latency := time.Duration(nanotime() - start) - p.pipe.Duration()
+		latency := time.Duration(nanotime()-start) - p.pipe.Duration()
 
 		p.Unlock()
 

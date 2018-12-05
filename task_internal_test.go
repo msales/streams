@@ -68,4 +68,3 @@ func (s *fakeSupervisor) Start() error {
 func (s *fakeSupervisor) Commit(Processor) error {
 	return s.CommitError
 }
-

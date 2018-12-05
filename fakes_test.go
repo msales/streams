@@ -23,7 +23,7 @@ func (s *fakeSource) Close() error {
 	return nil
 }
 
-type fakeCommitter struct {}
+type fakeCommitter struct{}
 
 func (*fakeCommitter) WithPipe(streams.Pipe) {}
 
@@ -68,7 +68,7 @@ func (ms *fakeMetastore) Mark(streams.Processor, streams.Source, streams.Metadat
 	return nil
 }
 
-type fakePump struct{
+type fakePump struct {
 	sync.Mutex
 }
 
@@ -102,7 +102,7 @@ func (n *fakeNode) Processor() streams.Processor {
 	return n.Proc
 }
 
-type fakeSupervisor struct {}
+type fakeSupervisor struct{}
 
 func (*fakeSupervisor) WithPumps(pumps map[streams.Node]streams.Pump) {
 
@@ -119,4 +119,3 @@ func (*fakeSupervisor) Commit(streams.Processor) error {
 func (*fakeSupervisor) Close() error {
 	return nil
 }
-

@@ -285,7 +285,7 @@ func TestTimedSupervisor_Close_WithError(t *testing.T) {
 	inner.On("Start").Return(nil)
 	inner.On("Close").Return(wantErr)
 
-	supervisor := streams.NewTimedSupervisor(inner, 1 * time.Second, nil)
+	supervisor := streams.NewTimedSupervisor(inner, 1*time.Second, nil)
 	_ = supervisor.Start()
 
 	err := supervisor.Close()
