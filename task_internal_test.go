@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCommitInterval(t *testing.T) {
-	task := NewTask(&Topology{sources: map[Source]Node{}}, CommitInterval(1))
+func TestWithCommitInterval(t *testing.T) {
+	task := NewTask(&Topology{sources: map[Source]Node{}}, WithCommitInterval(1))
 
 	assert.IsType(t, &timedSupervisor{}, task.(*streamTask).supervisor)
 }

@@ -11,8 +11,8 @@ type ErrorFunc func(error)
 // TaskOptFunc represents a function that sets up the Task.
 type TaskOptFunc func(t *streamTask)
 
-// CommitInterval defines an interval of automatic commits.
-func CommitInterval(d time.Duration) TaskOptFunc {
+// WithCommitInterval defines an interval of automatic commits.
+func WithCommitInterval(d time.Duration) TaskOptFunc {
 	return func(t *streamTask) {
 		t.supervisor = NewTimedSupervisor(t.supervisor, d, t.errorFn)
 	}
