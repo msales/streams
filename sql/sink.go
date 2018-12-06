@@ -3,40 +3,30 @@ package sql
 import (
 	"database/sql"
 	"errors"
-	"time"
 
 	"github.com/msales/streams"
 )
 
-// TxFunc represents a function that receives a sql transaction.
-type TxFunc func(*sql.Tx) error
-
-// InsertFunc represents a callback to handle processing a Message on the Sink.
-type InsertFunc func(*sql.Tx, *streams.Message) error
-
-// SinkFunc represents a function that configures the Sink.
-type SinkFunc func(*Sink)
-
-// WithBatchMessages configures the number of messages to send in a batch
-// on the Sink.
-func WithBatchMessages(messages int) SinkFunc {
-	return func(s *Sink) {
-		s.batch = messages
-	}
+// Transaction represents a SQL transaction handler.
+type Transaction interface {
+	// Begin handles the start of a SQL transaction.
+	Begin(*sql.Tx) error
+	// Commit handles the commit of a SQL transaction.
+	Commit(*sql.Tx) error
 }
 
-// WithBeginFn sets the transaction start callback on the Sink.
-func WithBeginFn(fn TxFunc) SinkFunc {
-	return func(s *Sink) {
-		s.beginFn = fn
-	}
+// Executor represents a SQL query executor.
+type Executor interface {
+	// Exec executes a query on the given transaction.
+	Exec(*sql.Tx, *streams.Message) error
 }
 
-// WithCommitFn sets the transaction commit callback on the Sink.
-func WithCommitFn(fn TxFunc) SinkFunc {
-	return func(s *Sink) {
-		s.commitFn = fn
-	}
+// ExecFunc represents a function implementing an Executor.
+type ExecFunc func(*sql.Tx, *streams.Message) error
+
+// Exec executes a query on the given transaction.
+func (fn ExecFunc) Exec(tx *sql.Tx, msg *streams.Message) error {
+	return fn(tx, msg)
 }
 
 // Sink represents a SQL sink processor.
@@ -46,31 +36,28 @@ type Sink struct {
 	db *sql.DB
 	tx *sql.Tx
 
-	beginFn  TxFunc
-	insertFn InsertFunc
-	commitFn TxFunc
+	exec   Executor
+	txHdlr Transaction
 
 	batch      int
 	count      int
-	lastCommit time.Time
-	lastMsg    *streams.Message
 }
 
 // NewSink creates a new batch sql insert sink.
-func NewSink(db *sql.DB, fn InsertFunc, opts ...SinkFunc) (*Sink, error) {
+func NewSink(db *sql.DB, batch int, exec Executor) (*Sink, error) {
 	s := &Sink{
-		db:       db,
-		insertFn: fn,
-		batch:    0,
-		count:    0,
+		db:    db,
+		exec:  exec,
+		batch: batch,
+		count: 0,
 	}
 
-	for _, opt := range opts {
-		opt(s)
+	if txHdlr, ok := exec.(Transaction); ok {
+		s.txHdlr = txHdlr
 	}
 
 	if s.batch == 0 {
-		return nil, errors.New("sink: BatchMessages must be set")
+		return nil, errors.New("sink: batch must be greater then zero")
 	}
 
 	return s, nil
@@ -87,11 +74,10 @@ func (p *Sink) Process(msg *streams.Message) error {
 		return err
 	}
 
-	if err := p.insertFn(p.tx, msg); err != nil {
+	if err := p.exec.Exec(p.tx, msg); err != nil {
 		return err
 	}
 
-	p.lastMsg = msg
 	p.count++
 	if p.count >= p.batch {
 		return p.pipe.Commit(msg)
@@ -103,7 +89,6 @@ func (p *Sink) Process(msg *streams.Message) error {
 //Commit commits a processors batch.
 func (p *Sink) Commit() error {
 	p.count = 0
-	p.lastCommit = time.Now()
 
 	return p.commitTransaction()
 }
@@ -120,12 +105,8 @@ func (p *Sink) ensureTransaction() error {
 		return err
 	}
 
-	if p.beginFn != nil {
-		return p.beginFn(p.tx)
-	}
-
-	if p.lastCommit.IsZero() {
-		p.lastCommit = time.Now()
+	if p.txHdlr != nil {
+		return p.txHdlr.Begin(p.tx)
 	}
 
 	return nil
@@ -136,8 +117,8 @@ func (p *Sink) commitTransaction() error {
 		return nil
 	}
 
-	if p.commitFn != nil {
-		if err := p.commitFn(p.tx); err != nil {
+	if p.txHdlr != nil {
+		if err := p.txHdlr.Commit(p.tx); err != nil {
 			return err
 		}
 	}
