@@ -86,6 +86,29 @@ func TestSupervisor_Commit_WithCaller(t *testing.T) {
 	pump.AssertNotCalled(t, "Unlock", mock.Anything)
 }
 
+func TestSupervisor_Commit_NullSource(t *testing.T) {
+	comm := committer(nil)
+	pump := pump()
+
+	meta := map[streams.Processor]streams.Metaitems{
+		comm: {{Source: nil, Metadata: nil}},
+	}
+	store := new(MockMetastore)
+	store.On("PullAll").Return(meta, nil)
+	store.On("Pull", comm).Return(nil, nil)
+
+	pumps := map[streams.Node]streams.Pump{node(comm): pump}
+
+	supervisor := streams.NewSupervisor(store)
+	supervisor.WithPumps(pumps)
+
+	err := supervisor.Commit(nil)
+
+	assert.NoError(t, err)
+	pump.AssertCalled(t, "Lock", mock.Anything)
+	pump.AssertCalled(t, "Unlock", mock.Anything)
+}
+
 func TestSupervisor_Commit_PullAllError(t *testing.T) {
 	store := new(MockMetastore)
 	store.On("PullAll").Return(nil, errors.New("error"))
@@ -169,6 +192,30 @@ func TestSupervisor_Commit_CommitterError(t *testing.T) {
 	pump.AssertCalled(t, "Unlock", mock.Anything)
 }
 
+func TestSupervisor_Commit_SourceError(t *testing.T) {
+	src := source(errors.New("error"))
+	comm := committer(nil)
+	pump := pump()
+
+	meta := map[streams.Processor]streams.Metaitems{
+		comm: {{Source: src, Metadata: metadata()}},
+	}
+	store := new(MockMetastore)
+	store.On("PullAll").Return(meta, nil)
+	store.On("Pull", comm).Return(nil, nil)
+
+	pumps := map[streams.Node]streams.Pump{node(comm): pump}
+
+	supervisor := streams.NewSupervisor(store)
+	supervisor.WithPumps(pumps)
+
+	err := supervisor.Commit(nil)
+
+	assert.Error(t, err)
+	pump.AssertCalled(t, "Lock", mock.Anything)
+	pump.AssertCalled(t, "Unlock", mock.Anything)
+}
+
 func BenchmarkSupervisor_Commit(b *testing.B) {
 	p := &fakeCommitter{}
 	src := &fakeSource{}
@@ -234,13 +281,35 @@ func TestTimedSupervisor_Start(t *testing.T) {
 	assert.Equal(t, wantErr, err)
 }
 
+func TestTimedSupervisor_GlobalCommitSourceError(t *testing.T) {
+	inner := new(MockSupervisor)
+	inner.On("Start").Return(nil)
+	inner.On("Commit", nil).Return(errors.New("error"))
+	inner.On("Close").Return(nil)
+
+	called := false
+	supervisor := streams.NewTimedSupervisor(inner, 1, func(err error) {
+		assert.Equal(t, "error", err.Error())
+		called = true
+	})
+	_ = supervisor.Start()
+	defer supervisor.Close()
+
+	time.Sleep(time.Millisecond)
+
+	inner.AssertCalled(t, "Commit", nil)
+	assert.True(t, called, "Expected error function to be called")
+}
+
 func TestTimedSupervisor_Start_AlreadyRunning(t *testing.T) {
 	inner := new(MockSupervisor)
 	inner.On("Commit", nil).Return(nil)
 	inner.On("Start").Return(nil)
+	inner.On("Close").Return(nil)
 
 	supervisor := streams.NewTimedSupervisor(inner, 1, nil)
 	err := supervisor.Start()
+	defer supervisor.Close()
 
 	inner.AssertCalled(t, "Start")
 	assert.NoError(t, err)
@@ -257,11 +326,10 @@ func TestTimedSupervisor_Close(t *testing.T) {
 	inner.On("Close").Return(nil)
 
 	supervisor := streams.NewTimedSupervisor(inner, 1, nil)
-	err := supervisor.Start()
+	_ = supervisor.Start()
+	defer supervisor.Close()
 
-	assert.NoError(t, err)
-
-	err = supervisor.Close()
+	err := supervisor.Close()
 
 	inner.AssertCalled(t, "Close")
 	assert.NoError(t, err)
@@ -287,6 +355,7 @@ func TestTimedSupervisor_Close_WithError(t *testing.T) {
 
 	supervisor := streams.NewTimedSupervisor(inner, 1*time.Second, nil)
 	_ = supervisor.Start()
+	defer supervisor.Close()
 
 	err := supervisor.Close()
 
@@ -295,14 +364,51 @@ func TestTimedSupervisor_Close_WithError(t *testing.T) {
 }
 
 func TestTimedSupervisor_Commit(t *testing.T) {
-	wantErr := errors.New("error")
 	caller := new(MockProcessor)
 	inner := new(MockSupervisor)
 	inner.On("Start").Return(nil)
 	inner.On("Commit", nil).Return(nil)
-	inner.On("Commit", caller).Return(wantErr)
+	inner.On("Commit", caller).Return(nil)
+	inner.On("Close").Return(nil)
 
 	supervisor := streams.NewTimedSupervisor(inner, 1, nil)
+	_ = supervisor.Start()
+	defer supervisor.Close()
+
+	err := supervisor.Commit(caller)
+
+	assert.NoError(t, err)
+	inner.AssertCalled(t, "Commit", caller)
+}
+
+func TestTimedSupervisor_CommitResetsTimer(t *testing.T) {
+	caller := new(MockProcessor)
+	inner := new(MockSupervisor)
+	inner.On("Start").Return(nil)
+	inner.On("Commit", mock.Anything).Return(nil)
+	inner.On("Close").Return(nil)
+
+	supervisor := streams.NewTimedSupervisor(inner, 10*time.Millisecond, nil)
+	_ = supervisor.Start()
+	defer supervisor.Close()
+
+	time.Sleep(5*time.Millisecond)
+
+	_ = supervisor.Commit(caller)
+
+	time.Sleep(6*time.Millisecond)
+
+	inner.AssertNumberOfCalls(t, "Commit", 1)
+}
+
+func TestTimedSupervisor_CommitSourceError(t *testing.T) {
+	wantErr := errors.New("error")
+	caller := new(MockProcessor)
+	inner := new(MockSupervisor)
+	inner.On("Start").Return(nil)
+	inner.On("Commit", caller).Return(wantErr)
+
+	supervisor := streams.NewTimedSupervisor(inner, 1*time.Second, nil)
 	err := supervisor.Start()
 
 	assert.NoError(t, err)
