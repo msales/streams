@@ -4,23 +4,44 @@ import (
 	"context"
 )
 
+// MetadataOrigin represents the metadata origin type.
+type MetadataOrigin uint8
+
+// MetadataOrigin types
+const (
+	CommitterOrigin MetadataOrigin = iota
+	ProcessorOrigin
+)
+
+// Metadata represents metadata that can be merged.
+type Metadata interface {
+	// WithOrigin sets the MetadataOrigin on the metadata.
+	WithOrigin(MetadataOrigin)
+	// Update updates the given metadata with the contained metadata.
+	Update(Metadata) Metadata
+	// Merge merges the contained metadata into the given the metadata.
+	Merge(Metadata) Metadata
+}
+
 // Message represents data the flows through the stream.
 type Message struct {
-	metadata map[Source]interface{}
+	source   Source
+	metadata Metadata
 
 	Ctx   context.Context
 	Key   interface{}
 	Value interface{}
 }
 
-// Metadata returns the Message metadata.
-func (m *Message) Metadata() map[Source]interface{} {
-	return m.metadata
+// Metadata returns the Message Metadata.
+func (m *Message) Metadata() (Source, Metadata) {
+	return m.source, m.metadata
 }
 
-// WithMetadata add metadata to the Message from a Source.
-func (m *Message) WithMetadata(s Source, v interface{}) *Message {
-	m.metadata[s] = v
+// WithMetadata add metadata to the Message for a Source.
+func (m *Message) WithMetadata(s Source, v Metadata) *Message {
+	m.source = s
+	m.metadata = v
 
 	return m
 }
@@ -33,7 +54,8 @@ func (m Message) Empty() bool {
 // NewMessage creates a Message.
 func NewMessage(k, v interface{}) *Message {
 	return &Message{
-		metadata: map[Source]interface{}{},
+		source:   nil,
+		metadata: nil,
 		Ctx:      context.Background(),
 		Key:      k,
 		Value:    v,
@@ -43,7 +65,8 @@ func NewMessage(k, v interface{}) *Message {
 // NewMessageWithContext creates a Message with the given context.
 func NewMessageWithContext(ctx context.Context, k, v interface{}) *Message {
 	return &Message{
-		metadata: map[Source]interface{}{},
+		source:   nil,
+		metadata: nil,
 		Ctx:      ctx,
 		Key:      k,
 		Value:    v,

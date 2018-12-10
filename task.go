@@ -2,10 +2,21 @@ package streams
 
 import (
 	"errors"
+	"time"
 )
 
 // ErrorFunc represents a streams error handling function.
 type ErrorFunc func(error)
+
+// TaskOptFunc represents a function that sets up the Task.
+type TaskOptFunc func(t *streamTask)
+
+// WithCommitInterval defines an interval of automatic commits.
+func WithCommitInterval(d time.Duration) TaskOptFunc {
+	return func(t *streamTask) {
+		t.supervisor = NewTimedSupervisor(t.supervisor, d, t.errorFn)
+	}
+}
 
 // Task represents a streams task.
 type Task interface {
@@ -23,42 +34,56 @@ type streamTask struct {
 	running bool
 	errorFn ErrorFunc
 
-	srcPumps SourcePumps
-	pumps    map[Node]Pump
+	store      Metastore
+	supervisor Supervisor
+	srcPumps   SourcePumps
+	pumps      map[Node]Pump
 }
 
 // NewTask creates a new streams task.
-func NewTask(topology *Topology) Task {
-	return &streamTask{
-		topology: topology,
-		srcPumps: SourcePumps{},
-		pumps:    map[Node]Pump{},
+func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
+	store := NewMetastore()
+
+	t := &streamTask{
+		topology:   topology,
+		store:      store,
+		supervisor: NewSupervisor(store),
+		srcPumps:   SourcePumps{},
+		pumps:      map[Node]Pump{},
 	}
+
+	for _, optFn := range opts {
+		optFn(t)
+	}
+
+	return t
 }
 
 // Start starts the streams processors.
 func (t *streamTask) Start() error {
 	// If we are already running, exit
 	if t.running {
-		return errors.New("streams: task already started")
+		return errors.New("streams: task already running")
 	}
 	t.running = true
 
 	t.setupTopology()
 
-	return nil
+	return t.supervisor.Start()
 }
 
 func (t *streamTask) setupTopology() {
 	nodes := flattenNodeTree(t.topology.Sources())
 	reverseNodes(nodes)
 	for _, node := range nodes {
-		pipe := NewPipe(t.resolvePumps(node.Children()))
+		pipe := NewPipe(t.store, t.supervisor, node.Processor(), t.resolvePumps(node.Children()))
 		node.Processor().WithPipe(pipe)
 
 		pump := NewPump(node, pipe.(TimedPipe), t.handleError)
 		t.pumps[node] = pump
 	}
+
+	t.supervisor.WithPumps(t.pumps)
 
 	for source, node := range t.topology.Sources() {
 		srcPump := NewSourcePump(node.Name(), source, t.resolvePumps(node.Children()), t.handleError)
@@ -83,13 +108,30 @@ func (t *streamTask) Close() error {
 }
 
 func (t *streamTask) closeTopology() error {
+	// Stop the pumps
 	nodes := flattenNodeTree(t.topology.Sources())
+	for _, node := range nodes {
+		t.pumps[node].Stop()
+	}
+
+	// Commit any outstanding batches and metadata
+	if err := t.supervisor.Commit(nil); err != nil {
+		return err
+	}
+
+	// Close the supervisor
+	if err := t.supervisor.Close(); err != nil {
+		return err
+	}
+
+	// Close the pumps
 	for _, node := range nodes {
 		if err := t.pumps[node].Close(); err != nil {
 			return err
 		}
 	}
 
+	// Close the sources
 	for _, srcPump := range t.srcPumps {
 		if err := srcPump.Close(); err != nil {
 			return err

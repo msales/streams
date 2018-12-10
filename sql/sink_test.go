@@ -1,311 +1,379 @@
 package sql_test
 
 import (
-	sql2 "database/sql"
+	"database/sql"
+	"errors"
 	"testing"
-	"time"
 
-	"github.com/msales/streams"
-	"github.com/msales/streams/mocks"
-	"github.com/msales/streams/sql"
-	"github.com/pkg/errors"
+	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v2/mocks"
+	sqlx "github.com/msales/streams/v2/sql"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-func TestNewSink(t *testing.T) {
-	db, _, err := sqlmock.New()
+func newDB(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+	db, m, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
 
-	s, err := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		return nil
-	}, sql.WithBatchMessages(1))
-
-	assert.NoError(t, err)
-	assert.IsType(t, &sql.Sink{}, s)
+	return db, m
 }
 
-func TestNewSinkMustHaveBatchOrFrequency(t *testing.T) {
-	db, _, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer db.Close()
-
-	_, err = sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
+func TestExecFunc_ImplementsExecutor(t *testing.T) {
+	exec := sqlx.ExecFunc(func(*sql.Tx, *streams.Message) error {
 		return nil
 	})
+
+	assert.Implements(t, (*sqlx.Executor)(nil), exec)
+}
+
+func TestExecFunc_Exec(t *testing.T) {
+	called := false
+	exec := sqlx.ExecFunc(func(*sql.Tx, *streams.Message) error {
+		called = true
+		return nil
+	})
+
+	err := exec.Exec(nil, nil)
+
+	assert.NoError(t, err)
+	assert.True(t, called)
+}
+
+func TestExecFunc_ExecError(t *testing.T) {
+	exec := sqlx.ExecFunc(func(*sql.Tx, *streams.Message) error {
+		return errors.New("test")
+	})
+
+	err := exec.Exec(nil, nil)
+
+	assert.Error(t, err)
+}
+
+func TestNewSink(t *testing.T) {
+	db, _ := newDB(t)
+	defer db.Close()
+
+	exec := new(MockExecutor)
+
+	s, err := sqlx.NewSink(db, 1, exec)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &sqlx.Sink{}, s)
+}
+
+func TestNewSinkMustHaveBatch(t *testing.T) {
+	db, _ := newDB(t)
+	defer db.Close()
+
+	exec := new(MockExecutor)
+
+	_, err := sqlx.NewSink(db, 0, exec)
 
 	assert.Error(t, err)
 }
 
 func TestSink_Process(t *testing.T) {
-	insertCalled := false
-
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	db, dbMock := newDB(t)
 	defer db.Close()
+	dbMock.ExpectBegin()
 
-	mock.ExpectBegin()
+	exec := new(MockExecutor)
+	exec.On("Exec", mock.Anything, mock.Anything).Return(nil)
 
 	pipe := mocks.NewPipe(t)
-	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		insertCalled = true
-		return nil
-	}, sql.WithBatchMessages(10))
+	pipe.ExpectMark("test", "test")
+
+	s, _ := sqlx.NewSink(db, 10, exec)
 	s.WithPipe(pipe)
 
-	err = s.Process(streams.NewMessage("test", "test"))
+	msg := streams.NewMessage("test", "test")
+
+	err := s.Process(msg)
 
 	assert.NoError(t, err)
-	assert.True(t, insertCalled)
-	if err := mock.ExpectationsWereMet(); err != nil {
+	exec.AssertCalled(t, "Exec", mock.Anything, msg)
+	if err := dbMock.ExpectationsWereMet(); err != nil {
 		t.Errorf("There were unfulfilled expectations: %s", err)
 	}
 }
 
 func TestSink_ProcessWithTxError(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	db, dbMock := newDB(t)
 	defer db.Close()
+	dbMock.ExpectBegin().WillReturnError(errors.New("test error"))
 
-	mock.ExpectBegin().WillReturnError(errors.New("test error"))
-
+	exec := new(MockExecutor)
 	pipe := mocks.NewPipe(t)
-	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		return nil
-	}, sql.WithBatchMessages(10))
+	s, _ := sqlx.NewSink(db, 10, exec)
 	s.WithPipe(pipe)
 
-	err = s.Process(streams.NewMessage("test", "test"))
+	err := s.Process(streams.NewMessage("test", "test"))
 
 	assert.Error(t, err)
-	if err := mock.ExpectationsWereMet(); err != nil {
+	if err := dbMock.ExpectationsWereMet(); err != nil {
 		t.Errorf("There were unfulfilled expectations: %s", err)
 	}
 }
 
 func TestSink_ProcessWithInsertError(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	db, dbMock := newDB(t)
 	defer db.Close()
+	dbMock.ExpectBegin()
 
-	mock.ExpectBegin()
+	exec := new(MockExecutor)
+	exec.On("Exec", mock.Anything, mock.Anything).Return(errors.New("test"))
 
 	pipe := mocks.NewPipe(t)
-	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		return errors.New("test error")
-	}, sql.WithBatchMessages(10))
+	s, _ := sqlx.NewSink(db, 10, exec)
 	s.WithPipe(pipe)
 
-	err = s.Process(streams.NewMessage("test", "test"))
+	err := s.Process(streams.NewMessage("test", "test"))
 
 	assert.Error(t, err)
-	if err := mock.ExpectationsWereMet(); err != nil {
+}
+
+func TestSink_ProcessWithTxBegin(t *testing.T) {
+	db, dbMock := newDB(t)
+	defer db.Close()
+	dbMock.ExpectBegin()
+
+	exec := new(MockExecutorTx)
+	exec.On("Begin", mock.Anything).Return(nil)
+	exec.On("Exec", mock.Anything, mock.Anything).Return(nil)
+
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectMark("test", "test")
+
+	s, _ := sqlx.NewSink(db, 10, exec)
+	s.WithPipe(pipe)
+
+	err := s.Process(streams.NewMessage("test", "test"))
+
+	assert.NoError(t, err)
+	exec.AssertExpectations(t)
+	if err := dbMock.ExpectationsWereMet(); err != nil {
 		t.Errorf("There were unfulfilled expectations: %s", err)
 	}
 }
 
-func TestSink_ProcessWithTxFuncs(t *testing.T) {
-	beginCalled := false
-	insertCalled := false
-	commitCalled := false
-
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+func TestSink_ProcessWithTxBeginError(t *testing.T) {
+	db, dbMock := newDB(t)
 	defer db.Close()
+	dbMock.ExpectBegin()
 
-	mock.ExpectBegin()
-	mock.ExpectCommit()
+	exec := new(MockExecutorTx)
+	exec.On("Begin", mock.Anything).Return(errors.New("test"))
 
 	pipe := mocks.NewPipe(t)
-	pipe.ExpectCommit()
-
-	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		insertCalled = true
-		return nil
-	}, sql.WithBatchMessages(1), sql.WithBeginFn(func(tx *sql2.Tx) error {
-		beginCalled = true
-		return nil
-	}), sql.WithCommitFn(func(tx *sql2.Tx) error {
-		commitCalled = true
-		return nil
-	}))
+	s, _ := sqlx.NewSink(db, 1, exec)
 	s.WithPipe(pipe)
 
-	err = s.Process(streams.NewMessage("test", "test"))
-
-	assert.NoError(t, err)
-	assert.True(t, beginCalled)
-	assert.True(t, insertCalled)
-	assert.True(t, commitCalled)
-	pipe.AssertExpectations()
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("There were unfulfilled expectations: %s", err)
-	}
-}
-
-func TestSink_ProcessWithBeginFuncError(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer db.Close()
-
-	mock.ExpectBegin()
-
-	pipe := mocks.NewPipe(t)
-	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		return nil
-	}, sql.WithBatchMessages(10), sql.WithBeginFn(func(tx *sql2.Tx) error {
-		return errors.New("test error")
-	}))
-	s.WithPipe(pipe)
-
-	err = s.Process(streams.NewMessage("test", "test"))
+	err := s.Process(streams.NewMessage("test", "test"))
 
 	assert.Error(t, err)
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("There were unfulfilled expectations: %s", err)
-	}
-}
-
-func TestSink_ProcessWithCommitFuncError(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
-	defer db.Close()
-
-	mock.ExpectBegin()
-
-	pipe := mocks.NewPipe(t)
-	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		return nil
-	}, sql.WithBatchMessages(1), sql.WithCommitFn(func(tx *sql2.Tx) error {
-		return errors.New("test error")
-	}))
-	s.WithPipe(pipe)
-
-	err = s.Process(streams.NewMessage("test", "test"))
-
-	assert.Error(t, err)
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("There were unfulfilled expectations: %s", err)
-	}
 }
 
 func TestSink_ProcessWithMessageCommit(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	db, dbMock := newDB(t)
 	defer db.Close()
+	dbMock.ExpectBegin()
 
-	mock.ExpectBegin()
-	mock.ExpectCommit()
+	exec := new(MockExecutor)
+	exec.On("Exec", mock.Anything, mock.Anything).Return(nil)
 
 	pipe := mocks.NewPipe(t)
+	pipe.ExpectMark("test", "test")
 	pipe.ExpectCommit()
 
-	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		return nil
-	}, sql.WithBatchMessages(2))
+	s, _ := sqlx.NewSink(db, 2, exec)
 	s.WithPipe(pipe)
 
-	s.Process(streams.NewMessage("test", "test"))
-	err = s.Process(streams.NewMessage("test", "test"))
+	_ = s.Process(streams.NewMessage("test", "test"))
+	err := s.Process(streams.NewMessage("test1", "test1"))
 
 	assert.NoError(t, err)
 	pipe.AssertExpectations()
-	if err := mock.ExpectationsWereMet(); err != nil {
+}
+
+func TestSink_Commit(t *testing.T) {
+	db, dbMock := newDB(t)
+	defer db.Close()
+	dbMock.ExpectBegin()
+	dbMock.ExpectCommit()
+
+	exec := new(MockExecutor)
+	exec.On("Exec", mock.Anything, mock.Anything).Return(nil)
+
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectMark(mocks.Anything, mocks.Anything)
+
+	s, _ := sqlx.NewSink(db, 2, exec)
+	s.WithPipe(pipe)
+	_ = s.Process(streams.NewMessage("test1", "test1"))
+
+	err := s.Commit()
+
+	assert.NoError(t, err)
+	if err := dbMock.ExpectationsWereMet(); err != nil {
 		t.Errorf("There were unfulfilled expectations: %s", err)
 	}
 }
 
-func TestSink_ProcessWithFrequencyCommit(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+func TestSink_CommitNoTransaction(t *testing.T) {
+	db, _ := newDB(t)
 	defer db.Close()
 
-	mock.ExpectBegin()
-	mock.ExpectCommit()
-
+	exec := new(MockExecutor)
 	pipe := mocks.NewPipe(t)
-	pipe.ExpectCommit()
-
-	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		return nil
-	}, sql.WithBatchFrequency(time.Millisecond))
+	s, _ := sqlx.NewSink(db, 2, exec)
 	s.WithPipe(pipe)
 
-	s.Process(streams.NewMessage("test", "test"))
-	time.Sleep(time.Millisecond)
-	err = s.Process(streams.NewMessage("test", "test"))
+	err := s.Commit()
 
 	assert.NoError(t, err)
-	pipe.AssertExpectations()
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("There were unfulfilled expectations: %s", err)
-	}
 }
 
-func TestSink_ProcessWithCommitError(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+func TestSink_CommitTxCommit(t *testing.T) {
+	db, dbMock := newDB(t)
 	defer db.Close()
+	dbMock.ExpectBegin()
+	dbMock.ExpectCommit()
 
-	mock.ExpectBegin()
-	mock.ExpectCommit().WillReturnError(errors.New("test error"))
+	exec := new(MockExecutorTx)
+	exec.On("Begin", mock.Anything).Return(nil)
+	exec.On("Exec", mock.Anything, mock.Anything).Return(nil)
+	exec.On("Commit", mock.Anything).Return(nil)
 
 	pipe := mocks.NewPipe(t)
-	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		return nil
-	}, sql.WithBatchMessages(1))
-	s.WithPipe(pipe)
+	pipe.ExpectMark(mocks.Anything, mocks.Anything)
 
-	err = s.Process(streams.NewMessage("test", "test"))
+	s, _ := sqlx.NewSink(db, 2, exec)
+	s.WithPipe(pipe)
+	_ = s.Process(streams.NewMessage("test1", "test1"))
+
+	err := s.Commit()
+
+	assert.NoError(t, err)
+	exec.AssertExpectations(t)
+}
+
+func TestSink_CommitTxCommitError(t *testing.T) {
+	db, dbMock := newDB(t)
+	defer db.Close()
+	dbMock.ExpectBegin()
+
+	exec := new(MockExecutorTx)
+	exec.On("Begin", mock.Anything).Return(nil)
+	exec.On("Exec", mock.Anything, mock.Anything).Return(nil)
+	exec.On("Commit", mock.Anything).Return(errors.New("test"))
+
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectMark(mocks.Anything, mocks.Anything)
+
+	s, _ := sqlx.NewSink(db, 2, exec)
+	s.WithPipe(pipe)
+	_ = s.Process(streams.NewMessage("test1", "test1"))
+
+	err := s.Commit()
 
 	assert.Error(t, err)
-	if err := mock.ExpectationsWereMet(); err != nil {
+}
+
+func TestSink_CommitDBError(t *testing.T) {
+	db, dbMock := newDB(t)
+	defer db.Close()
+	dbMock.ExpectBegin()
+	dbMock.ExpectCommit().WillReturnError(errors.New("test error"))
+
+	exec := new(MockExecutorTx)
+	exec.On("Begin", mock.Anything).Return(nil)
+	exec.On("Exec", mock.Anything, mock.Anything).Return(nil)
+	exec.On("Commit", mock.Anything).Return(nil)
+
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectMark(mocks.Anything, mocks.Anything)
+
+	s, _ := sqlx.NewSink(db, 2, exec)
+	s.WithPipe(pipe)
+	_ = s.Process(streams.NewMessage("test1", "test1"))
+
+	err := s.Commit()
+
+	assert.Error(t, err)
+	if err := dbMock.ExpectationsWereMet(); err != nil {
 		t.Errorf("There were unfulfilled expectations: %s", err)
 	}
 }
 
 func TestSink_Close(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	db, dbMock := newDB(t)
 	defer db.Close()
+	dbMock.ExpectClose()
 
-	mock.ExpectClose()
-
+	exec := new(MockExecutor)
 	pipe := mocks.NewPipe(t)
-	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		return nil
-	}, sql.WithBatchMessages(10))
+	s, _ := sqlx.NewSink(db, 10, exec)
 	s.WithPipe(pipe)
 
-	err = s.Close()
+	err := s.Close()
 
 	assert.NoError(t, err)
-	if err := mock.ExpectationsWereMet(); err != nil {
+	if err := dbMock.ExpectationsWereMet(); err != nil {
 		t.Errorf("There were unfulfilled expectations: %s", err)
 	}
 }
 
-func TestSink_CloseWithTxError(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+func TestSink_CloseWithTxRollback(t *testing.T) {
+	db, dbMock := newDB(t)
 	defer db.Close()
+	dbMock.ExpectBegin()
+	dbMock.ExpectRollback()
+	dbMock.ExpectClose()
 
-	mock.ExpectBegin()
-	mock.ExpectCommit().WillReturnError(errors.New("test error"))
+	exec := new(MockExecutor)
+	exec.On("Exec", mock.Anything, mock.Anything).Return(nil)
 
 	pipe := mocks.NewPipe(t)
-	s, _ := sql.NewSink(db, func(*sql2.Tx, *streams.Message) error {
-		return nil
-	}, sql.WithBatchMessages(10))
+	pipe.ExpectMark(mocks.Anything, mocks.Anything)
+
+	s, _ := sqlx.NewSink(db, 10, exec)
 	s.WithPipe(pipe)
-	err = s.Process(streams.NewMessage("test", "test"))
+	_ = s.Process(streams.NewMessage("test", "test"))
+
+	err := s.Close()
+
 	assert.NoError(t, err)
-
-	err = s.Close()
-
-	assert.Error(t, err)
-	if err := mock.ExpectationsWereMet(); err != nil {
+	if err := dbMock.ExpectationsWereMet(); err != nil {
 		t.Errorf("There were unfulfilled expectations: %s", err)
 	}
+}
+
+type MockExecutor struct {
+	mock.Mock
+}
+
+func (m *MockExecutor) Exec(tx *sql.Tx, msg *streams.Message) error {
+	args := m.Called(tx, msg)
+	return args.Error(0)
+}
+
+type MockExecutorTx struct {
+	mock.Mock
+}
+
+func (m *MockExecutorTx) Begin(tx *sql.Tx) error {
+	args := m.Called(tx)
+	return args.Error(0)
+}
+
+func (m *MockExecutorTx) Exec(tx *sql.Tx, msg *streams.Message) error {
+	args := m.Called(tx, msg)
+	return args.Error(0)
+}
+
+func (m *MockExecutorTx) Commit(tx *sql.Tx) error {
+	args := m.Called(tx)
+	return args.Error(0)
 }

@@ -1,9 +1,10 @@
-package streams
+package streams_test
 
 import (
 	"context"
 	"testing"
 
+	"github.com/msales/streams/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,14 +21,14 @@ func TestMessage_Empty(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		msg := NewMessage(tt.key, tt.value)
+		msg := streams.NewMessage(tt.key, tt.value)
 
 		assert.Equal(t, tt.empty, msg.Empty())
 	}
 }
 
 func TestNewMessage(t *testing.T) {
-	msg := NewMessage("test", "test")
+	msg := streams.NewMessage("test", "test")
 
 	assert.Equal(t, context.Background(), msg.Ctx)
 	assert.Equal(t, "test", msg.Key)
@@ -38,7 +39,7 @@ type ctxKey string
 
 func TestNewMessageWithContext(t *testing.T) {
 	ctx := context.WithValue(context.Background(), ctxKey("1"), "2")
-	msg := NewMessageWithContext(ctx, "test", "test")
+	msg := streams.NewMessageWithContext(ctx, "test", "test")
 
 	assert.Equal(t, ctx, msg.Ctx)
 	assert.Equal(t, "test", msg.Key)
@@ -46,10 +47,13 @@ func TestNewMessageWithContext(t *testing.T) {
 }
 
 func TestMessage_Metadata(t *testing.T) {
-	msg := NewMessage("test", "test")
+	s := new(MockSource)
+	m := new(MockMetadata)
+	msg := streams.NewMessage("test", "test")
 
-	msg.WithMetadata(nil, "test")
+	msg.WithMetadata(s, m)
 
-	assert.Len(t, msg.Metadata(), 1)
-	assert.Equal(t, "test", msg.Metadata()[nil])
+	src, meta := msg.Metadata()
+	assert.Equal(t, s, src)
+	assert.Equal(t, m, meta)
 }

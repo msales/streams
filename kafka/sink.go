@@ -2,7 +2,7 @@ package kafka
 
 import (
 	"github.com/Shopify/sarama"
-	"github.com/msales/streams"
+	"github.com/msales/streams/v2"
 )
 
 // SinkConfig represents the configuration of a Sink.
@@ -122,15 +122,20 @@ func (p *Sink) Process(msg *streams.Message) error {
 	p.count++
 
 	if p.count >= p.batch {
-		if err := p.producer.SendMessages(p.buf); err != nil {
-			return err
-		}
-
-		p.count = 0
-		p.buf = p.buf[:0]
-
 		return p.pipe.Commit(msg)
 	}
+
+	return p.pipe.Mark(msg)
+}
+
+//Commit commits a processors batch.
+func (p *Sink) Commit() error {
+	if err := p.producer.SendMessages(p.buf); err != nil {
+		return err
+	}
+
+	p.count = 0
+	p.buf = p.buf[:0]
 
 	return nil
 }

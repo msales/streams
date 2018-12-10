@@ -4,15 +4,13 @@ import (
 	"context"
 	"log"
 	"math/rand"
-	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/pkg/stats"
-	"github.com/msales/streams"
-	"github.com/msales/streams/kafka"
+	"github.com/msales/pkg/v3/clix"
+	"github.com/msales/pkg/v3/stats"
+	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v2/kafka"
 )
 
 func main() {
@@ -42,8 +40,7 @@ func main() {
 	defer c.Close()
 	defer p.Close()
 
-	// Wait for SIGTERM
-	<-waitForSignals()
+	<-clix.WaitForSignals()
 }
 
 func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (streams.Task, error) {
@@ -60,10 +57,11 @@ func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 
 	builder := streams.NewStreamBuilder()
 	builder.Source("rand-source", newRandIntSource(ctx)).
-		Map("to-string", stringMapper).
+		MapFunc("to-string", stringMapper).
 		Process("kafka-sink", sink)
 
-	task := streams.NewTask(builder.Build())
+	tp, _ := builder.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -76,7 +74,7 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 	config.Config = *c
 	config.Brokers = brokers
 	config.Topic = "example1"
-	config.GroupId = "example-consumer"
+	config.GroupID = "example-consumer"
 	config.ValueDecoder = kafka.StringDecoder{}
 	config.Ctx = ctx
 
@@ -85,12 +83,15 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 		return nil, err
 	}
 
+	sink := newCommitProcessor(1000)
+
 	builder := streams.NewStreamBuilder()
 	builder.Source("kafka-source", src).
-		Map("to-int", intMapper).
-		Print("print")
+		MapFunc("to-int", intMapper).
+		Process("commit-sink", sink)
 
-	task := streams.NewTask(builder.Build())
+	tp, _ := builder.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -141,9 +142,39 @@ func intMapper(msg *streams.Message) (*streams.Message, error) {
 	return msg, nil
 }
 
-func waitForSignals() chan os.Signal {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+type commitProcessor struct {
+	pipe streams.Pipe
 
-	return sigs
+	batch int
+	count int
+}
+
+func newCommitProcessor(batch int) streams.Processor {
+	return &commitProcessor{
+		batch: batch,
+	}
+}
+
+func (p *commitProcessor) WithPipe(pipe streams.Pipe) {
+	p.pipe = pipe
+}
+
+func (p *commitProcessor) Process(msg *streams.Message) error {
+	p.count++
+
+	if p.count >= p.batch {
+		return p.pipe.Commit(msg)
+	}
+
+	return p.pipe.Mark(msg)
+}
+
+func (p *commitProcessor) Commit() error {
+	p.count = 0
+
+	return nil
+}
+
+func (p *commitProcessor) Close() error {
+	return nil
 }

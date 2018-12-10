@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/msales/pkg/stats"
-	"github.com/msales/streams"
+	"github.com/msales/pkg/v3/stats"
+	"github.com/msales/streams/v2"
 )
 
 import _ "net/http/pprof"
@@ -41,9 +41,10 @@ func main() {
 func task(ctx context.Context) (streams.Task, error) {
 	builder := streams.NewStreamBuilder()
 	builder.Source("nil-source", newNilSource(ctx)).
-		Map("do-nothing", nothingMapper)
+		MapFunc("do-nothing", nothingMapper)
 
-	task := streams.NewTask(builder.Build())
+	tp, _ := builder.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -62,7 +63,7 @@ func newNilSource(ctx context.Context) streams.Source {
 }
 
 func (s *nilSource) Consume() (*streams.Message, error) {
-	return streams.NewMessageWithContext(s.ctx, nil, nil), nil
+	return streams.NewMessageWithContext(s.ctx, nil, 1), nil
 }
 
 func (s *nilSource) Commit(v interface{}) error {
@@ -74,7 +75,7 @@ func (s *nilSource) Close() error {
 }
 
 func nothingMapper(msg *streams.Message) (*streams.Message, error) {
-	return msg, nil
+	return nil, nil
 }
 
 func waitForSignals() chan os.Signal {

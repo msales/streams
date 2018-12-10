@@ -6,7 +6,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
-	"github.com/msales/streams"
+	"github.com/msales/streams/v2"
 	"github.com/pkg/errors"
 )
 
@@ -16,19 +16,13 @@ type SourceConfig struct {
 
 	Brokers []string
 	Topic   string
-	GroupId string
+	GroupID string
 
 	Ctx          context.Context
 	KeyDecoder   Decoder
 	ValueDecoder Decoder
 
 	BufferSize int
-}
-
-type marker struct {
-	Topic     string
-	Partition int32
-	Offset    int64
 }
 
 // NewSourceConfig creates a new Kafka source configuration.
@@ -66,15 +60,88 @@ func (c *SourceConfig) Validate() error {
 	return nil
 }
 
+// Metadata represents an the kafka topic metadata.
+type Metadata []*PartitionOffset
+
+func (m Metadata) find(topic string, partition int32) (int, *PartitionOffset) {
+	for i, pos := range m {
+		if pos.Topic == topic && pos.Partition == partition {
+			return i, pos
+		}
+	}
+
+	return -1, nil
+}
+
+// WithOrigin sets the MetadataOrigin on the metadata.
+func (m Metadata) WithOrigin(o streams.MetadataOrigin) {
+	for _, pos := range m {
+		pos.Origin = o
+	}
+}
+
+// Update updates the given metadata with the contained metadata.
+func (m Metadata) Update(v streams.Metadata) streams.Metadata {
+	if v == nil {
+		return m
+	}
+
+	metadata := v.(Metadata)
+	for _, newPos := range m {
+		i, oldPos := metadata.find(newPos.Topic, newPos.Partition)
+		if oldPos == nil {
+			metadata = append(metadata, newPos)
+			continue
+		}
+
+		if newPos.Offset > oldPos.Offset {
+			metadata[i] = newPos
+		}
+	}
+
+	return metadata
+}
+
+// Merge merges the contained metadata into the given the metadata.
+func (m Metadata) Merge(v streams.Metadata) streams.Metadata {
+	if v == nil {
+		return m
+	}
+
+	metadata := v.(Metadata)
+	for _, newPos := range m {
+		i, oldPos := metadata.find(newPos.Topic, newPos.Partition)
+		if oldPos == nil {
+			metadata = append(metadata, newPos)
+			continue
+		}
+
+		if (newPos.Origin == oldPos.Origin && newPos.Offset < oldPos.Offset) || (newPos.Origin < oldPos.Origin) {
+			metadata[i] = newPos
+		}
+	}
+
+	return metadata
+}
+
+// PartitionOffset represents the position in the stream of a message.
+type PartitionOffset struct {
+	Origin streams.MetadataOrigin
+
+	Topic     string
+	Partition int32
+	Offset    int64
+}
+
 // Source represents a Kafka stream source.
 type Source struct {
+	topic    string
 	consumer *cluster.Consumer
 
 	ctx          context.Context
 	keyDecoder   Decoder
 	valueDecoder Decoder
 
-	state   map[string]map[int32]int64
 	buf     chan *sarama.ConsumerMessage
 	lastErr error
 }
@@ -89,18 +156,18 @@ func NewSource(c *SourceConfig) (*Source, error) {
 	cc.Config = c.Config
 	cc.Consumer.Return.Errors = true
 
-	consumer, err := cluster.NewConsumer(c.Brokers, c.GroupId, []string{c.Topic}, cc)
+	consumer, err := cluster.NewConsumer(c.Brokers, c.GroupID, []string{c.Topic}, cc)
 	if err != nil {
 		return nil, err
 	}
 
 	s := &Source{
+		topic:        c.Topic,
 		consumer:     consumer,
 		ctx:          c.Ctx,
 		keyDecoder:   c.KeyDecoder,
 		valueDecoder: c.ValueDecoder,
 		buf:          make(chan *sarama.ConsumerMessage, c.BufferSize),
-		state:        make(map[string]map[int32]int64),
 	}
 
 	go s.readErrors()
@@ -128,7 +195,7 @@ func (s *Source) Consume() (*streams.Message, error) {
 		}
 
 		m := streams.NewMessageWithContext(s.ctx, k, v).
-			WithMetadata(s, s.markState(msg))
+			WithMetadata(s, s.createMetadata(msg))
 		return m, nil
 
 	case <-time.After(100 * time.Millisecond):
@@ -138,13 +205,17 @@ func (s *Source) Consume() (*streams.Message, error) {
 
 // Commit marks the consumed records as processed.
 func (s *Source) Commit(v interface{}) error {
-	state := v.([]marker)
-	for _, m := range state {
-		s.consumer.MarkPartitionOffset(m.Topic, m.Partition, m.Offset, "")
+	if v == nil {
+		return nil
+	}
+
+	state := v.(Metadata)
+	for _, pos := range state {
+		s.consumer.MarkPartitionOffset(pos.Topic, pos.Partition, pos.Offset, "")
 	}
 
 	if err := s.consumer.CommitOffsets(); err != nil {
-		return errors.Wrap(err, "streams: could not commit kafka offset")
+		return errors.Wrap(err, "kafka: could not commit kafka offset")
 	}
 
 	return nil
@@ -155,23 +226,12 @@ func (s *Source) Close() error {
 	return s.consumer.Close()
 }
 
-func (s *Source) markState(msg *sarama.ConsumerMessage) []marker {
-	partitions, ok := s.state[msg.Topic]
-	if !ok {
-		partitions = make(map[int32]int64)
-		s.state[msg.Topic] = partitions
-	}
-
-	partitions[msg.Partition] = msg.Offset
-
-	var markers []marker
-	for topic, partitions := range s.state {
-		for partition, offset := range partitions {
-			markers = append(markers, marker{Topic: topic, Partition: partition, Offset: offset})
-		}
-	}
-
-	return markers
+func (s *Source) createMetadata(msg *sarama.ConsumerMessage) Metadata {
+	return Metadata{&PartitionOffset{
+		Topic:     msg.Topic,
+		Partition: msg.Partition,
+		Offset:    msg.Offset,
+	}}
 }
 
 func (s *Source) readErrors() {

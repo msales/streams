@@ -7,17 +7,18 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/msales/streams"
+	"github.com/msales/streams/v2"
 )
 
 func main() {
 	builder := streams.NewStreamBuilder()
 	builder.Source("rand-source", newRandIntSource()).
-		Filter("odd-filter", oddNumberFilter).
-		Map("double-mapper", doubleMapper).
+		FilterFunc("odd-filter", oddNumberFilter).
+		MapFunc("double-mapper", doubleMapper).
 		Print("print")
 
-	task := streams.NewTask(builder.Build())
+	tp, _ := builder.Build()
+	task := streams.NewTask(tp)
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})

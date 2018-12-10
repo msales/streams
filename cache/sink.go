@@ -3,8 +3,8 @@ package cache
 import (
 	"time"
 
-	"github.com/msales/pkg/cache"
-	"github.com/msales/streams"
+	"github.com/msales/pkg/v3/cache"
+	"github.com/msales/streams/v2"
 )
 
 // Sink represents a Cache streams sink.
@@ -48,7 +48,7 @@ func (p *Sink) Process(msg *streams.Message) error {
 		return p.pipe.Commit(msg)
 	}
 
-	return nil
+	return p.pipe.Mark(msg)
 }
 
 // Close closes the processor.

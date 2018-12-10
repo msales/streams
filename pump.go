@@ -5,19 +5,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/msales/pkg/stats"
+	"github.com/msales/pkg/v3/stats"
 )
 
 // Pump represent a Message pump.
 type Pump interface {
-	// Process processes a message in the Pump.
-	Process(*Message) error
+	sync.Locker
+
+	// Accept takes a message to be processed in the Pump.
+	Accept(*Message) error
+	// Stop stops the pump.
+	Stop()
 	// Close closes the pump.
 	Close() error
 }
 
 // processorPump is an asynchronous Message Pump.
 type processorPump struct {
+	sync.Mutex
+
 	name      string
 	processor Processor
 	pipe      TimedPipe
@@ -47,37 +53,51 @@ func (p *processorPump) run() {
 	p.wg.Add(1)
 	defer p.wg.Done()
 
+	tags := []interface{}{"name", p.name}
+
 	for msg := range p.ch {
 		p.pipe.Reset()
-		start := time.Now()
 
-		if err := p.processor.Process(msg); err != nil {
+		p.Lock()
+
+		start := nanotime()
+		err := p.processor.Process(msg)
+		if err != nil {
+			p.Unlock()
 			p.errFn(err)
+
 			return
 		}
+		latency := time.Duration(nanotime()-start) - p.pipe.Duration()
 
-		latency := time.Since(start) - p.pipe.Duration()
+		p.Unlock()
+
 		withStats(msg.Ctx, func(s stats.Stats) {
-			s.Timing("node.latency", latency, 0.1, "name", p.name)
-			s.Inc("node.throughput", 1, 0.1, "name", p.name)
-			s.Gauge("node.back-pressure", pressure(p.ch), 0.1, "name", p.name)
+			s.Timing("node.latency", latency, 0.1, tags...)
+			s.Inc("node.throughput", 1, 0.1, tags...)
+			s.Gauge("node.back-pressure", pressure(p.ch), 0.1, tags...)
 		})
 	}
 }
 
-// Process processes a message in the Pump.
-func (p *processorPump) Process(msg *Message) error {
+// Accept takes a message to be processed in the Pump.
+func (p *processorPump) Accept(msg *Message) error {
 	p.ch <- msg
 
 	return nil
 }
 
-// Close closes the pump.
-func (p *processorPump) Close() error {
+// Stop stops the pump, but does not close it.
+func (p *processorPump) Stop() {
 	close(p.ch)
 
 	p.wg.Wait()
+}
 
+// Close closes the pump.
+//
+// Stop must be called before closing the pump.
+func (p *processorPump) Close() error {
 	return p.processor.Close()
 }
 
@@ -137,12 +157,14 @@ func (p *sourcePump) run() {
 	p.wg.Add(1)
 	defer p.wg.Done()
 
+	tags := []interface{}{"name", p.name}
+
 	for {
 		select {
 		case <-p.quit:
 			return
 		default:
-			start := time.Now()
+			start := nanotime()
 
 			msg, err := p.source.Consume()
 			if err != nil {
@@ -154,14 +176,14 @@ func (p *sourcePump) run() {
 				continue
 			}
 
-			latency := time.Since(start)
+			latency := time.Duration(nanotime() - start)
 			withStats(msg.Ctx, func(s stats.Stats) {
-				s.Timing("node.latency", latency, 0.1, "name", p.name)
-				s.Inc("node.throughput", 1, 0.1, "name", p.name)
+				s.Timing("node.latency", latency, 0.1, tags...)
+				s.Inc("node.throughput", 1, 0.1, tags...)
 			})
 
 			for _, pump := range p.pumps {
-				err = pump.Process(msg)
+				err = pump.Accept(msg)
 				if err != nil {
 					go p.errFn(err)
 					return

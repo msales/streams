@@ -2,23 +2,21 @@ sudo: false
 
 language: go
 go:
-  - "1.10"
+  - "1.11"
+  - "1.x"
+env:
+  - GO111MODULE=on
 
 before_install:
-  - curl -L -s https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -o $GOPATH/bin/dep
-  - chmod +x $GOPATH/bin/dep
   - go get -u golang.org/x/lint/golint
-  - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
-
-install:
-  - dep ensure
+  - go get github.com/mattn/goveralls
 
 script:
-#  - golint $(go list ./... | grep -v /vendor/)
+#  - golint ./...
   - go vet ./...
-  - go test -cover ./...
-  - $HOME/gopath/bin/goveralls -service=travis-ci -ignore=example/*
+  - go test -covermode=count -coverprofile=profile.cov ./...
+  - goveralls -coverprofile=profile.cov -service=travis-ci -ignore=example/*
 
 notifications:
   email: false

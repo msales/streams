@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/msales/streams"
+	"github.com/msales/streams/v2"
 )
 
 type record struct {
@@ -29,6 +29,7 @@ type Pipe struct {
 
 	shouldError bool
 
+	expectMark    []record
 	expectForward []record
 	expectCommit  bool
 }
@@ -38,6 +39,7 @@ func NewPipe(t *testing.T) *Pipe {
 	return &Pipe{
 		t:             t,
 		msgs:          []ChildMessage{},
+		expectMark:    []record{},
 		expectForward: []record{},
 	}
 }
@@ -45,6 +47,28 @@ func NewPipe(t *testing.T) *Pipe {
 // Messages gets the queued Messages for each Node.
 func (p *Pipe) Messages() []ChildMessage {
 	return p.msgs
+}
+
+// Mark indicates that the message has been delt with
+func (p *Pipe) Mark(msg *streams.Message) error {
+	if len(p.expectMark) == 0 {
+		p.t.Error("streams: mock: Unexpected call to Mark")
+		return nil
+	}
+	record := p.expectMark[0]
+	p.expectMark = p.expectMark[1:]
+
+	if (record.key != Anything && msg.Key != record.key) ||
+		(record.value != Anything && msg.Value != record.value) {
+		p.t.Errorf("streams: mock: Arguments to Mark did not match expectation: wanted %v:%v, got %v:%v", record.key, record.value, msg.Key, msg.Value)
+	}
+
+	if p.shouldError {
+		p.shouldError = false
+		return errors.New("test")
+	}
+
+	return nil
 }
 
 // Forward queues the data to all processor children in the topology.
@@ -117,23 +141,32 @@ func (p *Pipe) ShouldError() {
 	p.shouldError = true
 }
 
-// ExpectForward registers an expectation of a Forward of the Pipe.
+// ExpectMark registers an expectation of a Mark on the Pipe.
+func (p *Pipe) ExpectMark(k, v interface{}) {
+	p.expectMark = append(p.expectMark, record{k, v, -1})
+}
+
+// ExpectForward registers an expectation of a Forward on the Pipe.
 func (p *Pipe) ExpectForward(k, v interface{}) {
 	p.expectForward = append(p.expectForward, record{k, v, -1})
 }
 
-// ExpectForwardToChild registers an expectation of a ForwardToChild the Pipe.
+// ExpectForwardToChild registers an expectation of a ForwardToChild on the Pipe.
 func (p *Pipe) ExpectForwardToChild(k, v interface{}, index int) {
 	p.expectForward = append(p.expectForward, record{k, v, index})
 }
 
-// ExpectCommit registers an expectation of a Commit the Pipe.
+// ExpectCommit registers an expectation of a Commit on the Pipe.
 func (p *Pipe) ExpectCommit() {
 	p.expectCommit = true
 }
 
 // AssertExpectations asserts that the expectations were met.
 func (p *Pipe) AssertExpectations() {
+	if len(p.expectMark) > 0 {
+		p.t.Error("streams: mock: Expected a call to Mark but got none")
+	}
+
 	if len(p.expectForward) > 0 {
 		p.t.Error("streams: mock: Expected a call to Forward or ForwardToChild but got none")
 	}

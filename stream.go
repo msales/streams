@@ -20,7 +20,7 @@ func (sb *StreamBuilder) Source(name string, source Source) *Stream {
 }
 
 // Build builds the stream Topology.
-func (sb *StreamBuilder) Build() *Topology {
+func (sb *StreamBuilder) Build() (*Topology, []error) {
 	return sb.tp.Build()
 }
 
@@ -37,7 +37,7 @@ func newStream(tp *TopologyBuilder, parents []Node) *Stream {
 	}
 }
 
-// Filter filters the stream using a Predicate.
+// Filter filters the stream using a predicate.
 func (s *Stream) Filter(name string, pred Predicate) *Stream {
 	p := NewFilterProcessor(pred)
 	n := s.tp.AddProcessor(name, p, s.parents)
@@ -45,7 +45,12 @@ func (s *Stream) Filter(name string, pred Predicate) *Stream {
 	return newStream(s.tp, []Node{n})
 }
 
-// Branch branches a stream based in the given Predcates.
+// FilterFunc filters the stream using a predicate.
+func (s *Stream) FilterFunc(name string, pred PredicateFunc) *Stream {
+	return s.Filter(name, pred)
+}
+
+// Branch branches a stream based on the given predicates.
 func (s *Stream) Branch(name string, preds ...Predicate) []*Stream {
 	p := NewBranchProcessor(preds)
 	n := s.tp.AddProcessor(name, p, s.parents)
@@ -57,12 +62,27 @@ func (s *Stream) Branch(name string, preds ...Predicate) []*Stream {
 	return streams
 }
 
-// Map runs a Mapper on the stream.
+// BranchFunc branches a stream based on the given predicates.
+func (s *Stream) BranchFunc(name string, preds ...PredicateFunc) []*Stream {
+	ps := make([]Predicate, len(preds))
+	for i, fn := range preds {
+		ps[i] = fn
+	}
+
+	return s.Branch(name, ps...)
+}
+
+// Map runs a mapper on the stream.
 func (s *Stream) Map(name string, mapper Mapper) *Stream {
 	p := NewMapProcessor(mapper)
 	n := s.tp.AddProcessor(name, p, s.parents)
 
 	return newStream(s.tp, []Node{n})
+}
+
+// MapFunc runs a mapper on the stream.
+func (s *Stream) MapFunc(name string, mapper MapperFunc) *Stream {
+	return s.Map(name, mapper)
 }
 
 // FlatMap runs a flat mapper on the stream.
@@ -71,6 +91,11 @@ func (s *Stream) FlatMap(name string, mapper FlatMapper) *Stream {
 	n := s.tp.AddProcessor(name, p, s.parents)
 
 	return newStream(s.tp, []Node{n})
+}
+
+// FlatMapFunc runs a flat mapper on the stream.
+func (s *Stream) FlatMapFunc(name string, mapper FlatMapperFunc) *Stream {
+	return s.FlatMap(name, mapper)
 }
 
 // Merge merges one or more streams into this stream.
