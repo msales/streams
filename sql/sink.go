@@ -39,8 +39,8 @@ type Sink struct {
 	exec   Executor
 	txHdlr Transaction
 
-	batch      int
-	count      int
+	batch int
+	count int
 }
 
 // NewSink creates a new batch sql insert sink.

@@ -392,11 +392,11 @@ func TestTimedSupervisor_CommitResetsTimer(t *testing.T) {
 	_ = supervisor.Start()
 	defer supervisor.Close()
 
-	time.Sleep(5*time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 
 	_ = supervisor.Commit(caller)
 
-	time.Sleep(6*time.Millisecond)
+	time.Sleep(6 * time.Millisecond)
 
 	inner.AssertNumberOfCalls(t, "Commit", 1)
 }
