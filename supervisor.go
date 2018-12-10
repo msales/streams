@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/msales/streams/v2/pkg/syncx"
+	"github.com/msales/pkg/v3/syncx"
 )
 
 const (
@@ -23,6 +23,16 @@ var (
 	// ErrUnknownPump is returned when the supervisor is unable to find a pump for a given processor.
 	ErrUnknownPump = errors.New("streams: encountered an unknown pump")
 )
+
+// NopLocker is a no-op implementation of Locker interface.
+type nopLocker struct{}
+
+// Lock performs no action.
+func (*nopLocker) Lock() {}
+
+// Unlock performs no action.
+func (*nopLocker) Unlock() {}
+
 
 // Supervisor represents a concurrency-safe stream supervisor.
 //
@@ -142,7 +152,7 @@ func (s *supervisor) commit(caller Processor, comm Committer) (Metaitems, error)
 
 func (s *supervisor) getLocker(caller, proc Processor) (sync.Locker, error) {
 	if caller == proc {
-		return &syncx.NopLocker{}, nil
+		return &nopLocker{}, nil
 	}
 
 	pump, ok := s.pumps[proc]
