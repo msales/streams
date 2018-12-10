@@ -3,7 +3,7 @@ package kafka_test
 import (
 	"testing"
 
-	"github.com/msales/streams/kafka"
+	"github.com/msales/streams/v2/kafka"
 	"github.com/stretchr/testify/assert"
 )
 

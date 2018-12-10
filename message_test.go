@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/msales/streams"
+	"github.com/msales/streams/v2"
 	"github.com/stretchr/testify/assert"
 )
 

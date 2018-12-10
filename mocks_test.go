@@ -3,7 +3,7 @@ package streams_test
 import (
 	"time"
 
-	"github.com/msales/streams"
+	"github.com/msales/streams/v2"
 	"github.com/stretchr/testify/mock"
 )
 

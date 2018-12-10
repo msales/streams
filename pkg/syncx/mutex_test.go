@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/msales/streams/pkg/syncx"
+	"github.com/msales/streams/v2/pkg/syncx"
 	"github.com/stretchr/testify/assert"
 )
 

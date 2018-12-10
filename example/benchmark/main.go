@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/msales/pkg/v3/stats"
-	"github.com/msales/streams"
+	"github.com/msales/streams/v2"
 )
 
 import _ "net/http/pprof"

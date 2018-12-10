@@ -2,7 +2,7 @@ package kafka
 
 import (
 	"github.com/Shopify/sarama"
-	"github.com/msales/streams"
+	"github.com/msales/streams/v2"
 )
 
 // SinkConfig represents the configuration of a Sink.

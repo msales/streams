@@ -1,4 +1,4 @@
-module github.com/msales/streams
+module github.com/msales/streams/v2
 
 require (
 	github.com/Shopify/sarama v1.19.0

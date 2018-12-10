@@ -3,7 +3,7 @@ package streams_test
 import (
 	"sync"
 
-	"github.com/msales/streams"
+	"github.com/msales/streams/v2"
 )
 
 type fakeSource struct {

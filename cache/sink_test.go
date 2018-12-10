@@ -6,9 +6,9 @@ import (
 	"time"
 
 	cache2 "github.com/msales/pkg/v3/cache"
-	"github.com/msales/streams"
-	"github.com/msales/streams/cache"
-	"github.com/msales/streams/mocks"
+	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v2/cache"
+	"github.com/msales/streams/v2/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

@@ -9,8 +9,8 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/msales/pkg/v3/clix"
 	"github.com/msales/pkg/v3/stats"
-	"github.com/msales/streams"
-	"github.com/msales/streams/kafka"
+	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v2/kafka"
 )
 
 func main() {

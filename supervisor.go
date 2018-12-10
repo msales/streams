@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/msales/streams/pkg/syncx"
+	"github.com/msales/streams/v2/pkg/syncx"
 )
 
 const (
