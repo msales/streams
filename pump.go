@@ -78,6 +78,8 @@ func (p *processorPump) run() {
 			s.Gauge("node.back-pressure", pressure(p.ch), 0.1, tags...)
 		})
 	}
+
+	// It is not safe to do anything after the loop
 }
 
 // Accept takes a message to be processed in the Pump.

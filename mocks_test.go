@@ -17,13 +17,8 @@ func (m *MockMetadata) WithOrigin(o streams.MetadataOrigin) {
 	m.Called(o)
 }
 
-func (m *MockMetadata) Update(v streams.Metadata) streams.Metadata {
-	args := m.Called(v)
-	return args.Get(0).(streams.Metadata)
-}
-
-func (m *MockMetadata) Merge(v streams.Metadata) streams.Metadata {
-	args := m.Called(v)
+func (m *MockMetadata) Merge(v streams.Metadata, s streams.MetadataStrategy) streams.Metadata {
+	args := m.Called(v, s)
 	return args.Get(0).(streams.Metadata)
 }
 

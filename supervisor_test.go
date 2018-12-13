@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewSupervisor(t *testing.T) {
-	supervisor := streams.NewSupervisor(nil)
+	supervisor := streams.NewSupervisor(nil, streams.Lossless)
 
 	assert.Implements(t, (*streams.Supervisor)(nil), supervisor)
 }
@@ -45,7 +45,7 @@ func TestSupervisor_Commit(t *testing.T) {
 		node(proc): pump2,
 	}
 
-	supervisor := streams.NewSupervisor(store)
+	supervisor := streams.NewSupervisor(store, streams.Lossless)
 	supervisor.WithPumps(pumps)
 
 	err := supervisor.Commit(nil)
@@ -75,7 +75,7 @@ func TestSupervisor_Commit_WithCaller(t *testing.T) {
 
 	pumps := map[streams.Node]streams.Pump{node(comm): pump}
 
-	supervisor := streams.NewSupervisor(store)
+	supervisor := streams.NewSupervisor(store, streams.Lossless)
 	supervisor.WithPumps(pumps)
 
 	err := supervisor.Commit(comm)
@@ -99,7 +99,7 @@ func TestSupervisor_Commit_NullSource(t *testing.T) {
 
 	pumps := map[streams.Node]streams.Pump{node(comm): pump}
 
-	supervisor := streams.NewSupervisor(store)
+	supervisor := streams.NewSupervisor(store, streams.Lossless)
 	supervisor.WithPumps(pumps)
 
 	err := supervisor.Commit(nil)
@@ -113,7 +113,7 @@ func TestSupervisor_Commit_PullAllError(t *testing.T) {
 	store := new(MockMetastore)
 	store.On("PullAll").Return(nil, errors.New("error"))
 
-	supervisor := streams.NewSupervisor(store)
+	supervisor := streams.NewSupervisor(store, streams.Lossless)
 
 	err := supervisor.Commit(nil)
 
@@ -135,7 +135,7 @@ func TestSupervisor_Commit_PullError(t *testing.T) {
 
 	pumps := map[streams.Node]streams.Pump{node(comm): pump}
 
-	supervisor := streams.NewSupervisor(store)
+	supervisor := streams.NewSupervisor(store, streams.Lossless)
 	supervisor.WithPumps(pumps)
 
 	err := supervisor.Commit(nil)
@@ -158,7 +158,7 @@ func TestSupervisor_Commit_UnknownPump(t *testing.T) {
 	store := new(MockMetastore)
 	store.On("PullAll").Return(meta, nil)
 
-	supervisor := streams.NewSupervisor(store)
+	supervisor := streams.NewSupervisor(store, streams.Lossless)
 	supervisor.WithPumps(pumps)
 
 	err := supervisor.Commit(nil)
@@ -181,7 +181,7 @@ func TestSupervisor_Commit_CommitterError(t *testing.T) {
 
 	pumps := map[streams.Node]streams.Pump{node(comm): pump}
 
-	supervisor := streams.NewSupervisor(store)
+	supervisor := streams.NewSupervisor(store, streams.Lossless)
 	supervisor.WithPumps(pumps)
 
 	err := supervisor.Commit(nil)
@@ -206,7 +206,7 @@ func TestSupervisor_Commit_SourceError(t *testing.T) {
 
 	pumps := map[streams.Node]streams.Pump{node(comm): pump}
 
-	supervisor := streams.NewSupervisor(store)
+	supervisor := streams.NewSupervisor(store, streams.Lossless)
 	supervisor.WithPumps(pumps)
 
 	err := supervisor.Commit(nil)
@@ -223,7 +223,7 @@ func BenchmarkSupervisor_Commit(b *testing.B) {
 	store := &fakeMetastore{Metadata: map[streams.Processor]streams.Metaitems{p: {{Source: src, Metadata: meta}}}}
 	node := &fakeNode{Proc: p}
 	pump := &fakePump{}
-	supervisor := streams.NewSupervisor(store)
+	supervisor := streams.NewSupervisor(store, streams.Lossless)
 	supervisor.WithPumps(map[streams.Node]streams.Pump{node: pump})
 
 	b.ReportAllocs()
@@ -240,7 +240,7 @@ func BenchmarkSupervisor_CommitGlobal(b *testing.B) {
 	store := &fakeMetastore{Metadata: map[streams.Processor]streams.Metaitems{p: {{Source: src, Metadata: meta}}}}
 	node := &fakeNode{Proc: p}
 	pump := &fakePump{}
-	supervisor := streams.NewSupervisor(store)
+	supervisor := streams.NewSupervisor(store, streams.Lossless)
 	supervisor.WithPumps(map[streams.Node]streams.Pump{node: pump})
 
 	b.ReportAllocs()
@@ -407,13 +407,13 @@ func TestTimedSupervisor_CommitSourceError(t *testing.T) {
 	inner := new(MockSupervisor)
 	inner.On("Start").Return(nil)
 	inner.On("Commit", caller).Return(wantErr)
+	inner.On("Close").Return(nil)
 
 	supervisor := streams.NewTimedSupervisor(inner, 1*time.Second, nil)
-	err := supervisor.Start()
+	_ = supervisor.Start()
+	defer supervisor.Close()
 
-	assert.NoError(t, err)
-
-	err = supervisor.Commit(caller)
+	err := supervisor.Commit(caller)
 
 	inner.AssertCalled(t, "Commit", caller)
 	assert.Equal(t, wantErr, err)
@@ -461,8 +461,7 @@ func pump() *MockPump {
 
 func metadata() *MockMetadata {
 	meta := new(MockMetadata)
-	meta.On("Merge", mock.Anything).Return(meta)
-	meta.On("Update", mock.Anything).Return(meta)
+	meta.On("Merge", mock.Anything, mock.Anything).Return(meta)
 
 	return meta
 }

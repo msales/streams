@@ -13,6 +13,13 @@ func TestWithCommitInterval(t *testing.T) {
 	assert.IsType(t, &timedSupervisor{}, task.(*streamTask).supervisor)
 }
 
+func TestWithMetadataStrategy(t *testing.T) {
+	task := NewTask(&Topology{sources: map[Source]Node{}}, WithMetadataStrategy(Dupless))
+
+	assert.IsType(t, &supervisor{}, task.(*streamTask).supervisor)
+	assert.Equal(t, Dupless, task.(*streamTask).supervisor.(*supervisor).strategy)
+}
+
 func TestStreamTask_StartSupervisorStartError(t *testing.T) {
 	task := &streamTask{
 		topology:   &Topology{sources: map[Source]Node{}},

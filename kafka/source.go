@@ -80,8 +80,8 @@ func (m Metadata) WithOrigin(o streams.MetadataOrigin) {
 	}
 }
 
-// Update updates the given metadata with the contained metadata.
-func (m Metadata) Update(v streams.Metadata) streams.Metadata {
+// Merge merges the contained metadata into the given the metadata.
+func (m Metadata) Merge(v streams.Metadata, s streams.MetadataStrategy) streams.Metadata {
 	if v == nil {
 		return m
 	}
@@ -94,29 +94,17 @@ func (m Metadata) Update(v streams.Metadata) streams.Metadata {
 			continue
 		}
 
-		if newPos.Offset > oldPos.Offset {
+		if newPos.Origin > oldPos.Origin {
+			continue
+		}
+
+		if newPos.Origin < oldPos.Origin {
 			metadata[i] = newPos
 		}
-	}
 
-	return metadata
-}
-
-// Merge merges the contained metadata into the given the metadata.
-func (m Metadata) Merge(v streams.Metadata) streams.Metadata {
-	if v == nil {
-		return m
-	}
-
-	metadata := v.(Metadata)
-	for _, newPos := range m {
-		i, oldPos := metadata.find(newPos.Topic, newPos.Partition)
-		if oldPos == nil {
-			metadata = append(metadata, newPos)
-			continue
-		}
-
-		if (newPos.Origin == oldPos.Origin && newPos.Offset < oldPos.Offset) || (newPos.Origin < oldPos.Origin) {
+		// At this point origins are equal
+		if (s == streams.Lossless && newPos.Offset < oldPos.Offset) ||
+			(s == streams.Dupless && newPos.Offset > oldPos.Offset) {
 			metadata[i] = newPos
 		}
 	}
