@@ -129,12 +129,6 @@ func (t *streamTask) Close() error {
 }
 
 func (t *streamTask) closeTopology() error {
-	// Stop the pumps
-	nodes := flattenNodeTree(t.topology.Sources())
-	for _, node := range nodes {
-		t.pumps[node].Stop()
-	}
-
 	// Commit any outstanding batches and metadata
 	if err := t.supervisor.Commit(nil); err != nil {
 		return err
@@ -146,6 +140,7 @@ func (t *streamTask) closeTopology() error {
 	}
 
 	// Close the pumps
+	nodes := flattenNodeTree(t.topology.Sources())
 	for _, node := range nodes {
 		if err := t.pumps[node].Close(); err != nil {
 			return err

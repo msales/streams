@@ -14,8 +14,6 @@ type Pump interface {
 
 	// Accept takes a message to be processed in the Pump.
 	Accept(*Message) error
-	// Stop stops the pump.
-	Stop()
 	// Close closes the pump.
 	Close() error
 }
@@ -89,17 +87,12 @@ func (p *processorPump) Accept(msg *Message) error {
 	return nil
 }
 
-// Stop stops the pump, but does not close it.
-func (p *processorPump) Stop() {
+// Close closes the pump.
+func (p *processorPump) Close() error {
 	close(p.ch)
 
 	p.wg.Wait()
-}
 
-// Close closes the pump.
-//
-// Stop must be called before closing the pump.
-func (p *processorPump) Close() error {
 	return p.processor.Close()
 }
 
