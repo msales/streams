@@ -15,11 +15,11 @@ func TestNewSource(t *testing.T) {
 }
 
 func TestSource_Consume(t *testing.T) {
-	msgs := []*streams.Message{
-		{Value: 1},
-		{Value: 2},
-		{Value: 3},
+	msgs := make([]*streams.Message, 3)
+	for i := 0; i < len(msgs); i++ {
+		msgs[i] = streams.NewMessage(i, i).WithMetadata(mockSource{}, mockMetadata{})
 	}
+
 	ch := make(chan *streams.Message, len(msgs))
 
 	for _, msg := range msgs {
@@ -30,8 +30,14 @@ func TestSource_Consume(t *testing.T) {
 
 	for i := 0; i < len(msgs); i++ {
 		msg, err := src.Consume()
+		src, meta := msg.Metadata()
+
 		assert.NoError(t, err)
-		assert.Equal(t, msgs[i], msg)
+		assert.Equal(t, msgs[i].Ctx, msg.Ctx)
+		assert.Equal(t, msgs[i].Key, msg.Key)
+		assert.Equal(t, msgs[i].Value, msg.Value)
+		assert.Nil(t, src)
+		assert.Nil(t, meta)
 	}
 }
 
@@ -61,4 +67,26 @@ func TestSource_Close(t *testing.T) {
 	assert.NotPanics(t, func() { // Assert that the ch is not closed.
 		close(ch)
 	})
+}
+
+type mockSource struct{}
+
+func (mockSource) Consume() (*streams.Message, error) {
+	return nil, nil
+}
+
+func (mockSource) Commit(interface{}) error {
+	return nil
+}
+
+func (mockSource) Close() error {
+	return nil
+}
+
+type mockMetadata struct{}
+
+func (mockMetadata) WithOrigin(streams.MetadataOrigin) {}
+
+func (m mockMetadata) Merge(streams.Metadata, streams.MetadataStrategy) streams.Metadata {
+	return m
 }
