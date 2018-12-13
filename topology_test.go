@@ -110,25 +110,17 @@ func TestTopologyBuilder_AddProcessor(t *testing.T) {
 	assert.Equal(t, n, to.Processors()[0])
 }
 
-func TestTopologyBuilder_BuildChecksConnectedSources(t *testing.T) {
-	tb := streams.NewTopologyBuilder()
-	_ = tb.AddSource("src", new(MockSource))
-	_ = tb.AddSource("src", new(MockSource))
-
-	_, errs := tb.Build()
-
-	assert.Len(t, errs, 1)
-}
-
-func TestTopologyBuilder_BuildChecksConnectedCommitters(t *testing.T) {
+func TestTopologyBuilder_BuildChecksInspections(t *testing.T) {
 	tb := streams.NewTopologyBuilder()
 	n1 := tb.AddProcessor("1", new(MockCommitter), []streams.Node{})
 	n2 := tb.AddProcessor("1", new(MockProcessor), []streams.Node{n1})
 	_ = tb.AddProcessor("1", new(MockCommitter), []streams.Node{n2})
+	_ = tb.AddSource("src", new(MockSource))
+	_ = tb.AddSource("src", new(MockSource))
 
 	_, errs := tb.Build()
 
-	assert.Len(t, errs, 1)
+	assert.Len(t, errs, 3)
 }
 
 func TestTopology_Sources(t *testing.T) {

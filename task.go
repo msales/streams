@@ -58,14 +58,14 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 	store := NewMetastore()
 
 	t := &streamTask{
-		topology:   topology,
-		store:      store,
+		topology: topology,
+		store:    store,
 		supervisorOpts: supervisorOpts{
 			Strategy: Lossless,
 			Interval: 0,
 		},
-		srcPumps:   SourcePumps{},
-		pumps:      map[Node]Pump{},
+		srcPumps: SourcePumps{},
+		pumps:    map[Node]Pump{},
 	}
 
 	for _, optFn := range opts {

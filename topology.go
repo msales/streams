@@ -1,7 +1,5 @@
 package streams
 
-import "errors"
-
 // Node represents a topology node.
 type Node interface {
 	// Name gets the node name.
@@ -105,27 +103,25 @@ func (t Topology) Processors() []Node {
 	return t.processors
 }
 
-// topologyTest represents a test that should be performed on the topology.
-type topologyTest func(map[Source]Node, []Node) error
-
 // TopologyBuilder represents a topology builder.
 type TopologyBuilder struct {
-	tests      []topologyTest
-	sources    map[Source]Node
-	processors []Node
+	inspections []inspection
+	sources     map[Source]Node
+	processors  []Node
 }
 
 // NewTopologyBuilder creates a new TopologyBuilder.
 func NewTopologyBuilder() *TopologyBuilder {
-	tests := []topologyTest{
-		sourcesConnectedTest,
-		committersConnectedTests,
+	inspections := []inspection{
+		sourcesConnected,
+		committersConnected,
+		committerIsLeafNode,
 	}
 
 	return &TopologyBuilder{
-		tests:      tests,
-		sources:    map[Source]Node{},
-		processors: []Node{},
+		inspections: inspections,
+		sources:     map[Source]Node{},
+		processors:  []Node{},
 	}
 }
 
@@ -153,8 +149,8 @@ func (tb *TopologyBuilder) AddProcessor(name string, processor Processor, parent
 // Build creates an immutable Topology.
 func (tb *TopologyBuilder) Build() (*Topology, []error) {
 	var errs []error
-	for _, test := range tb.tests {
-		if err := test(tb.sources, tb.processors); err != nil {
+	for _, inspection := range tb.inspections {
+		if err := inspection(tb.sources, tb.processors); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -163,44 +159,6 @@ func (tb *TopologyBuilder) Build() (*Topology, []error) {
 		sources:    tb.sources,
 		processors: tb.processors,
 	}, errs
-}
-
-func sourcesConnectedTest(srcs map[Source]Node, _ []Node) error {
-	nodes := make([]Node, 0, len(srcs))
-	for _, node := range srcs {
-		nodes = append(nodes, node)
-	}
-
-	if len(nodes) <= 1 {
-		return nil
-	}
-
-	if !nodesConnected(nodes) {
-		return errors.New("streams: not all sources are connected")
-	}
-
-	return nil
-}
-
-func committersConnectedTests(_ map[Source]Node, procs []Node) error {
-	var nodes []Node
-	for _, node := range procs {
-		if _, ok := node.Processor().(Committer); !ok {
-			continue
-		}
-
-		nodes = append(nodes, node)
-	}
-
-	if len(nodes) <= 1 {
-		return nil
-	}
-
-	if nodesConnected(nodes) {
-		return errors.New("streams: committers are inline")
-	}
-
-	return nil
 }
 
 func nodesConnected(roots []Node) bool {
