@@ -33,7 +33,6 @@ func TestSource_Consume(t *testing.T) {
 		src, meta := msg.Metadata()
 
 		assert.NoError(t, err)
-		assert.Equal(t, msgs[i].Ctx, msg.Ctx)
 		assert.Equal(t, msgs[i].Key, msg.Key)
 		assert.Equal(t, msgs[i].Value, msg.Value)
 		assert.Nil(t, src)

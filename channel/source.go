@@ -24,7 +24,7 @@ func (s *Source) Consume() (*streams.Message, error) {
 	select {
 
 	case msg := <-s.ch:
-		return streams.NewMessageWithContext(msg.Ctx, msg.Key, msg.Value), nil
+		return msg.WithMetadata(nil, nil), nil
 
 	case <-time.After(100 * time.Millisecond):
 		return streams.NewMessage(nil, nil), nil
