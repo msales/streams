@@ -84,7 +84,6 @@ func TestCommitterIsLeafNode(t *testing.T) {
 		processor: &testProcessor{},
 	}
 
-
 	err := committerIsLeafNode(map[Source]Node{}, []Node{node1, node2})
 
 	assert.NoError(t, err)

@@ -33,7 +33,6 @@ func (*nopLocker) Lock() {}
 // Unlock performs no action.
 func (*nopLocker) Unlock() {}
 
-
 // Supervisor represents a concurrency-safe stream supervisor.
 //
 // The Supervisor performs a commit in a concurrently-safe manner.
