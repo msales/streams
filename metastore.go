@@ -28,27 +28,14 @@ type Metaitem struct {
 // Metaitems represents a slice of Metaitem pointers.
 type Metaitems []*Metaitem
 
-// Update combines contents of two Metaitems objects, updating the Metadata where necessary.
-func (m Metaitems) Update(items Metaitems) Metaitems {
-	return m.join(items, func(old, new Metadata) Metadata {
-		return old.Update(new)
-	})
-}
-
 // Merge combines contents of two Metaitems objects, merging the Metadata where necessary.
-func (m Metaitems) Merge(items Metaitems) Metaitems {
-	return m.join(items, func(old, new Metadata) Metadata {
-		return old.Merge(new)
-	})
-}
-
-func (m Metaitems) join(items Metaitems, fn func(old, new Metadata) Metadata) Metaitems {
+func (m Metaitems) Merge(items Metaitems, strategy MetadataStrategy) Metaitems {
 OUTER:
 	for _, newItem := range items {
 		for _, oldItem := range m {
 			if oldItem.Source == newItem.Source {
 				if oldItem.Metadata != nil {
-					oldItem.Metadata = fn(oldItem.Metadata, newItem.Metadata)
+					oldItem.Metadata = oldItem.Metadata.Merge(newItem.Metadata, strategy)
 				}
 				continue OUTER
 			}
@@ -133,7 +120,7 @@ func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
 
 	for _, item := range items {
 		if item.Source == src {
-			item.Metadata = meta.Update(item.Metadata)
+			item.Metadata = meta.Merge(item.Metadata, DuplessStrategy)
 			return nil
 		}
 	}

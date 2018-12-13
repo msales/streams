@@ -57,7 +57,8 @@ type Supervisor interface {
 }
 
 type supervisor struct {
-	store Metastore
+	store    Metastore
+	strategy MetadataStrategy
 
 	pumps map[Processor]Pump
 
@@ -65,9 +66,10 @@ type supervisor struct {
 }
 
 // NewSupervisor returns a new Supervisor instance.
-func NewSupervisor(store Metastore) Supervisor {
+func NewSupervisor(store Metastore, strategy MetadataStrategy) Supervisor {
 	return &supervisor{
-		store: store,
+		store:    store,
+		strategy: strategy,
 	}
 }
 
@@ -112,10 +114,10 @@ func (s *supervisor) Commit(caller Processor) error {
 				return err
 			}
 
-			items = items.Update(newItems)
+			items = items.Merge(newItems, DuplessStrategy)
 		}
 
-		metaItems = metaItems.Merge(items)
+		metaItems = metaItems.Merge(items, s.strategy)
 	}
 
 	for _, item := range metaItems {

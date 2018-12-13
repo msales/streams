@@ -13,14 +13,19 @@ const (
 	ProcessorOrigin
 )
 
+type MetadataStrategy uint8
+
+const (
+	LosslessStrategy MetadataStrategy = iota
+	DuplessStrategy
+)
+
 // Metadata represents metadata that can be merged.
 type Metadata interface {
 	// WithOrigin sets the MetadataOrigin on the metadata.
 	WithOrigin(MetadataOrigin)
-	// Update updates the given metadata with the contained metadata.
-	Update(Metadata) Metadata
-	// Merge merges the contained metadata into the given the metadata.
-	Merge(Metadata) Metadata
+	// Merge merges the contained metadata into the given the metadata with the given strategy.
+	Merge(Metadata, MetadataStrategy) Metadata
 }
 
 // Message represents data the flows through the stream.

@@ -44,11 +44,7 @@ type fakeMetadata struct{}
 func (m *fakeMetadata) WithOrigin(streams.MetadataOrigin) {
 }
 
-func (m *fakeMetadata) Update(streams.Metadata) streams.Metadata {
-	return m
-}
-
-func (m *fakeMetadata) Merge(v streams.Metadata) streams.Metadata {
+func (m *fakeMetadata) Merge(v streams.Metadata, s streams.MetadataStrategy) streams.Metadata {
 	return m
 }
 

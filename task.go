@@ -18,6 +18,12 @@ func WithCommitInterval(d time.Duration) TaskOptFunc {
 	}
 }
 
+func WithMetadataStrategy(strategy MetadataStrategy) TaskOptFunc {
+	return func(t *streamTask) {
+		t.supervisor = NewSupervisor(t.store, strategy)
+	}
+}
+
 // Task represents a streams task.
 type Task interface {
 	// Start starts the streams processors.
@@ -47,7 +53,7 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 	t := &streamTask{
 		topology:   topology,
 		store:      store,
-		supervisor: NewSupervisor(store),
+		supervisor: NewSupervisor(store, LosslessStrategy),
 		srcPumps:   SourcePumps{},
 		pumps:      map[Node]Pump{},
 	}
