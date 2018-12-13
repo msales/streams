@@ -14,13 +14,13 @@ type TaskOptFunc func(t *streamTask)
 // WithCommitInterval defines an interval of automatic commits.
 func WithCommitInterval(d time.Duration) TaskOptFunc {
 	return func(t *streamTask) {
-		t.supervisor = NewTimedSupervisor(t.supervisor, d, t.errorFn)
+		t.supervisorOpts.Interval = d
 	}
 }
 
 func WithMetadataStrategy(strategy MetadataStrategy) TaskOptFunc {
 	return func(t *streamTask) {
-		t.supervisor = NewSupervisor(t.store, strategy)
+		t.supervisorOpts.Strategy = strategy
 	}
 }
 
@@ -34,16 +34,22 @@ type Task interface {
 	Close() error
 }
 
+type supervisorOpts struct {
+	Strategy MetadataStrategy
+	Interval time.Duration
+}
+
 type streamTask struct {
 	topology *Topology
 
 	running bool
 	errorFn ErrorFunc
 
-	store      Metastore
-	supervisor Supervisor
-	srcPumps   SourcePumps
-	pumps      map[Node]Pump
+	store          Metastore
+	supervisorOpts supervisorOpts
+	supervisor     Supervisor
+	srcPumps       SourcePumps
+	pumps          map[Node]Pump
 }
 
 // NewTask creates a new streams task.
@@ -53,13 +59,21 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 	t := &streamTask{
 		topology:   topology,
 		store:      store,
-		supervisor: NewSupervisor(store, LosslessStrategy),
+		supervisorOpts: supervisorOpts{
+			Strategy: LosslessStrategy,
+			Interval: 0,
+		},
 		srcPumps:   SourcePumps{},
 		pumps:      map[Node]Pump{},
 	}
 
 	for _, optFn := range opts {
 		optFn(t)
+	}
+
+	t.supervisor = NewSupervisor(t.store, t.supervisorOpts.Strategy)
+	if t.supervisorOpts.Interval > 0 {
+		t.supervisor = NewTimedSupervisor(t.supervisor, t.supervisorOpts.Interval, t.errorFn)
 	}
 
 	return t
