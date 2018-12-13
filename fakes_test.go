@@ -72,6 +72,10 @@ func (*fakePump) Accept(*streams.Message) error {
 	return nil
 }
 
+func (*fakePump) Stop() {
+
+}
+
 func (*fakePump) Close() error {
 	return nil
 }
