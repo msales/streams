@@ -28,7 +28,6 @@ type processorPump struct {
 	processor Processor
 	pipe      TimedPipe
 	errFn     ErrorFunc
-	doneCh    chan struct{}
 
 	ch chan *Message
 
@@ -43,7 +42,6 @@ func NewPump(node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
 		pipe:      pipe,
 		errFn:     errFn,
 		ch:        make(chan *Message, 1000),
-		doneCh:    make(chan struct{}),
 	}
 
 	go p.run()
@@ -58,14 +56,6 @@ func (p *processorPump) run() {
 	tags := []interface{}{"name", p.name}
 
 	for msg := range p.ch {
-		select {
-		case <-p.doneCh:
-			// Stop called
-			return
-
-		default:
-		}
-
 		p.pipe.Reset()
 
 		p.Lock()
@@ -101,7 +91,7 @@ func (p *processorPump) Accept(msg *Message) error {
 
 // Stop stops the pump, but does not close it.
 func (p *processorPump) Stop() {
-	close(p.doneCh)
+	close(p.ch)
 
 	p.wg.Wait()
 }

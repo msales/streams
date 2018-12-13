@@ -114,7 +114,7 @@ func (s *supervisor) Commit(caller Processor) error {
 				return err
 			}
 
-			items = items.Merge(newItems, DuplessStrategy)
+			items = items.Merge(newItems, Dupless)
 		}
 
 		metaItems = metaItems.Merge(items, s.strategy)

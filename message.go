@@ -7,17 +7,19 @@ import (
 // MetadataOrigin represents the metadata origin type.
 type MetadataOrigin uint8
 
-// MetadataOrigin types
+// MetadataOrigin types.
 const (
 	CommitterOrigin MetadataOrigin = iota
 	ProcessorOrigin
 )
 
+// MetadataStrategy represents the metadata merge strategy.
 type MetadataStrategy uint8
 
+// MetadataStrategy types.
 const (
-	LosslessStrategy MetadataStrategy = iota
-	DuplessStrategy
+	Lossless MetadataStrategy = iota
+	Dupless
 )
 
 // Metadata represents metadata that can be merged.

@@ -103,8 +103,8 @@ func (m Metadata) Merge(v streams.Metadata, s streams.MetadataStrategy) streams.
 		}
 
 		// At this point origins are equal
-		if (s == streams.LosslessStrategy && newPos.Offset < oldPos.Offset) ||
-			(s == streams.DuplessStrategy && newPos.Offset > oldPos.Offset) {
+		if (s == streams.Lossless && newPos.Offset < oldPos.Offset) ||
+			(s == streams.Dupless && newPos.Offset > oldPos.Offset) {
 			metadata[i] = newPos
 		}
 	}

@@ -120,7 +120,7 @@ func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
 
 	for _, item := range items {
 		if item.Source == src {
-			item.Metadata = meta.Merge(item.Metadata, DuplessStrategy)
+			item.Metadata = meta.Merge(item.Metadata, Dupless)
 			return nil
 		}
 	}

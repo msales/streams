@@ -18,6 +18,7 @@ func WithCommitInterval(d time.Duration) TaskOptFunc {
 	}
 }
 
+// WithMetadataStrategy defines an strategy of metadata mergers.
 func WithMetadataStrategy(strategy MetadataStrategy) TaskOptFunc {
 	return func(t *streamTask) {
 		t.supervisorOpts.Strategy = strategy
@@ -60,7 +61,7 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 		topology:   topology,
 		store:      store,
 		supervisorOpts: supervisorOpts{
-			Strategy: LosslessStrategy,
+			Strategy: Lossless,
 			Interval: 0,
 		},
 		srcPumps:   SourcePumps{},
