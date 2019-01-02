@@ -212,7 +212,7 @@ func TestStreamTask_HandleCloseWithSourceError(t *testing.T) {
 }
 
 func TestTasks_Start(t *testing.T) {
-	t1, t2, t3 := new(mockTask), new(mockTask), new(mockTask)
+	t1, t2, t3 := new(MockTask), new(MockTask), new(MockTask)
 	t1.On("Start").Return(nil)
 	t2.On("Start").Return(nil)
 	t3.On("Start").Return(nil)
@@ -230,7 +230,7 @@ func TestTasks_Start(t *testing.T) {
 }
 
 func TestTasks_Start_WithError(t *testing.T) {
-	t1, t2, t3 := new(mockTask), new(mockTask), new(mockTask)
+	t1, t2, t3 := new(MockTask), new(MockTask), new(MockTask)
 	t1.On("Start").Return(nil)
 	t2.On("Start").Return(errors.New("test error"))
 
@@ -246,7 +246,7 @@ func TestTasks_Start_WithError(t *testing.T) {
 
 func TestTasks_OnError(t *testing.T) {
 	fn := streams.ErrorFunc(func(_ error) {})
-	t1, t2, t3 := new(mockTask), new(mockTask), new(mockTask)
+	t1, t2, t3 := new(MockTask), new(MockTask), new(MockTask)
 	t1.On("OnError", mock.AnythingOfType("streams.ErrorFunc")).Return()
 	t2.On("OnError", mock.AnythingOfType("streams.ErrorFunc")).Return()
 	t3.On("OnError", mock.AnythingOfType("streams.ErrorFunc")).Return()
@@ -263,7 +263,7 @@ func TestTasks_OnError(t *testing.T) {
 }
 
 func TestTasks_Close(t *testing.T) {
-	t1, t2, t3 := new(mockTask), new(mockTask), new(mockTask)
+	t1, t2, t3 := new(MockTask), new(MockTask), new(MockTask)
 	t1.On("Close").Return(nil)
 	t2.On("Close").Return(nil)
 	t3.On("Close").Return(nil)
@@ -281,7 +281,7 @@ func TestTasks_Close(t *testing.T) {
 }
 
 func TestTasks_Close_WithError(t *testing.T) {
-	t1, t2, t3 := new(mockTask), new(mockTask), new(mockTask)
+	t1, t2, t3 := new(MockTask), new(MockTask), new(MockTask)
 	t2.On("Close").Return(errors.New("test error"))
 	t3.On("Close").Return(nil)
 
@@ -318,29 +318,4 @@ func (s *chanSource) Close() error {
 	close(s.msgs)
 
 	return nil
-}
-
-type mockTask struct {
-	mock.Mock
-
-	startCalled   time.Time
-	onErrorCalled time.Time
-	closeCalled   time.Time
-}
-
-func (t *mockTask) Start() error {
-	t.startCalled = time.Now()
-
-	return t.Called().Error(0)
-}
-
-func (t *mockTask) OnError(fn streams.ErrorFunc) {
-	t.onErrorCalled = time.Now()
-	t.Called(fn)
-}
-
-func (t *mockTask) Close() error {
-	t.closeCalled = time.Now()
-
-	return t.Called().Error(0)
 }
