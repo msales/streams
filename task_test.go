@@ -211,6 +211,90 @@ func TestStreamTask_HandleCloseWithSourceError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestTasks_Start(t *testing.T) {
+	t1, t2, t3 := new(mockTask), new(mockTask), new(mockTask)
+	t1.On("Start").Return(nil)
+	t2.On("Start").Return(nil)
+	t3.On("Start").Return(nil)
+
+	tasks := streams.Tasks{t1, t2, t3}
+
+	err := tasks.Start()
+
+	assert.NoError(t, err)
+	t1.AssertExpectations(t)
+	t2.AssertExpectations(t)
+	t3.AssertExpectations(t)
+	assert.True(t, t1.startCalled.Before(t2.startCalled))
+	assert.True(t, t2.startCalled.Before(t3.startCalled))
+}
+
+func TestTasks_Start_WithError(t *testing.T) {
+	t1, t2, t3 := new(mockTask), new(mockTask), new(mockTask)
+	t1.On("Start").Return(nil)
+	t2.On("Start").Return(errors.New("test error"))
+
+	tasks := streams.Tasks{t1, t2, t3}
+
+	err := tasks.Start()
+
+	assert.Error(t, err)
+	t1.AssertExpectations(t)
+	t2.AssertExpectations(t)
+	t3.AssertNotCalled(t, "Start")
+}
+
+func TestTasks_OnError(t *testing.T) {
+	fn := streams.ErrorFunc(func(_ error) {})
+	t1, t2, t3 := new(mockTask), new(mockTask), new(mockTask)
+	t1.On("OnError", mock.AnythingOfType("streams.ErrorFunc")).Return()
+	t2.On("OnError", mock.AnythingOfType("streams.ErrorFunc")).Return()
+	t3.On("OnError", mock.AnythingOfType("streams.ErrorFunc")).Return()
+
+	tasks := streams.Tasks{t1, t2, t3}
+
+	tasks.OnError(fn)
+
+	t1.AssertExpectations(t)
+	t2.AssertExpectations(t)
+	t3.AssertExpectations(t)
+	assert.True(t, t1.onErrorCalled.Before(t2.onErrorCalled))
+	assert.True(t, t2.onErrorCalled.Before(t3.onErrorCalled))
+}
+
+func TestTasks_Close(t *testing.T) {
+	t1, t2, t3 := new(mockTask), new(mockTask), new(mockTask)
+	t1.On("Close").Return(nil)
+	t2.On("Close").Return(nil)
+	t3.On("Close").Return(nil)
+
+	tasks := streams.Tasks{t1, t2, t3}
+
+	err := tasks.Close()
+
+	assert.NoError(t, err)
+	t1.AssertExpectations(t)
+	t2.AssertExpectations(t)
+	t3.AssertExpectations(t)
+	assert.True(t, t1.closeCalled.After(t2.closeCalled))
+	assert.True(t, t2.closeCalled.After(t3.closeCalled))
+}
+
+func TestTasks_Close_WithError(t *testing.T) {
+	t1, t2, t3 := new(mockTask), new(mockTask), new(mockTask)
+	t2.On("Close").Return(errors.New("test error"))
+	t3.On("Close").Return(nil)
+
+	tasks := streams.Tasks{t1, t2, t3}
+
+	err := tasks.Close()
+
+	assert.Error(t, err)
+	t1.AssertNotCalled(t, "Close")
+	t2.AssertExpectations(t)
+	t3.AssertExpectations(t)
+}
+
 type chanSource struct {
 	msgs chan *streams.Message
 }
@@ -234,4 +318,29 @@ func (s *chanSource) Close() error {
 	close(s.msgs)
 
 	return nil
+}
+
+type mockTask struct {
+	mock.Mock
+
+	startCalled   time.Time
+	onErrorCalled time.Time
+	closeCalled   time.Time
+}
+
+func (t *mockTask) Start() error {
+	t.startCalled = time.Now()
+
+	return t.Called().Error(0)
+}
+
+func (t *mockTask) OnError(fn streams.ErrorFunc) {
+	t.onErrorCalled = time.Now()
+	t.Called(fn)
+}
+
+func (t *mockTask) Close() error {
+	t.closeCalled = time.Now()
+
+	return t.Called().Error(0)
 }

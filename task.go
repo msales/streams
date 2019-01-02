@@ -173,3 +173,59 @@ func (t *streamTask) handleError(err error) {
 func (t *streamTask) OnError(fn ErrorFunc) {
 	t.errorFn = fn
 }
+
+// Tasks represents a slice of tasks.
+// This is a utility type that makes it easier to work with multiple tasks.
+type Tasks []Task
+
+// Start starts the streams processors.
+func (tasks Tasks) Start() error {
+	err := tasks.each(func(t Task) error {
+		return t.Start()
+	})
+
+	return err
+}
+
+// OnError sets the error handler.
+func (tasks Tasks) OnError(fn ErrorFunc) {
+	_ = tasks.each(func(t Task) error {
+		t.OnError(fn)
+		return nil
+	})
+}
+
+// Close stops and closes the streams processors.
+// This function operates on the tasks in the reversed order.
+func (tasks Tasks) Close() error {
+	err := tasks.eachRev(func(t Task) error {
+		return t.Close()
+	})
+
+	return err
+
+}
+
+// each executes a passed function with every task in the slice.
+func (tasks Tasks) each(fn func(t Task) error) error {
+	for _, t := range tasks {
+		err := fn(t)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// eachRev executes a passed function with every task in the slice, in the reversed order.
+func (tasks Tasks) eachRev(fn func(t Task) error) error {
+	for i := len(tasks) - 1; i >= 0; i-- {
+		err := fn(tasks[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
