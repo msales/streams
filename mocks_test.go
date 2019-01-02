@@ -215,3 +215,28 @@ func (s *MockSource) Close() error {
 	args := s.Called()
 	return args.Error(0)
 }
+
+type MockTask struct {
+	mock.Mock
+
+	startCalled   time.Time
+	onErrorCalled time.Time
+	closeCalled   time.Time
+}
+
+func (t *MockTask) Start() error {
+	t.startCalled = time.Now()
+
+	return t.Called().Error(0)
+}
+
+func (t *MockTask) OnError(fn streams.ErrorFunc) {
+	t.onErrorCalled = time.Now()
+	t.Called(fn)
+}
+
+func (t *MockTask) Close() error {
+	t.closeCalled = time.Now()
+
+	return t.Called().Error(0)
+}

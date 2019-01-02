@@ -8,7 +8,6 @@ require (
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
-	github.com/magiconair/properties v1.8.0
 	github.com/msales/pkg/v3 v3.1.0
 	github.com/pierrec/lz4 v0.0.0-20181005164709-635575b42742 // indirect
 	github.com/pkg/errors v0.8.0
