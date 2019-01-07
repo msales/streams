@@ -21,7 +21,7 @@ func newDB(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 }
 
 func TestExecFunc_ImplementsExecutor(t *testing.T) {
-	exec := sqlx.ExecFunc(func(*sql.Tx, *streams.Message) error {
+	exec := sqlx.ExecFunc(func(*sql.Tx, streams.Message) error {
 		return nil
 	})
 
@@ -30,23 +30,23 @@ func TestExecFunc_ImplementsExecutor(t *testing.T) {
 
 func TestExecFunc_Exec(t *testing.T) {
 	called := false
-	exec := sqlx.ExecFunc(func(*sql.Tx, *streams.Message) error {
+	exec := sqlx.ExecFunc(func(*sql.Tx, streams.Message) error {
 		called = true
 		return nil
 	})
 
-	err := exec.Exec(nil, nil)
+	err := exec.Exec(nil, streams.EmptyMessage)
 
 	assert.NoError(t, err)
 	assert.True(t, called)
 }
 
 func TestExecFunc_ExecError(t *testing.T) {
-	exec := sqlx.ExecFunc(func(*sql.Tx, *streams.Message) error {
+	exec := sqlx.ExecFunc(func(*sql.Tx, streams.Message) error {
 		return errors.New("test")
 	})
 
-	err := exec.Exec(nil, nil)
+	err := exec.Exec(nil, streams.EmptyMessage)
 
 	assert.Error(t, err)
 }
@@ -354,7 +354,7 @@ type MockExecutor struct {
 	mock.Mock
 }
 
-func (m *MockExecutor) Exec(tx *sql.Tx, msg *streams.Message) error {
+func (m *MockExecutor) Exec(tx *sql.Tx, msg streams.Message) error {
 	args := m.Called(tx, msg)
 	return args.Error(0)
 }
@@ -368,7 +368,7 @@ func (m *MockExecutorTx) Begin(tx *sql.Tx) error {
 	return args.Error(0)
 }
 
-func (m *MockExecutorTx) Exec(tx *sql.Tx, msg *streams.Message) error {
+func (m *MockExecutorTx) Exec(tx *sql.Tx, msg streams.Message) error {
 	args := m.Called(tx, msg)
 	return args.Error(0)
 }

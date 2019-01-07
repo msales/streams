@@ -36,7 +36,7 @@ func TestStream_Filter(t *testing.T) {
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("source", source).
-		Filter("test", PredicateFunc(func(msg *Message) (bool, error) {
+		Filter("test", PredicateFunc(func(msg Message) (bool, error) {
 			return true, nil
 		}))
 
@@ -51,7 +51,7 @@ func TestStream_FilterFunc(t *testing.T) {
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("source", source).
-		FilterFunc("test", func(msg *Message) (bool, error) {
+		FilterFunc("test", func(msg Message) (bool, error) {
 			return true, nil
 		})
 
@@ -67,10 +67,10 @@ func TestStream_Branch(t *testing.T) {
 
 	streams := builder.Source("source", source).Branch(
 		"test",
-		PredicateFunc(func(msg *Message) (bool, error) {
+		PredicateFunc(func(msg Message) (bool, error) {
 			return true, nil
 		}),
-		PredicateFunc(func(msg *Message) (bool, error) {
+		PredicateFunc(func(msg Message) (bool, error) {
 			return true, nil
 		}),
 	)
@@ -92,10 +92,10 @@ func TestStream_BranchFunc(t *testing.T) {
 
 	streams := builder.Source("source", source).BranchFunc(
 		"test",
-		func(msg *Message) (bool, error) {
+		func(msg Message) (bool, error) {
 			return true, nil
 		},
-		func(msg *Message) (bool, error) {
+		func(msg Message) (bool, error) {
 			return true, nil
 		},
 	)
@@ -116,8 +116,8 @@ func TestStream_Map(t *testing.T) {
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("source", source).
-		Map("test", MapperFunc(func(msg *Message) (*Message, error) {
-			return nil, nil
+		Map("test", MapperFunc(func(msg Message) (Message, error) {
+			return EmptyMessage, nil
 		}))
 
 	assert.Len(t, stream.parents, 1)
@@ -131,8 +131,8 @@ func TestStream_MapFunc(t *testing.T) {
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("source", source).
-		MapFunc("test", func(msg *Message) (*Message, error) {
-			return nil, nil
+		MapFunc("test", func(msg Message) (Message, error) {
+			return EmptyMessage, nil
 		})
 
 	assert.Len(t, stream.parents, 1)
@@ -146,7 +146,7 @@ func TestStream_FlatMap(t *testing.T) {
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("source", source).
-		FlatMap("test", FlatMapperFunc(func(msg *Message) ([]*Message, error) {
+		FlatMap("test", FlatMapperFunc(func(msg Message) ([]Message, error) {
 			return nil, nil
 		}))
 
@@ -161,7 +161,7 @@ func TestStream_FlatMapFunc(t *testing.T) {
 	builder := NewStreamBuilder()
 
 	stream := builder.Source("source", source).
-		FlatMapFunc("test", func(msg *Message) ([]*Message, error) {
+		FlatMapFunc("test", func(msg Message) ([]Message, error) {
 			return nil, nil
 		})
 
@@ -213,8 +213,8 @@ func TestStream_Process(t *testing.T) {
 
 type streamSource struct{}
 
-func (s streamSource) Consume() (*Message, error) {
-	return nil, nil
+func (s streamSource) Consume() (Message, error) {
+	return EmptyMessage, nil
 }
 
 func (s streamSource) Commit(v interface{}) error {
@@ -229,7 +229,7 @@ type streamProcessor struct{}
 
 func (p streamProcessor) WithPipe(Pipe) {}
 
-func (p streamProcessor) Process(msg *Message) error {
+func (p streamProcessor) Process(msg Message) error {
 	return nil
 }
 

@@ -249,8 +249,8 @@ func (t *testNode) Processor() Processor {
 
 type testSource int
 
-func (s testSource) Consume() (*Message, error) {
-	return nil, nil
+func (s testSource) Consume() (Message, error) {
+	return EmptyMessage, nil
 }
 
 func (s testSource) Commit(v interface{}) error {
@@ -265,7 +265,7 @@ type testProcessor struct{}
 
 func (p testProcessor) WithPipe(Pipe) {}
 
-func (p testProcessor) Process(msg *Message) error {
+func (p testProcessor) Process(msg Message) error {
 	return nil
 }
 
@@ -277,7 +277,7 @@ type testCommitter struct{}
 
 func (p testCommitter) WithPipe(Pipe) {}
 
-func (p testCommitter) Process(msg *Message) error {
+func (p testCommitter) Process(msg Message) error {
 	return nil
 }
 
