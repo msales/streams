@@ -112,7 +112,7 @@ func newRandIntSource(ctx context.Context) streams.Source {
 	}
 }
 
-func (s *randIntSource) Consume() (*streams.Message, error) {
+func (s *randIntSource) Consume() (streams.Message, error) {
 	return streams.NewMessageWithContext(s.ctx, nil, s.rand.Intn(100)), nil
 }
 
@@ -124,18 +124,18 @@ func (s *randIntSource) Close() error {
 	return nil
 }
 
-func stringMapper(msg *streams.Message) (*streams.Message, error) {
+func stringMapper(msg streams.Message) (streams.Message, error) {
 	i := msg.Value.(int)
 	msg.Value = strconv.Itoa(i)
 
 	return msg, nil
 }
 
-func intMapper(msg *streams.Message) (*streams.Message, error) {
+func intMapper(msg streams.Message) (streams.Message, error) {
 	s := msg.Value.(string)
 	i, err := strconv.Atoi(s)
 	if err != nil {
-		return nil, err
+		return streams.Message{}, err
 	}
 
 	msg.Value = i
@@ -160,7 +160,7 @@ func (p *commitProcessor) WithPipe(pipe streams.Pipe) {
 	p.pipe = pipe
 }
 
-func (p *commitProcessor) Process(msg *streams.Message) error {
+func (p *commitProcessor) Process(msg streams.Message) error {
 	p.count++
 
 	if p.count >= p.batch {
