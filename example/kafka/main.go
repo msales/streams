@@ -135,7 +135,7 @@ func intMapper(msg streams.Message) (streams.Message, error) {
 	s := msg.Value.(string)
 	i, err := strconv.Atoi(s)
 	if err != nil {
-		return streams.Message{}, err
+		return streams.EmptyMessage, err
 	}
 
 	msg.Value = i

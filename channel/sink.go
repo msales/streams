@@ -5,7 +5,7 @@ import "github.com/msales/streams/v2"
 // Sink represents a channel sink.
 type Sink struct {
 	pipe streams.Pipe
-	
+
 	ch chan streams.Message
 
 	batch int

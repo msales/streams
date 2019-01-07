@@ -58,6 +58,7 @@ func (m Message) Empty() bool {
 	return m.Key == nil && m.Value == nil
 }
 
+// EmptyMessage is a predefined empty message.
 var EmptyMessage = Message{}
 
 // NewMessage creates a Message.
