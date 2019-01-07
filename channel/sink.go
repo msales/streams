@@ -5,8 +5,8 @@ import "github.com/msales/streams/v2"
 // Sink represents a channel sink.
 type Sink struct {
 	pipe streams.Pipe
-
-	ch chan *streams.Message
+	
+	ch chan streams.Message
 
 	batch int
 	count int
@@ -28,7 +28,7 @@ func (s *Sink) WithPipe(pipe streams.Pipe) {
 }
 
 // Process processes the stream Message.
-func (s *Sink) Process(msg *streams.Message) error {
+func (s *Sink) Process(msg streams.Message) error {
 	s.ch <- msg
 
 	s.count++

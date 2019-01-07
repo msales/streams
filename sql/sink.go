@@ -18,14 +18,14 @@ type Transaction interface {
 // Executor represents a SQL query executor.
 type Executor interface {
 	// Exec executes a query on the given transaction.
-	Exec(*sql.Tx, *streams.Message) error
+	Exec(*sql.Tx, streams.Message) error
 }
 
 // ExecFunc represents a function implementing an Executor.
-type ExecFunc func(*sql.Tx, *streams.Message) error
+type ExecFunc func(*sql.Tx, streams.Message) error
 
 // Exec executes a query on the given transaction.
-func (fn ExecFunc) Exec(tx *sql.Tx, msg *streams.Message) error {
+func (fn ExecFunc) Exec(tx *sql.Tx, msg streams.Message) error {
 	return fn(tx, msg)
 }
 
@@ -69,7 +69,7 @@ func (p *Sink) WithPipe(pipe streams.Pipe) {
 }
 
 // Process processes the stream record.
-func (p *Sink) Process(msg *streams.Message) error {
+func (p *Sink) Process(msg streams.Message) error {
 	if err := p.ensureTransaction(); err != nil {
 		return err
 	}
