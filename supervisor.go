@@ -184,9 +184,9 @@ type timedSupervisor struct {
 // NewTimedSupervisor returns a supervisor that commits automatically.
 func NewTimedSupervisor(inner Supervisor, d time.Duration, errFn ErrorFunc) Supervisor {
 	return &timedSupervisor{
-		inner:   inner,
-		d:       d,
-		errFn:   errFn,
+		inner: inner,
+		d:     d,
+		errFn: errFn,
 	}
 }
 
