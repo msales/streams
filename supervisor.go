@@ -208,6 +208,7 @@ func (s *timedSupervisor) Start() error {
 
 	go func() {
 		for range s.t.C {
+			// If there was a commit triggered "manually" by a Committer, skip a single timed commit.
 			if atomic.LoadUint32(&s.commits) > 0 {
 				atomic.StoreUint32(&s.commits, 0)
 				continue

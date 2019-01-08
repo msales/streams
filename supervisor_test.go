@@ -381,22 +381,22 @@ func TestTimedSupervisor_Commit(t *testing.T) {
 	inner.AssertCalled(t, "Commit", caller)
 }
 
-func TestTimedSupervisor_CommitResetsTimer(t *testing.T) {
+func TestTimedSupervisor_ManualCommitSkipsTimedCommit(t *testing.T) {
 	caller := new(MockProcessor)
 	inner := new(MockSupervisor)
 	inner.On("Start").Return(nil)
-	inner.On("Commit", mock.Anything).Return(nil)
+	inner.On("Commit", caller).Return(nil)
 	inner.On("Close").Return(nil)
 
-	supervisor := streams.NewTimedSupervisor(inner, 10*time.Millisecond, nil)
+	supervisor := streams.NewTimedSupervisor(inner, 5*time.Millisecond, nil)
 	_ = supervisor.Start()
 	defer supervisor.Close()
 
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	_ = supervisor.Commit(caller)
 
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(4 * time.Millisecond)
 
 	inner.AssertNumberOfCalls(t, "Commit", 1)
 }
