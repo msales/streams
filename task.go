@@ -78,6 +78,7 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 		topology: topology,
 		mode:     Async,
 		store:    store,
+		errorFn:  func(_ error) {},
 		supervisorOpts: supervisorOpts{
 			Strategy: Lossless,
 			Interval: 0,
@@ -92,7 +93,7 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 
 	t.supervisor = NewSupervisor(t.store, t.supervisorOpts.Strategy)
 	if t.supervisorOpts.Interval > 0 {
-		t.supervisor = NewTimedSupervisor(t.supervisor, t.supervisorOpts.Interval, t.errorFn)
+		t.supervisor = NewTimedSupervisor(t.supervisor, t.supervisorOpts.Interval, t.handleError)
 	}
 
 	return t
