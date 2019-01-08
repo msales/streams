@@ -177,17 +177,16 @@ type timedSupervisor struct {
 	errFn ErrorFunc
 
 	t       *time.Ticker
-	resetCh chan struct{}
+	commits uint32
 	running uint32
 }
 
 // NewTimedSupervisor returns a supervisor that commits automatically.
 func NewTimedSupervisor(inner Supervisor, d time.Duration, errFn ErrorFunc) Supervisor {
 	return &timedSupervisor{
-		inner:   inner,
-		d:       d,
-		errFn:   errFn,
-		resetCh: make(chan struct{}, 1),
+		inner: inner,
+		d:     d,
+		errFn: errFn,
 	}
 }
 
@@ -208,17 +207,16 @@ func (s *timedSupervisor) Start() error {
 	s.t = time.NewTicker(s.d)
 
 	go func() {
-		for {
-			select {
-			case <-s.t.C:
-				err := s.inner.Commit(nil)
-				if err != nil {
-					s.errFn(err)
-				}
+		for range s.t.C {
+			// If there was a commit triggered "manually" by a Committer, skip a single timed commit.
+			if atomic.LoadUint32(&s.commits) > 0 {
+				atomic.StoreUint32(&s.commits, 0)
+				continue
+			}
 
-			case <-s.resetCh:
-				s.t.Stop()
-				s.t = time.NewTicker(s.d)
+			err := s.inner.Commit(nil)
+			if err != nil {
+				s.errFn(err)
 			}
 		}
 	}()
@@ -245,11 +243,13 @@ func (s *timedSupervisor) Commit(caller Processor) error {
 		return ErrNotRunning
 	}
 
+	// Increment the commit count
+	atomic.AddUint32(&s.commits, 1)
+
 	err := s.inner.Commit(caller)
 	if err != nil {
 		return err
 	}
-	s.resetCh <- struct{}{}
 
 	return nil
 }
