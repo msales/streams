@@ -5,6 +5,15 @@ import (
 	"time"
 )
 
+// TaskMode represents the task mode.
+type TaskMode int8
+
+// TaskMode types.
+const (
+	Async TaskMode = iota
+	Sync
+)
+
 // ErrorFunc represents a streams error handling function.
 type ErrorFunc func(error)
 
@@ -18,10 +27,17 @@ func WithCommitInterval(d time.Duration) TaskOptFunc {
 	}
 }
 
-// WithMetadataStrategy defines an strategy of metadata mergers.
+// WithMetadataStrategy defines a strategy of metadata mergers.
 func WithMetadataStrategy(strategy MetadataStrategy) TaskOptFunc {
 	return func(t *streamTask) {
 		t.supervisorOpts.Strategy = strategy
+	}
+}
+
+// WithMode defines the task mode to run in.
+func WithMode(m TaskMode) TaskOptFunc {
+	return func(t *streamTask) {
+		t.mode = m
 	}
 }
 
@@ -44,6 +60,7 @@ type streamTask struct {
 	topology *Topology
 
 	running bool
+	mode    TaskMode
 	errorFn ErrorFunc
 
 	store          Metastore
@@ -59,6 +76,7 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 
 	t := &streamTask{
 		topology: topology,
+		mode:     Async,
 		store:    store,
 		supervisorOpts: supervisorOpts{
 			Strategy: Lossless,
@@ -100,7 +118,7 @@ func (t *streamTask) setupTopology() {
 		pipe := NewPipe(t.store, t.supervisor, node.Processor(), t.resolvePumps(node.Children()))
 		node.Processor().WithPipe(pipe)
 
-		pump := NewPump(node, pipe.(TimedPipe), t.handleError)
+		pump := t.newPump(node, pipe.(TimedPipe), t.handleError)
 		t.pumps[node] = pump
 	}
 
@@ -110,6 +128,14 @@ func (t *streamTask) setupTopology() {
 		srcPump := NewSourcePump(node.Name(), source, t.resolvePumps(node.Children()), t.handleError)
 		t.srcPumps = append(t.srcPumps, srcPump)
 	}
+}
+
+func (t *streamTask) newPump(node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
+	if t.mode == Sync {
+		return NewSyncPump(node, pipe)
+	}
+
+	return NewAsyncPump(node, pipe, errFn)
 }
 
 func (t *streamTask) resolvePumps(nodes []Node) []Pump {

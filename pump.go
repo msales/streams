@@ -20,8 +20,56 @@ type Pump interface {
 	Close() error
 }
 
-// processorPump is an asynchronous Message Pump.
-type processorPump struct {
+// syncPump is an synchronous Message Pump.
+type syncPump struct {
+	sync.Mutex
+
+	name      string
+	processor Processor
+	pipe      TimedPipe
+}
+
+// NewSyncPump creates a new synchronous Pump instance.
+func NewSyncPump(node Node, pipe TimedPipe) Pump {
+	p := &syncPump{
+		name:      node.Name(),
+		processor: node.Processor(),
+		pipe:      pipe,
+	}
+
+	return p
+}
+
+// Accept takes a message to be processed in the Pump.
+func (p *syncPump) Accept(msg *Message) error {
+	p.pipe.Reset()
+
+	start := nanotime()
+	err := p.processor.Process(msg)
+	if err != nil {
+		return err
+	}
+	latency := time.Duration(nanotime()-start) - p.pipe.Duration()
+
+	tags := []interface{}{"name", p.name}
+	withStats(msg.Ctx, func(s stats.Stats) {
+		s.Timing("node.latency", latency, 0.1, tags...)
+		s.Inc("node.throughput", 1, 0.1, tags...)
+	})
+
+	return nil
+}
+
+// Stop stops the pump, but does not close it.
+func (p *syncPump) Stop() {}
+
+// Close closes the pump.
+func (p *syncPump) Close() error {
+	return p.processor.Close()
+}
+
+// asyncPump is an asynchronous Message Pump.
+type asyncPump struct {
 	sync.Mutex
 
 	name      string
@@ -34,9 +82,9 @@ type processorPump struct {
 	wg sync.WaitGroup
 }
 
-// NewPump creates a new processorPump instance.
-func NewPump(node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
-	p := &processorPump{
+// NewAsyncPump creates a new asynchronous Pump instance.
+func NewAsyncPump(node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
+	p := &asyncPump{
 		name:      node.Name(),
 		processor: node.Processor(),
 		pipe:      pipe,
@@ -49,7 +97,7 @@ func NewPump(node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
 	return p
 }
 
-func (p *processorPump) run() {
+func (p *asyncPump) run() {
 	p.wg.Add(1)
 	defer p.wg.Done()
 
@@ -83,14 +131,14 @@ func (p *processorPump) run() {
 }
 
 // Accept takes a message to be processed in the Pump.
-func (p *processorPump) Accept(msg *Message) error {
+func (p *asyncPump) Accept(msg *Message) error {
 	p.ch <- msg
 
 	return nil
 }
 
 // Stop stops the pump, but does not close it.
-func (p *processorPump) Stop() {
+func (p *asyncPump) Stop() {
 	close(p.ch)
 
 	p.wg.Wait()
@@ -99,7 +147,7 @@ func (p *processorPump) Stop() {
 // Close closes the pump.
 //
 // Stop must be called before closing the pump.
-func (p *processorPump) Close() error {
+func (p *asyncPump) Close() error {
 	return p.processor.Close()
 }
 

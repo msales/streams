@@ -20,7 +20,7 @@ func TestNewTask(t *testing.T) {
 	assert.Implements(t, (*streams.Task)(nil), task)
 }
 
-func TestStreamTask_ConsumesMessages(t *testing.T) {
+func TestStreamTask_ConsumesAsyncMessages(t *testing.T) {
 	msgs := make(chan *streams.Message)
 	msg := streams.NewMessage("test", "test")
 
@@ -35,7 +35,41 @@ func TestStreamTask_ConsumesMessages(t *testing.T) {
 		Process("processor", p)
 
 	tp, _ := b.Build()
-	task := streams.NewTask(tp)
+	task := streams.NewTask(tp, streams.WithMode(streams.Async))
+	task.OnError(func(err error) {
+		t.FailNow()
+	})
+
+	err := task.Start()
+	if err != nil {
+		assert.FailNow(t, err.Error())
+	}
+
+	msgs <- msg
+
+	time.Sleep(time.Millisecond)
+
+	_ = task.Close()
+
+	p.AssertExpectations(t)
+}
+
+func TestStreamTask_ConsumesSyncMessages(t *testing.T) {
+	msgs := make(chan *streams.Message)
+	msg := streams.NewMessage("test", "test")
+
+	p := new(MockProcessor)
+	p.On("WithPipe", mock.Anything).Return(nil)
+	p.On("Process", msg).Return(nil)
+	p.On("Close").Return(nil)
+
+	b := streams.NewStreamBuilder()
+	b.Source("src", &chanSource{msgs: msgs}).
+		Map("pass-through", streams.MapperFunc(passThroughMapper)).
+		Process("processor", p)
+
+	tp, _ := b.Build()
+	task := streams.NewTask(tp, streams.WithMode(streams.Sync))
 	task.OnError(func(err error) {
 		t.FailNow()
 	})
