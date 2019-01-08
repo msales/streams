@@ -292,6 +292,42 @@ func TestSource_Consume(t *testing.T) {
 	assert.Equal(t, []byte("foo"), msg.Value)
 }
 
+func TestSource_ConsumeError(t *testing.T) {
+	broker0 := sarama.NewMockBroker(t, 0)
+	defer broker0.Close()
+	broker0.SetHandlerByMap(map[string]sarama.MockResponse{
+		"MetadataRequest": sarama.NewMockMetadataResponse(t).
+			SetBroker(broker0.Addr(), broker0.BrokerID()).
+			SetLeader("test_topic", 0, broker0.BrokerID()),
+		"FindCoordinatorRequest": sarama.NewMockFindCoordinatorResponse(t).
+			SetCoordinator(sarama.CoordinatorGroup, "test_group", broker0),
+		"JoinGroupRequest": sarama.NewMockWrapper(&sarama.JoinGroupResponse{
+			Version:       1,
+			Err:           sarama.ErrNoError,
+			GroupProtocol: "protocol",
+		}),
+		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
+			Err: sarama.ErrBrokerNotAvailable,
+			MemberAssignment: []byte{},
+		}),
+		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{
+			Err: sarama.ErrNoError,
+		}),
+	})
+	c := kafka.NewSourceConfig()
+	c.Brokers = []string{broker0.Addr()}
+	c.Topic = "test_topic"
+	c.GroupID = "test_group"
+	s, _ := kafka.NewSource(c)
+	defer s.Close()
+
+	time.Sleep(500 * time.Millisecond)
+
+	_, err := s.Consume()
+
+	assert.Error(t, err)
+}
+
 func TestSource_Commit(t *testing.T) {
 	broker0 := sarama.NewMockBroker(t, 0)
 	defer broker0.Close()
