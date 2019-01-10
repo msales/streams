@@ -1,12 +1,14 @@
 package streams
 
 import (
+	"context"
 	"errors"
 	"io"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/msales/pkg/v3/stats"
 	"github.com/msales/pkg/v3/syncx"
 )
 
@@ -40,8 +42,11 @@ func (*nopLocker) Unlock() {}
 type Supervisor interface {
 	io.Closer
 
+	// WithContext sets the context.
+	WithContext(ctx context.Context)
+
 	// WithPumps sets a map of Pumps.
-	WithPumps(pumps map[Node]Pump)
+	WithPumps(map[Node]Pump)
 
 	// Start starts the supervisor.
 	//
@@ -59,6 +64,9 @@ type supervisor struct {
 	store    Metastore
 	strategy MetadataStrategy
 
+	ctx   context.Context
+	stats stats.Stats
+
 	pumps map[Processor]Pump
 
 	commitMu syncx.Mutex
@@ -69,6 +77,8 @@ func NewSupervisor(store Metastore, strategy MetadataStrategy) Supervisor {
 	return &supervisor{
 		store:    store,
 		strategy: strategy,
+		ctx:      context.Background(),
+		stats:    stats.Null,
 	}
 }
 
@@ -78,6 +88,15 @@ func NewSupervisor(store Metastore, strategy MetadataStrategy) Supervisor {
 // It must not be a blocking call.
 func (s *supervisor) Start() error {
 	return nil
+}
+
+// WithContext sets the context.
+func (s *supervisor) WithContext(ctx context.Context) {
+	s.ctx = ctx
+
+	if st, ok := stats.FromContext(ctx); ok {
+		s.stats = st
+	}
 }
 
 // WithPumps sets a map of Pumps.
@@ -99,6 +118,8 @@ func (s *supervisor) Commit(caller Processor) error {
 		return nil
 	}
 	defer s.commitMu.Unlock()
+
+	start := nanotime()
 
 	metadata, err := s.store.PullAll()
 	if err != nil {
@@ -130,6 +151,10 @@ func (s *supervisor) Commit(caller Processor) error {
 		}
 	}
 
+	latency := time.Duration(nanotime() - start)
+	_ = s.stats.Timing("commit.latency", latency, 1)
+	_ = s.stats.Inc("commit.commits", 1, 1)
+
 	return nil
 }
 
@@ -142,7 +167,7 @@ func (s *supervisor) commit(caller Processor, comm Committer) (Metaitems, error)
 	locker.Lock()
 	defer locker.Unlock()
 
-	err = comm.Commit()
+	err = comm.Commit(s.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -172,6 +197,8 @@ func (s *supervisor) Close() error {
 }
 
 type timedSupervisor struct {
+	ctx context.Context
+
 	inner Supervisor
 	d     time.Duration
 	errFn ErrorFunc
@@ -188,6 +215,11 @@ func NewTimedSupervisor(inner Supervisor, d time.Duration, errFn ErrorFunc) Supe
 		d:     d,
 		errFn: errFn,
 	}
+}
+
+// WithContext sets the context.
+func (s *timedSupervisor) WithContext(ctx context.Context) {
+	s.inner.WithContext(ctx)
 }
 
 // WithPumps sets a map of Pumps.
