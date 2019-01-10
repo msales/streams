@@ -43,7 +43,7 @@ type Supervisor interface {
 	io.Closer
 
 	// WithContext sets the context.
-	WithContext(ctx context.Context)
+	WithContext(context.Context)
 
 	// WithPumps sets a map of Pumps.
 	WithPumps(map[Node]Pump)

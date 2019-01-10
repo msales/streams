@@ -26,7 +26,7 @@ func main() {
 		log.Fatal(err.Error())
 	}
 	ctx = stats.WithStats(ctx, client)
-	
+
 	tasks := streams.Tasks{}
 	p, err := producerTask(ctx, []string{"127.0.0.1:9092"}, config)
 	if err != nil {

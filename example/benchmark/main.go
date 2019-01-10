@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	task.Start()
+	task.Start(ctx)
 	defer task.Close()
 
 	// Wait for SIGTERM
@@ -52,18 +52,15 @@ func task(ctx context.Context) (streams.Task, error) {
 	return task, nil
 }
 
-type nilSource struct {
-	ctx context.Context
-}
+type nilSource struct{}
 
 func newNilSource(ctx context.Context) streams.Source {
 	return &nilSource{
-		ctx: ctx,
 	}
 }
 
 func (s *nilSource) Consume() (*streams.Message, error) {
-	return streams.NewMessageWithContext(s.ctx, nil, 1), nil
+	return streams.NewMessage(nil, 1), nil
 }
 
 func (s *nilSource) Commit(v interface{}) error {

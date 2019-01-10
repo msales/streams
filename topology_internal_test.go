@@ -1,6 +1,7 @@
 package streams
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -281,7 +282,7 @@ func (p testCommitter) Process(msg *Message) error {
 	return nil
 }
 
-func (p testCommitter) Commit() error {
+func (p testCommitter) Commit(ctx context.Context) error {
 	return nil
 }
 

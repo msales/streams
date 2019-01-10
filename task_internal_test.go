@@ -1,6 +1,7 @@
 package streams
 
 import (
+	"context"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -26,7 +27,7 @@ func TestStreamTask_StartSupervisorStartError(t *testing.T) {
 		supervisor: &fakeSupervisor{StartErr: errors.New("start error")},
 	}
 
-	err := task.Start()
+	err := task.Start(context.Background())
 
 	assert.Error(t, err)
 	assert.Equal(t, "start error", err.Error())
@@ -62,8 +63,8 @@ type fakeSupervisor struct {
 	CloseErr    error
 }
 
-func (s *fakeSupervisor) Close() error {
-	return s.CloseErr
+func (*fakeSupervisor) WithContext(ctx context.Context) {
+
 }
 
 func (s *fakeSupervisor) WithPumps(pumps map[Node]Pump) {}
@@ -74,4 +75,8 @@ func (s *fakeSupervisor) Start() error {
 
 func (s *fakeSupervisor) Commit(Processor) error {
 	return s.CommitError
+}
+
+func (s *fakeSupervisor) Close() error {
+	return s.CloseErr
 }

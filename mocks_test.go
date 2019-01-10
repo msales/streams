@@ -1,6 +1,7 @@
 package streams_test
 
 import (
+	"context"
 	"time"
 
 	"github.com/msales/streams/v2"
@@ -90,6 +91,10 @@ func (s *MockSupervisor) Start() error {
 func (s *MockSupervisor) Close() error {
 	args := s.Called()
 	return args.Error(0)
+}
+
+func (s *MockSupervisor) WithContext(ctx context.Context) {
+	s.Called(ctx)
 }
 
 func (s *MockSupervisor) WithPumps(pumps map[streams.Node]streams.Pump) {
@@ -185,8 +190,8 @@ func (p *MockCommitter) Process(msg *streams.Message) error {
 	return args.Error(0)
 }
 
-func (p *MockCommitter) Commit() error {
-	args := p.Called()
+func (p *MockCommitter) Commit(ctx context.Context) error {
+	args := p.Called(ctx)
 	return args.Error(0)
 }
 
@@ -224,10 +229,10 @@ type MockTask struct {
 	closeCalled   time.Time
 }
 
-func (t *MockTask) Start() error {
+func (t *MockTask) Start(ctx context.Context) error {
 	t.startCalled = time.Now()
 
-	return t.Called().Error(0)
+	return t.Called(ctx).Error(0)
 }
 
 func (t *MockTask) OnError(fn streams.ErrorFunc) {

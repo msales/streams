@@ -1,6 +1,7 @@
 package sql_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"testing"
@@ -213,7 +214,7 @@ func TestSink_Commit(t *testing.T) {
 	s.WithPipe(pipe)
 	_ = s.Process(streams.NewMessage("test1", "test1"))
 
-	err := s.Commit()
+	err := s.Commit(context.Background())
 
 	assert.NoError(t, err)
 	if err := dbMock.ExpectationsWereMet(); err != nil {
@@ -230,7 +231,7 @@ func TestSink_CommitNoTransaction(t *testing.T) {
 	s, _ := sqlx.NewSink(db, 2, exec)
 	s.WithPipe(pipe)
 
-	err := s.Commit()
+	err := s.Commit(context.Background())
 
 	assert.NoError(t, err)
 }
@@ -253,7 +254,7 @@ func TestSink_CommitTxCommit(t *testing.T) {
 	s.WithPipe(pipe)
 	_ = s.Process(streams.NewMessage("test1", "test1"))
 
-	err := s.Commit()
+	err := s.Commit(context.Background())
 
 	assert.NoError(t, err)
 	exec.AssertExpectations(t)
@@ -276,7 +277,7 @@ func TestSink_CommitTxCommitError(t *testing.T) {
 	s.WithPipe(pipe)
 	_ = s.Process(streams.NewMessage("test1", "test1"))
 
-	err := s.Commit()
+	err := s.Commit(context.Background())
 
 	assert.Error(t, err)
 }
@@ -299,7 +300,7 @@ func TestSink_CommitDBError(t *testing.T) {
 	s.WithPipe(pipe)
 	_ = s.Process(streams.NewMessage("test1", "test1"))
 
-	err := s.Commit()
+	err := s.Commit(context.Background())
 
 	assert.Error(t, err)
 	if err := dbMock.ExpectationsWereMet(); err != nil {

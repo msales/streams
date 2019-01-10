@@ -1,6 +1,7 @@
 package streams_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -74,7 +75,7 @@ func TestStreamTask_ConsumesSyncMessages(t *testing.T) {
 		t.FailNow()
 	})
 
-	err := task.Start()
+	err := task.Start(context.Background())
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -108,7 +109,7 @@ func TestStreamTask_Throughput(t *testing.T) {
 		t.FailNow()
 	})
 
-	err := task.Start()
+	err := task.Start(context.Background())
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -136,9 +137,9 @@ func TestStreamTask_CannotStartTwice(t *testing.T) {
 		t.FailNow()
 	})
 
-	_ = task.Start()
+	_ = task.Start(context.Background())
 
-	err := task.Start()
+	err := task.Start(context.Background())
 
 	_ = task.Close()
 
@@ -161,7 +162,7 @@ func TestStreamTask_HandleSourceError(t *testing.T) {
 		gotError = true
 	})
 
-	_ = task.Start()
+	_ = task.Start(context.Background())
 
 	time.Sleep(time.Millisecond)
 
@@ -191,7 +192,7 @@ func TestStreamTask_HandleProcessorError(t *testing.T) {
 		gotError = true
 	})
 
-	_ = task.Start()
+	_ = task.Start(context.Background())
 
 	msgs <- msg
 
@@ -217,7 +218,7 @@ func TestStreamTask_HandleCloseWithProcessorError(t *testing.T) {
 
 	tp, _ := b.Build()
 	task := streams.NewTask(tp)
-	_ = task.Start()
+	_ = task.Start(context.Background())
 
 	time.Sleep(time.Millisecond)
 
@@ -236,7 +237,7 @@ func TestStreamTask_HandleCloseWithSourceError(t *testing.T) {
 
 	tp, _ := b.Build()
 	task := streams.NewTask(tp)
-	_ = task.Start()
+	_ = task.Start(context.Background())
 
 	time.Sleep(time.Millisecond)
 
@@ -246,14 +247,15 @@ func TestStreamTask_HandleCloseWithSourceError(t *testing.T) {
 }
 
 func TestTasks_Start(t *testing.T) {
+	ctx := context.Background()
 	t1, t2, t3 := new(MockTask), new(MockTask), new(MockTask)
-	t1.On("Start").Return(nil)
-	t2.On("Start").Return(nil)
-	t3.On("Start").Return(nil)
+	t1.On("Start", ctx).Return(nil)
+	t2.On("Start", ctx).Return(nil)
+	t3.On("Start", ctx).Return(nil)
 
 	tasks := streams.Tasks{t1, t2, t3}
 
-	err := tasks.Start()
+	err := tasks.Start(ctx)
 
 	assert.NoError(t, err)
 	t1.AssertExpectations(t)
@@ -264,13 +266,14 @@ func TestTasks_Start(t *testing.T) {
 }
 
 func TestTasks_Start_WithError(t *testing.T) {
+	ctx := context.Background()
 	t1, t2, t3 := new(MockTask), new(MockTask), new(MockTask)
-	t1.On("Start").Return(nil)
-	t2.On("Start").Return(errors.New("test error"))
+	t1.On("Start", ctx).Return(nil)
+	t2.On("Start", ctx).Return(errors.New("test error"))
 
 	tasks := streams.Tasks{t1, t2, t3}
 
-	err := tasks.Start()
+	err := tasks.Start(ctx)
 
 	assert.Error(t, err)
 	t1.AssertExpectations(t)
