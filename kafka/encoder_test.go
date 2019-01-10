@@ -92,8 +92,8 @@ func TestDecoderFunc_Decode(t *testing.T) {
 	decoder := kafka.DecoderFunc(f)
 	result, err := decoder.Decode(b)
 
-	assert.True(t, i == result)
-	assert.True(t, e == err)
+	assert.True(t, i == result, "Received object is not exactly the same object that was returned by the function.")
+	assert.True(t, e == err, "Received error is not exactly the same object that was returned by the function.")
 }
 
 func TestEncoderFunc_Encode(t *testing.T) {
@@ -102,7 +102,7 @@ func TestEncoderFunc_Encode(t *testing.T) {
 	i := interface{}("entity")
 
 	f := func(object interface{}) ([]byte, error) {
-		assert.True(t, i == object)
+		assert.True(t, i == object, "Received object is not exactly the same as one that was that passed to the encoder.")
 
 		return b, e
 	}
@@ -111,5 +111,5 @@ func TestEncoderFunc_Encode(t *testing.T) {
 	result, err := encoder.Encode(i)
 
 	assert.Equal(t, b, result)
-	assert.True(t, e == err)
+	assert.True(t, e == err, "Received error is not exactly the same object that was returned by the function.")
 }
