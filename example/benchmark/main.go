@@ -55,8 +55,7 @@ func task(ctx context.Context) (streams.Task, error) {
 type nilSource struct{}
 
 func newNilSource(ctx context.Context) streams.Source {
-	return &nilSource{
-	}
+	return &nilSource{}
 }
 
 func (s *nilSource) Consume() (*streams.Message, error) {
