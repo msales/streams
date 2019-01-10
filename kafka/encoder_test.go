@@ -1,6 +1,7 @@
 package kafka_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/msales/streams/v2/kafka"
@@ -75,4 +76,40 @@ func TestStringEncoder_Encode(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, tt.want, got)
 	}
+}
+
+func TestDecoderFunc_Decode(t *testing.T) {
+	b := []byte("payload")
+	e := errors.New("test")
+	i := interface{}("entity")
+
+	f := func(value []byte) (interface{}, error) {
+		assert.Equal(t, b, value)
+
+		return i, e
+	}
+
+	decoder := kafka.DecoderFunc(f)
+	result, err := decoder.Decode(b)
+
+	assert.True(t, i == result)
+	assert.True(t, e == err)
+}
+
+func TestEncoderFunc_Encode(t *testing.T) {
+	b := []byte("payload")
+	e := errors.New("test")
+	i := interface{}("entity")
+
+	f := func(object interface{}) ([]byte, error) {
+		assert.True(t, i == object)
+
+		return b, e
+	}
+
+	encoder := kafka.EncoderFunc(f)
+	result, err := encoder.Encode(i)
+
+	assert.Equal(t, b, result)
+	assert.True(t, e == err)
 }
