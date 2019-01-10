@@ -197,8 +197,6 @@ func (s *supervisor) Close() error {
 }
 
 type timedSupervisor struct {
-	ctx context.Context
-
 	inner Supervisor
 	d     time.Duration
 	errFn ErrorFunc
