@@ -63,27 +63,12 @@ func TestSink_ProcessWithCacheError(t *testing.T) {
 
 func TestSink_Close(t *testing.T) {
 	pipe := mocks.NewPipe(t)
-	pipe.ExpectCommit()
 	s := cache.NewSink(cache2.Null, time.Millisecond, 1)
 	s.WithPipe(pipe)
 
 	err := s.Close()
 
 	assert.NoError(t, err)
-	pipe.AssertExpectations()
-}
-
-func TestSink_CloseWithError(t *testing.T) {
-	pipe := mocks.NewPipe(t)
-	pipe.ExpectCommit()
-	pipe.ShouldError()
-	s := cache.NewSink(cache2.Null, time.Millisecond, 1)
-	s.WithPipe(pipe)
-
-	err := s.Close()
-
-	assert.Error(t, err)
-	pipe.AssertExpectations()
 }
 
 type MockCache struct {
