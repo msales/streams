@@ -6,10 +6,26 @@ type Decoder interface {
 	Decode([]byte) (interface{}, error)
 }
 
+// DecoderFunc is an adapter allowing to use a function as a decoder.
+type DecoderFunc func(value []byte) (interface{}, error)
+
+// Decode transforms byte data to the desired type.
+func (f DecoderFunc) Decode(value []byte) (interface{}, error) {
+	return f(value)
+}
+
 // Encoder represents a Kafka data encoder.
 type Encoder interface {
 	// Encode transforms the typed data to bytes.
 	Encode(interface{}) ([]byte, error)
+}
+
+// EncoderFunc is an adapter allowing to use a function as an encoder.
+type EncoderFunc func(interface{}) ([]byte, error)
+
+// Encode transforms the typed data to bytes.
+func (f EncoderFunc) Encode(value interface{}) ([]byte, error) {
+	return f(value)
 }
 
 // ByteDecoder represents a byte decoder.
