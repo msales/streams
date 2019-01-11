@@ -13,6 +13,8 @@ type Sink struct {
 }
 
 // NewSink creates a new channel Sink.
+//
+// A batch size of 0 will never commit.
 func NewSink(ch chan *streams.Message, batch int) *Sink {
 	return &Sink{
 		ch:    ch,
@@ -30,7 +32,7 @@ func (s *Sink) Process(msg *streams.Message) error {
 	s.ch <- msg
 
 	s.count++
-	if s.count >= s.batch {
+	if s.batch > 0 && s.count >= s.batch {
 		s.count = 0
 		return s.pipe.Commit(msg)
 	}
