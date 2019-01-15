@@ -10,25 +10,14 @@ import (
 )
 
 func TestNewSink(t *testing.T) {
-	sink := channel.NewSink(nil)
+	sink := channel.NewSink(nil, 1)
 
-	assert.Equal(t, &channel.Sink{}, sink)
-}
-
-func TestSink_Close(t *testing.T) {
-	ch := make(chan *streams.Message)
-	sink := channel.NewSink(ch)
-
-	err := sink.Close()
-	_, open := <-ch
-
-	assert.NoError(t, err)
-	assert.False(t, open)
+	assert.IsType(t, &channel.Sink{}, sink)
 }
 
 func TestSink_Process(t *testing.T) {
 	ch := make(chan *streams.Message, 1)
-	sink := channel.NewSink(ch)
+	sink := channel.NewSink(ch,2)
 
 	pipe := mocks.NewPipe(t)
 	pipe.ExpectMark(nil, "test")
@@ -42,4 +31,33 @@ func TestSink_Process(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, msg, <-ch)
 	pipe.AssertExpectations()
+}
+
+func TestSink_ProcessWithCommit(t *testing.T) {
+	ch := make(chan *streams.Message, 1)
+	sink := channel.NewSink(ch,1)
+
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectCommit()
+
+	sink.WithPipe(pipe)
+
+	msg := &streams.Message{Value: "test"}
+
+	err := sink.Process(msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, msg, <-ch)
+	pipe.AssertExpectations()
+}
+
+func TestSink_Close(t *testing.T) {
+	ch := make(chan *streams.Message)
+	sink := channel.NewSink(ch, 1)
+
+	err := sink.Close()
+	_, open := <-ch
+
+	assert.NoError(t, err)
+	assert.False(t, open)
 }

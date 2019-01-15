@@ -87,6 +87,72 @@ func TestFlattenNodeTree(t *testing.T) {
 	assert.Equal(t, []Node{node3, node4, node5, node6, node7}, nodes)
 }
 
+func TestFlattenNodeTree_HandlesComplexTrees(t *testing.T) {
+	node11 := &testNode{
+		name: "node11",
+		processor: &testProcessor{},
+	}
+	node10 := &testNode{
+		name: "node10",
+		processor: &testProcessor{},
+	}
+	node9 := &testNode{
+		name: "node9",
+		children:  []Node{node10, node11},
+		processor: &testProcessor{},
+	}
+	node8 := &testNode{
+		name: "node8",
+		children:  []Node{node9},
+		processor: &testProcessor{},
+	}
+	node7 := &testNode{
+		name: "node7",
+		children:  []Node{node8},
+		processor: &testProcessor{},
+	}
+	node6 := &testNode{
+		name: "node6",
+		children:  []Node{node7},
+		processor: &testProcessor{},
+	}
+	node5 := &testNode{
+		name: "node5",
+		children:  []Node{node6},
+		processor: &testProcessor{},
+	}
+	node4 := &testNode{
+		name: "node4",
+		children:  []Node{node8},
+		processor: &testProcessor{},
+	}
+	node2 := &testNode{
+		name: "node2",
+		children: []Node{node4},
+	}
+	node3 := &testNode{
+		name: "node3",
+		children:  []Node{node5},
+		processor: &testProcessor{},
+	}
+	node1 := &testNode{
+		name: "node1",
+		children: []Node{node3},
+	}
+
+	nodes := flattenNodeTree(map[Source]Node{
+		testSource(1): node1,
+		testSource(2): node2,
+	})
+
+	// Deal with the random access of maps
+	if nodes[0] == node4 {
+		assert.Equal(t, []Node{node4, node3, node5, node6, node7, node8, node9, node11, node10}, nodes)
+	} else {
+		assert.Equal(t, []Node{node3, node4, node5, node6, node7, node8, node9, node10, node11}, nodes)
+	}
+}
+
 func TestReverse(t *testing.T) {
 	node1 := &testNode{}
 	node2 := &testNode{}
@@ -129,6 +195,36 @@ func TestContains(t *testing.T) {
 	}
 }
 
+func TestIndexOf(t *testing.T) {
+	node1 := &testNode{}
+	node2 := &testNode{}
+	node3 := &testNode{}
+	node4 := &testNode{}
+
+	tests := []struct {
+		node  Node
+		nodes []Node
+		index int
+	}{
+		{
+			node:  node1,
+			nodes: []Node{node1, node2, node3},
+			index: 0,
+		},
+		{
+			node:  node4,
+			nodes: []Node{node1, node2, node3},
+			index: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		i := indexOf(tt.node, tt.nodes)
+
+		assert.Equal(t, tt.index, i)
+	}
+}
+
 type testNode struct {
 	name      string
 	children  []Node
@@ -136,7 +232,7 @@ type testNode struct {
 }
 
 func (t *testNode) Name() string {
-	return ""
+	return t.name
 }
 
 func (t *testNode) AddChild(n Node) {

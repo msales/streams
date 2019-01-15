@@ -217,6 +217,22 @@ func flattenNodeTree(roots map[Source]Node) []Node {
 		}
 	}
 
+	// In asymmetric trees, our dependencies can be out of order,
+	// which will cause errors. In order to ratify this, we check
+	// that not dependency appears higher in the list than us.
+	for i := 0; i < len(nodes); i++ {
+		node := nodes[i]
+		for _, child := range node.Children() {
+			pos := indexOf(child, nodes)
+			if pos < i {
+				temp := nodes[pos]
+				nodes[pos] = nodes[i]
+				nodes[i] = temp
+				i = pos
+			}
+		}
+	}
+
 	return nodes
 }
 
@@ -235,4 +251,14 @@ func contains(n Node, nodes []Node) bool {
 	}
 
 	return false
+}
+
+func indexOf(n Node, nodes []Node) int {
+	for i, node := range nodes {
+		if node == n {
+			return i
+		}
+	}
+
+	return -1
 }

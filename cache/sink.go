@@ -16,7 +16,6 @@ type Sink struct {
 
 	batch   int
 	count   int
-	lastMsg *streams.Message
 }
 
 // NewSink creates a new cache insert sink.
@@ -41,7 +40,6 @@ func (p *Sink) Process(msg *streams.Message) error {
 		return err
 	}
 
-	p.lastMsg = msg
 	p.count++
 	if p.count >= p.batch {
 		p.count = 0
@@ -53,5 +51,5 @@ func (p *Sink) Process(msg *streams.Message) error {
 
 // Close closes the processor.
 func (p *Sink) Close() error {
-	return p.pipe.Commit(p.lastMsg)
+	return nil
 }
