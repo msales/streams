@@ -288,14 +288,14 @@ func TestTimedSupervisor_GlobalCommitSourceError(t *testing.T) {
 	inner.On("Close").Return(nil)
 
 	called := false
-	supervisor := streams.NewTimedSupervisor(inner, 1, func(err error) {
+	supervisor := streams.NewTimedSupervisor(inner, 5 * time.Millisecond, func(err error) {
 		assert.Equal(t, "error", err.Error())
 		called = true
 	})
 	_ = supervisor.Start()
 	defer supervisor.Close()
 
-	time.Sleep(time.Millisecond)
+	time.Sleep(6 * time.Millisecond)
 
 	inner.AssertCalled(t, "Commit", nil)
 	assert.True(t, called, "Expected error function to be called")
@@ -388,15 +388,13 @@ func TestTimedSupervisor_ManualCommitSkipsTimedCommit(t *testing.T) {
 	inner.On("Commit", caller).Return(nil)
 	inner.On("Close").Return(nil)
 
-	supervisor := streams.NewTimedSupervisor(inner, 5*time.Millisecond, nil)
+	supervisor := streams.NewTimedSupervisor(inner, 10*time.Millisecond, nil)
 	_ = supervisor.Start()
 	defer supervisor.Close()
 
-	time.Sleep(2 * time.Millisecond)
-
 	_ = supervisor.Commit(caller)
 
-	time.Sleep(4 * time.Millisecond)
+	time.Sleep(11 * time.Millisecond)
 
 	inner.AssertNumberOfCalls(t, "Commit", 1)
 }
