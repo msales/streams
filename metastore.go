@@ -109,23 +109,28 @@ func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
 	items, ok := (*procMeta)[p]
 	if !ok {
 		(*procMeta)[p] = Metaitems{{Source: src, Metadata: meta}}
+
 		s.procMu.Unlock()
 		return nil
 	}
-	s.procMu.Unlock()
 
 	if src == nil || meta == nil {
+		s.procMu.Unlock()
 		return nil
 	}
 
 	for _, item := range items {
 		if item.Source == src {
 			item.Metadata = meta.Merge(item.Metadata, Dupless)
+
+			s.procMu.Unlock()
 			return nil
 		}
 	}
 
 	items = append(items, &Metaitem{Source: src, Metadata: meta})
 	(*procMeta)[p] = items
+
+	s.procMu.Unlock()
 	return nil
 }
