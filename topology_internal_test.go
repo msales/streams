@@ -195,6 +195,36 @@ func TestContains(t *testing.T) {
 	}
 }
 
+func TestIndexOf(t *testing.T) {
+	node1 := &testNode{}
+	node2 := &testNode{}
+	node3 := &testNode{}
+	node4 := &testNode{}
+
+	tests := []struct {
+		node  Node
+		nodes []Node
+		index int
+	}{
+		{
+			node:  node1,
+			nodes: []Node{node1, node2, node3},
+			index: 0,
+		},
+		{
+			node:  node4,
+			nodes: []Node{node1, node2, node3},
+			index: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		i := indexOf(tt.node, tt.nodes)
+
+		assert.Equal(t, tt.index, i)
+	}
+}
+
 type testNode struct {
 	name      string
 	children  []Node
