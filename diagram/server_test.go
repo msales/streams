@@ -32,12 +32,12 @@ func TestStartServerWithTopology(t *testing.T) {
 	assert.Nil(t, errs)
 	stat := diagram.NewStat(topology)
 
-	go diagram.StartServer("127.0.0.1:8080", stat)
+	go diagram.StartServer("127.0.0.1:8081", stat)
 	defer diagram.StopServer()
 
 	time.Sleep(time.Millisecond)
 
-	resp, err := httpx.Get("http://127.0.0.1:8080/diagram")
+	resp, err := httpx.Get("http://127.0.0.1:8081/diagram")
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 }
