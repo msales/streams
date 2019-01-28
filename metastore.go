@@ -3,6 +3,7 @@ package streams
 import (
 	"sync"
 	"sync/atomic"
+	"unsafe"
 )
 
 // Metastore represents a metadata store.
@@ -48,14 +49,16 @@ OUTER:
 }
 
 type metastore struct {
-	metadata atomic.Value // map[Processor][]Metaitem
+	metadata *atomic.Value // map[Processor][]Metaitem
 
 	procMu sync.Mutex
 }
 
 // NewMetastore creates a new Metastore instance.
 func NewMetastore() Metastore {
-	s := &metastore{}
+	s := &metastore{
+		metadata: &atomic.Value{},
+	}
 	s.metadata.Store(&map[Processor]Metaitems{})
 
 	return s
@@ -63,29 +66,44 @@ func NewMetastore() Metastore {
 
 // Pull gets and clears the processors metadata.
 func (s *metastore) Pull(p Processor) (Metaitems, error) {
+	s.procMu.Lock()
+
 	meta := s.metadata.Load().(*map[Processor]Metaitems)
 
 	// We dont lock here as the Pump should be locked at this point
 	items, ok := (*meta)[p]
 	if ok {
 		delete(*meta, p)
+		s.procMu.Unlock()
+
 		return items, nil
 	}
+
+	s.procMu.Unlock()
 
 	return nil, nil
 }
 
 // PullAll gets and clears all metadata.
 func (s *metastore) PullAll() (map[Processor]Metaitems, error) {
-	meta := s.metadata.Load().(*map[Processor]Metaitems)
-
-	s.metadata.Store(&map[Processor]Metaitems{})
+	oldMeta := s.pullMetadata()
 
 	// Make sure no marks are happening on the old metadata
 	s.procMu.Lock()
 	s.procMu.Unlock()
 
-	return *meta, nil
+	return oldMeta, nil
+}
+
+// pullMetadata atomically replaces the current metadata with a new instance and returns the old instance.
+func (s *metastore) pullMetadata() map[Processor]Metaitems {
+	newMeta := atomic.Value{}
+	newMeta.Store(&map[Processor]Metaitems{})
+
+	metaPtr := (*unsafe.Pointer)(unsafe.Pointer(&s.metadata))
+	oldMetaPtr := atomic.SwapPointer(metaPtr, unsafe.Pointer(&newMeta))
+
+	return *(*atomic.Value)(oldMetaPtr).Load().(*map[Processor]Metaitems)
 }
 
 // Mark sets metadata for a processor.
@@ -93,8 +111,6 @@ func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
 	if p == nil {
 		return nil
 	}
-
-	procMeta := s.metadata.Load().(*map[Processor]Metaitems)
 
 	if meta != nil {
 		o := ProcessorOrigin
@@ -106,26 +122,34 @@ func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
 	}
 
 	s.procMu.Lock()
+
+	procMeta := s.metadata.Load().(*map[Processor]Metaitems)
+
 	items, ok := (*procMeta)[p]
 	if !ok {
 		(*procMeta)[p] = Metaitems{{Source: src, Metadata: meta}}
+
 		s.procMu.Unlock()
 		return nil
 	}
-	s.procMu.Unlock()
 
 	if src == nil || meta == nil {
+		s.procMu.Unlock()
 		return nil
 	}
 
 	for _, item := range items {
 		if item.Source == src {
 			item.Metadata = meta.Merge(item.Metadata, Dupless)
+
+			s.procMu.Unlock()
 			return nil
 		}
 	}
 
 	items = append(items, &Metaitem{Source: src, Metadata: meta})
 	(*procMeta)[p] = items
+
+	s.procMu.Unlock()
 	return nil
 }
