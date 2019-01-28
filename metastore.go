@@ -3,6 +3,7 @@ package streams
 import (
 	"sync"
 	"sync/atomic"
+	"unsafe"
 )
 
 // Metastore represents a metadata store.
@@ -48,14 +49,16 @@ OUTER:
 }
 
 type metastore struct {
-	metadata atomic.Value // map[Processor][]Metaitem
+	metadata *atomic.Value // map[Processor][]Metaitem
 
 	procMu sync.Mutex
 }
 
 // NewMetastore creates a new Metastore instance.
 func NewMetastore() Metastore {
-	s := &metastore{}
+	s := &metastore{
+		metadata: &atomic.Value{},
+	}
 	s.metadata.Store(&map[Processor]Metaitems{})
 
 	return s
@@ -63,23 +66,33 @@ func NewMetastore() Metastore {
 
 // Pull gets and clears the processors metadata.
 func (s *metastore) Pull(p Processor) (Metaitems, error) {
+	s.procMu.Lock()
+
 	meta := s.metadata.Load().(*map[Processor]Metaitems)
 
 	// We dont lock here as the Pump should be locked at this point
 	items, ok := (*meta)[p]
 	if ok {
 		delete(*meta, p)
+		s.procMu.Unlock()
+
 		return items, nil
 	}
+
+	s.procMu.Unlock()
 
 	return nil, nil
 }
 
 // PullAll gets and clears all metadata.
 func (s *metastore) PullAll() (map[Processor]Metaitems, error) {
-	meta := s.metadata.Load().(*map[Processor]Metaitems)
+	newMeta := atomic.Value{}
+	newMeta.Store(&map[Processor]Metaitems{})
 
-	s.metadata.Store(&map[Processor]Metaitems{})
+	metaPtr := (*unsafe.Pointer)(unsafe.Pointer(&s.metadata))
+	oldMetaPtr := atomic.SwapPointer(metaPtr, unsafe.Pointer(&newMeta))
+
+	meta := (*(*atomic.Value)(oldMetaPtr)).Load().(*map[Processor]Metaitems)
 
 	// Make sure no marks are happening on the old metadata
 	s.procMu.Lock()
@@ -102,7 +115,7 @@ func (s *metastore) Mark(p Processor, src Source, meta Metadata) error {
 
 		meta.WithOrigin(o)
 	}
-	
+
 	s.procMu.Lock()
 
 	procMeta := s.metadata.Load().(*map[Processor]Metaitems)
