@@ -86,19 +86,24 @@ func (s *metastore) Pull(p Processor) (Metaitems, error) {
 
 // PullAll gets and clears all metadata.
 func (s *metastore) PullAll() (map[Processor]Metaitems, error) {
+	oldMeta := s.pullMetadata()
+
+	// Make sure no marks are happening on the old metadata
+	s.procMu.Lock()
+	s.procMu.Unlock()
+
+	return oldMeta, nil
+}
+
+// pullMetadata atomically replaces the current metadata with a new instance and returns the old instance.
+func (s *metastore) pullMetadata() map[Processor]Metaitems {
 	newMeta := atomic.Value{}
 	newMeta.Store(&map[Processor]Metaitems{})
 
 	metaPtr := (*unsafe.Pointer)(unsafe.Pointer(&s.metadata))
 	oldMetaPtr := atomic.SwapPointer(metaPtr, unsafe.Pointer(&newMeta))
 
-	meta := (*(*atomic.Value)(oldMetaPtr)).Load().(*map[Processor]Metaitems)
-
-	// Make sure no marks are happening on the old metadata
-	s.procMu.Lock()
-	s.procMu.Unlock()
-
-	return *meta, nil
+	return *(*atomic.Value)(oldMetaPtr).Load().(*map[Processor]Metaitems)
 }
 
 // Mark sets metadata for a processor.
