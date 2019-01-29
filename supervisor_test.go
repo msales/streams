@@ -301,7 +301,7 @@ func TestTimedSupervisor_GlobalCommitSourceError(t *testing.T) {
 	inner.On("Close").Return(nil)
 
 	called := false
-	supervisor := streams.NewTimedSupervisor(inner, 5 * time.Millisecond, func(err error) {
+	supervisor := streams.NewTimedSupervisor(inner, 5*time.Millisecond, func(err error) {
 		assert.Equal(t, "error", err.Error())
 		called = true
 	})

@@ -103,7 +103,6 @@ func consumerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
 }
 
 type randIntSource struct {
-	ctx  context.Context
 	rand *rand.Rand
 }
 

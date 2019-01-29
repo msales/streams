@@ -14,8 +14,8 @@ type Sink struct {
 	cache  cache.Cache
 	expire time.Duration
 
-	batch   int
-	count   int
+	batch int
+	count int
 }
 
 // NewSink creates a new cache insert sink.
