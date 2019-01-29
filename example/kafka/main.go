@@ -28,7 +28,7 @@ func main() {
 	ctx = stats.WithStats(ctx, client)
 
 	tasks := streams.Tasks{}
-	p, err := producerTask(ctx, []string{"127.0.0.1:9092"}, config)
+	p, err := producerTask([]string{"127.0.0.1:9092"}, config)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -40,7 +40,7 @@ func main() {
 	}
 	tasks = append(tasks, c)
 
-	tasks.Start()
+	tasks.Start(ctx)
 	defer tasks.Close()
 
 	<-clix.WaitForSignals()

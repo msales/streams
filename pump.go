@@ -27,14 +27,23 @@ type syncPump struct {
 	name      string
 	processor Processor
 	pipe      TimedPipe
+
+	ctx   context.Context
+	stats stats.Stats
 }
 
 // NewSyncPump creates a new synchronous Pump instance.
-func NewSyncPump(node Node, pipe TimedPipe) Pump {
+func NewSyncPump(ctx context.Context, node Node, pipe TimedPipe) Pump {
 	p := &syncPump{
 		name:      node.Name(),
 		processor: node.Processor(),
 		pipe:      pipe,
+		ctx:       ctx,
+		stats:     stats.Null,
+	}
+
+	if s, ok := stats.FromContext(ctx); ok {
+		p.stats = s
 	}
 
 	return p
@@ -52,10 +61,8 @@ func (p *syncPump) Accept(msg *Message) error {
 	latency := time.Duration(nanotime()-start) - p.pipe.Duration()
 
 	tags := []interface{}{"name", p.name}
-	withStats(msg.Ctx, func(s stats.Stats) {
-		s.Timing("node.latency", latency, 0.1, tags...)
-		s.Inc("node.throughput", 1, 0.1, tags...)
-	})
+	_ = p.stats.Timing("node.latency", latency, 0.1, tags...)
+	_ = p.stats.Inc("node.throughput", 1, 0.1, tags...)
 
 	return nil
 }

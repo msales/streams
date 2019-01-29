@@ -41,7 +41,7 @@ func TestStreamTask_ConsumesAsyncMessages(t *testing.T) {
 		t.FailNow()
 	})
 
-	err := task.Start()
+	err := task.Start(context.Background())
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}

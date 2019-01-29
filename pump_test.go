@@ -21,7 +21,7 @@ func TestSyncPump_Accept(t *testing.T) {
 	pipe := new(MockTimedPipe)
 	pipe.On("Reset")
 	pipe.On("Duration").Return(time.Duration(0))
-	p := streams.NewSyncPump(node, pipe)
+	p := streams.NewSyncPump(ctx, node, pipe)
 	defer p.Close()
 
 	err := p.Accept(msg)
@@ -39,7 +39,7 @@ func TestSyncPump_AcceptError(t *testing.T) {
 	pipe := new(MockTimedPipe)
 	pipe.On("Reset")
 	pipe.On("Duration").Return(time.Duration(0))
-	p := streams.NewSyncPump(node, pipe)
+	p := streams.NewSyncPump(context.Background(), node, pipe)
 	defer p.Close()
 
 	err := p.Accept(msg)
@@ -52,7 +52,7 @@ func TestSyncPump_Close(t *testing.T) {
 	processor.On("Close").Return(nil)
 	node := streams.NewProcessorNode("test", processor)
 	pipe := new(MockTimedPipe)
-	p := streams.NewSyncPump(node, pipe)
+	p := streams.NewSyncPump(context.Background(), node, pipe)
 
 	err := p.Close()
 
@@ -65,7 +65,7 @@ func TestSyncPump_CloseError(t *testing.T) {
 	processor.On("Close").Return(errors.New("test"))
 	node := streams.NewProcessorNode("test", processor)
 	pipe := new(MockTimedPipe)
-	p := streams.NewSyncPump(node, pipe)
+	p := streams.NewSyncPump(context.Background(), node, pipe)
 
 	err := p.Close()
 
@@ -82,7 +82,7 @@ func TestAsyncPump_Accept(t *testing.T) {
 	pipe := new(MockTimedPipe)
 	pipe.On("Reset")
 	pipe.On("Duration").Return(time.Duration(0))
-	p := streams.NewAsyncPump(node, pipe, func(error) {})
+	p := streams.NewAsyncPump(ctx, node, pipe, func(error) {})
 	defer p.Close()
 
 	err := p.Accept(msg)
@@ -104,7 +104,7 @@ func TestAsyncPump_AcceptError(t *testing.T) {
 	pipe := new(MockTimedPipe)
 	pipe.On("Reset")
 	pipe.On("Duration").Return(time.Duration(0))
-	p := streams.NewAsyncPump(node, pipe, func(e error) {
+	p := streams.NewAsyncPump(context.Background(), node, pipe, func(e error) {
 		err = e
 	})
 	defer p.Close()
@@ -121,7 +121,7 @@ func TestAsyncPump_Close(t *testing.T) {
 	processor.On("Close").Return(nil)
 	node := streams.NewProcessorNode("test", processor)
 	pipe := new(MockTimedPipe)
-	p := streams.NewAsyncPump(node, pipe, func(error) {})
+	p := streams.NewAsyncPump(context.Background(), node, pipe, func(error) {})
 
 	err := p.Close()
 
@@ -134,7 +134,7 @@ func TestAsyncPump_CloseError(t *testing.T) {
 	processor.On("Close").Return(errors.New("test"))
 	node := streams.NewProcessorNode("test", processor)
 	pipe := new(MockTimedPipe)
-	p := streams.NewAsyncPump(node, pipe, func(error) {})
+	p := streams.NewAsyncPump(context.Background(), node, pipe, func(error) {})
 
 	err := p.Close()
 

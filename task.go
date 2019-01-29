@@ -120,7 +120,7 @@ func (t *streamTask) setupTopology(ctx context.Context) {
 		pipe := NewPipe(t.store, t.supervisor, node.Processor(), t.resolvePumps(node.Children()))
 		node.Processor().WithPipe(pipe)
 
-		pump := t.newPump(node, pipe.(TimedPipe), t.handleError)
+		pump := t.newPump(ctx, node, pipe.(TimedPipe), t.handleError)
 		t.pumps[node] = pump
 	}
 
@@ -133,12 +133,12 @@ func (t *streamTask) setupTopology(ctx context.Context) {
 	}
 }
 
-func (t *streamTask) newPump(node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
+func (t *streamTask) newPump(ctx context.Context, node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
 	if t.mode == Sync {
-		return NewSyncPump(node, pipe)
+		return NewSyncPump(ctx, node, pipe)
 	}
 
-	return NewAsyncPump(node, pipe, errFn)
+	return NewAsyncPump(ctx, node, pipe, errFn)
 }
 
 func (t *streamTask) resolvePumps(nodes []Node) []Pump {
