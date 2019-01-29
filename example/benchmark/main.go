@@ -40,7 +40,7 @@ func main() {
 
 func task(ctx context.Context) (streams.Task, error) {
 	builder := streams.NewStreamBuilder()
-	builder.Source("nil-source", newNilSource(ctx)).
+	builder.Source("nil-source", newNilSource()).
 		MapFunc("do-nothing", nothingMapper)
 
 	tp, _ := builder.Build()
