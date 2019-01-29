@@ -62,7 +62,7 @@ func newNilSource(ctx context.Context) streams.Source {
 	}
 }
 
-func (s *nilSource) Consume() (*streams.Message, error) {
+func (s *nilSource) Consume() (streams.Message, error) {
 	return streams.NewMessageWithContext(s.ctx, nil, 1), nil
 }
 
@@ -74,8 +74,8 @@ func (s *nilSource) Close() error {
 	return nil
 }
 
-func nothingMapper(msg *streams.Message) (*streams.Message, error) {
-	return nil, nil
+func nothingMapper(msg streams.Message) (streams.Message, error) {
+	return streams.EmptyMessage, nil
 }
 
 func waitForSignals() chan os.Signal {

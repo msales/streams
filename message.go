@@ -41,12 +41,12 @@ type Message struct {
 }
 
 // Metadata returns the Message Metadata.
-func (m *Message) Metadata() (Source, Metadata) {
+func (m Message) Metadata() (Source, Metadata) {
 	return m.source, m.metadata
 }
 
 // WithMetadata add metadata to the Message for a Source.
-func (m *Message) WithMetadata(s Source, v Metadata) *Message {
+func (m Message) WithMetadata(s Source, v Metadata) Message {
 	m.source = s
 	m.metadata = v
 
@@ -58,9 +58,12 @@ func (m Message) Empty() bool {
 	return m.Key == nil && m.Value == nil
 }
 
+// EmptyMessage is a predefined empty message.
+var EmptyMessage = Message{}
+
 // NewMessage creates a Message.
-func NewMessage(k, v interface{}) *Message {
-	return &Message{
+func NewMessage(k, v interface{}) Message {
+	return Message{
 		source:   nil,
 		metadata: nil,
 		Ctx:      context.Background(),
@@ -70,8 +73,8 @@ func NewMessage(k, v interface{}) *Message {
 }
 
 // NewMessageWithContext creates a Message with the given context.
-func NewMessageWithContext(ctx context.Context, k, v interface{}) *Message {
-	return &Message{
+func NewMessageWithContext(ctx context.Context, k, v interface{}) Message {
+	return Message{
 		source:   nil,
 		metadata: nil,
 		Ctx:      ctx,

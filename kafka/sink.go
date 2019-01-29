@@ -97,7 +97,7 @@ func (p *Sink) WithPipe(pipe streams.Pipe) {
 }
 
 // Process processes the stream record.
-func (p *Sink) Process(msg *streams.Message) error {
+func (p *Sink) Process(msg streams.Message) error {
 	k, err := p.keyEncoder.Encode(msg.Key)
 	if err != nil {
 		return err

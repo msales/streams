@@ -130,7 +130,7 @@ func (p *MockPump) Unlock() {
 	p.Called()
 }
 
-func (p *MockPump) Accept(msg *streams.Message) error {
+func (p *MockPump) Accept(msg streams.Message) error {
 	args := p.Called(msg)
 	return args.Error(0)
 }
@@ -159,7 +159,7 @@ func (p *MockProcessor) WithPipe(pipe streams.Pipe) {
 	p.Called(pipe)
 }
 
-func (p *MockProcessor) Process(msg *streams.Message) error {
+func (p *MockProcessor) Process(msg streams.Message) error {
 	args := p.Called(msg)
 	return args.Error(0)
 }
@@ -180,7 +180,7 @@ func (p *MockCommitter) WithPipe(pipe streams.Pipe) {
 	p.Called(pipe)
 }
 
-func (p *MockCommitter) Process(msg *streams.Message) error {
+func (p *MockCommitter) Process(msg streams.Message) error {
 	args := p.Called(msg)
 	return args.Error(0)
 }
@@ -201,9 +201,9 @@ type MockSource struct {
 	mock.Mock
 }
 
-func (s *MockSource) Consume() (*streams.Message, error) {
+func (s *MockSource) Consume() (streams.Message, error) {
 	args := s.Called()
-	return args.Get(0).(*streams.Message), args.Error(1)
+	return args.Get(0).(streams.Message), args.Error(1)
 }
 
 func (s *MockSource) Commit(v interface{}) error {

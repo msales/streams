@@ -15,12 +15,12 @@ func TestNewSource(t *testing.T) {
 }
 
 func TestSource_Consume(t *testing.T) {
-	msgs := make([]*streams.Message, 3)
+	msgs := make([]streams.Message, 3)
 	for i := 0; i < len(msgs); i++ {
 		msgs[i] = streams.NewMessage(i, i).WithMetadata(mockSource{}, mockMetadata{})
 	}
 
-	ch := make(chan *streams.Message, len(msgs))
+	ch := make(chan streams.Message, len(msgs))
 
 	for _, msg := range msgs {
 		ch <- msg
@@ -57,7 +57,7 @@ func TestSource_Commit(t *testing.T) {
 }
 
 func TestSource_Close(t *testing.T) {
-	ch := make(chan *streams.Message)
+	ch := make(chan streams.Message)
 	src := channel.NewSource(ch)
 
 	err := src.Close()
@@ -70,8 +70,8 @@ func TestSource_Close(t *testing.T) {
 
 type mockSource struct{}
 
-func (mockSource) Consume() (*streams.Message, error) {
-	return nil, nil
+func (mockSource) Consume() (streams.Message, error) {
+	return streams.EmptyMessage, nil
 }
 
 func (mockSource) Commit(interface{}) error {

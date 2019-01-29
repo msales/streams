@@ -17,13 +17,13 @@ type TimedPipe interface {
 // Pipe allows messages to flow through the processors.
 type Pipe interface {
 	// Mark indicates that the message has been delt with
-	Mark(*Message) error
+	Mark(Message) error
 	// Forward queues the message with all processor children in the topology.
-	Forward(*Message) error
+	Forward(Message) error
 	// Forward queues the message with the the given processor(inner) child in the topology.
-	ForwardToChild(*Message, int) error
+	ForwardToChild(Message, int) error
 	// Commit commits the current state in the related sources.
-	Commit(*Message) error
+	Commit(Message) error
 }
 
 var _ = (TimedPipe)(&processorPipe{})
@@ -59,7 +59,7 @@ func (p *processorPipe) Duration() time.Duration {
 }
 
 // Mark indicates that the message has been delt with
-func (p *processorPipe) Mark(msg *Message) error {
+func (p *processorPipe) Mark(msg Message) error {
 	start := nanotime()
 
 	err := p.store.Mark(p.proc, msg.source, msg.metadata)
@@ -70,7 +70,7 @@ func (p *processorPipe) Mark(msg *Message) error {
 }
 
 // Forward queues the data to all processor children in the topology.
-func (p *processorPipe) Forward(msg *Message) error {
+func (p *processorPipe) Forward(msg Message) error {
 	start := nanotime()
 
 	for _, child := range p.children {
@@ -85,7 +85,7 @@ func (p *processorPipe) Forward(msg *Message) error {
 }
 
 // Forward queues the data to the the given processor(inner) child in the topology.
-func (p *processorPipe) ForwardToChild(msg *Message, index int) error {
+func (p *processorPipe) ForwardToChild(msg Message, index int) error {
 	start := nanotime()
 
 	if index > len(p.children)-1 {
@@ -101,7 +101,7 @@ func (p *processorPipe) ForwardToChild(msg *Message, index int) error {
 }
 
 // Commit commits the current state in the sources.
-func (p *processorPipe) Commit(msg *Message) error {
+func (p *processorPipe) Commit(msg Message) error {
 	start := nanotime()
 
 	if err := p.store.Mark(p.proc, msg.source, msg.metadata); err != nil {

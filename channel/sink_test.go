@@ -16,7 +16,7 @@ func TestNewSink(t *testing.T) {
 }
 
 func TestSink_Process(t *testing.T) {
-	ch := make(chan *streams.Message, 1)
+	ch := make(chan streams.Message, 1)
 	sink := channel.NewSink(ch,2)
 
 	pipe := mocks.NewPipe(t)
@@ -24,7 +24,7 @@ func TestSink_Process(t *testing.T) {
 
 	sink.WithPipe(pipe)
 
-	msg := &streams.Message{Value: "test"}
+	msg := streams.Message{Value: "test"}
 
 	err := sink.Process(msg)
 
@@ -34,7 +34,7 @@ func TestSink_Process(t *testing.T) {
 }
 
 func TestSink_ProcessWithCommit(t *testing.T) {
-	ch := make(chan *streams.Message, 1)
+	ch := make(chan streams.Message, 1)
 	sink := channel.NewSink(ch,1)
 
 	pipe := mocks.NewPipe(t)
@@ -42,7 +42,7 @@ func TestSink_ProcessWithCommit(t *testing.T) {
 
 	sink.WithPipe(pipe)
 
-	msg := &streams.Message{Value: "test"}
+	msg := streams.Message{Value: "test"}
 
 	err := sink.Process(msg)
 
@@ -52,7 +52,7 @@ func TestSink_ProcessWithCommit(t *testing.T) {
 }
 
 func TestSink_Close(t *testing.T) {
-	ch := make(chan *streams.Message)
+	ch := make(chan streams.Message)
 	sink := channel.NewSink(ch, 1)
 
 	err := sink.Close()

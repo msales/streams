@@ -60,7 +60,7 @@ func newRandIntSource(ctx context.Context) streams.Source {
 	}
 }
 
-func (s *randIntSource) Consume() (*streams.Message, error) {
+func (s *randIntSource) Consume() (streams.Message, error) {
 	return streams.NewMessageWithContext(s.ctx, nil, s.rand.Intn(100)), nil
 }
 
@@ -89,7 +89,7 @@ func (p *commitProcessor) WithPipe(pipe streams.Pipe) {
 	p.pipe = pipe
 }
 
-func (p *commitProcessor) Process(msg *streams.Message) error {
+func (p *commitProcessor) Process(msg streams.Message) error {
 	p.count++
 
 	if p.count >= p.batch {
@@ -109,19 +109,19 @@ func (p *commitProcessor) Close() error {
 	return nil
 }
 
-func branchOddNumberFilter(msg *streams.Message) (bool, error) {
+func branchOddNumberFilter(msg streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num%2 == 1, nil
 }
 
-func branchEvenNumberFilter(msg *streams.Message) (bool, error) {
+func branchEvenNumberFilter(msg streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num%2 == 0, nil
 }
 
-func negativeMapper(msg *streams.Message) (*streams.Message, error) {
+func negativeMapper(msg streams.Message) (streams.Message, error) {
 	num := msg.Value.(int)
 	msg.Value = num * -1
 

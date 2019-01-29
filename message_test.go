@@ -51,7 +51,7 @@ func TestMessage_Metadata(t *testing.T) {
 	m := new(MockMetadata)
 	msg := streams.NewMessage("test", "test")
 
-	msg.WithMetadata(s, m)
+	msg = msg.WithMetadata(s, m)
 
 	src, meta := msg.Metadata()
 	assert.Equal(t, s, src)
