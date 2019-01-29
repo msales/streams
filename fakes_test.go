@@ -1,6 +1,7 @@
 package streams_test
 
 import (
+	"context"
 	"sync"
 
 	"github.com/msales/streams/v2"
@@ -99,6 +100,10 @@ func (n *fakeNode) Processor() streams.Processor {
 }
 
 type fakeSupervisor struct{}
+
+func (*fakeSupervisor) WithContext(ctx context.Context) {
+
+}
 
 func (*fakeSupervisor) WithPumps(pumps map[streams.Node]streams.Pump) {
 

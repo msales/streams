@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"os"
@@ -27,7 +28,7 @@ func main() {
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
-	task.Start()
+	task.Start(context.Background())
 	defer task.Close()
 
 	// Wait for SIGTERM

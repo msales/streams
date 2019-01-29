@@ -21,7 +21,7 @@ func main() {
 
 	builder := streams.NewStreamBuilder()
 
-	s := builder.Source("rand-source", newRandIntSource(ctx)).
+	s := builder.Source("rand-source", newRandIntSource()).
 		BranchFunc("branch", branchEvenNumberFilter, branchOddNumberFilter)
 
 	sink1 := newCommitProcessor(1000)
@@ -41,7 +41,7 @@ func main() {
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
-	task.Start()
+	task.Start(ctx)
 	defer task.Close()
 
 	// Wait for SIGTERM
@@ -49,19 +49,17 @@ func main() {
 }
 
 type randIntSource struct {
-	ctx  context.Context
 	rand *rand.Rand
 }
 
-func newRandIntSource(ctx context.Context) streams.Source {
+func newRandIntSource() streams.Source {
 	return &randIntSource{
-		ctx:  ctx,
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
 func (s *randIntSource) Consume() (streams.Message, error) {
-	return streams.NewMessageWithContext(s.ctx, nil, s.rand.Intn(100)), nil
+	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
 func (s *randIntSource) Commit(v interface{}) error {

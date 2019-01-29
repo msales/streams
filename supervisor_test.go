@@ -1,6 +1,7 @@
 package streams_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -256,6 +257,18 @@ func TestNewTimedSupervisor(t *testing.T) {
 	assert.Implements(t, (*streams.Supervisor)(nil), supervisor)
 }
 
+func TestTimedSupervisor_WithContext(t *testing.T) {
+	ctx := context.Background()
+	inner := new(MockSupervisor)
+	inner.On("WithContext", ctx).Return()
+
+	supervisor := streams.NewTimedSupervisor(inner, 0, nil)
+
+	supervisor.WithContext(ctx)
+
+	inner.AssertCalled(t, "WithContext", ctx)
+}
+
 func TestTimedSupervisor_WithPumps(t *testing.T) {
 	pumps := map[streams.Node]streams.Pump{}
 	inner := new(MockSupervisor)
@@ -288,7 +301,7 @@ func TestTimedSupervisor_GlobalCommitSourceError(t *testing.T) {
 	inner.On("Close").Return(nil)
 
 	called := false
-	supervisor := streams.NewTimedSupervisor(inner, 5 * time.Millisecond, func(err error) {
+	supervisor := streams.NewTimedSupervisor(inner, 5*time.Millisecond, func(err error) {
 		assert.Equal(t, "error", err.Error())
 		called = true
 	})
@@ -437,7 +450,7 @@ func source(err error) *MockSource {
 
 func committer(err error) *MockCommitter {
 	c := new(MockCommitter)
-	c.On("Commit").Return(err)
+	c.On("Commit", mock.Anything).Return(err)
 
 	return c
 }

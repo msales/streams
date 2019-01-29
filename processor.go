@@ -1,6 +1,7 @@
 package streams
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -9,7 +10,7 @@ type Committer interface {
 	Processor
 
 	//Commit commits a processors batch.
-	Commit() error
+	Commit(ctx context.Context) error
 }
 
 // Processor represents a stream processor.

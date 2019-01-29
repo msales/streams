@@ -17,7 +17,7 @@ func TestNewSink(t *testing.T) {
 
 func TestSink_Process(t *testing.T) {
 	ch := make(chan streams.Message, 1)
-	sink := channel.NewSink(ch,2)
+	sink := channel.NewSink(ch, 2)
 
 	pipe := mocks.NewPipe(t)
 	pipe.ExpectMark(nil, "test")
@@ -35,7 +35,7 @@ func TestSink_Process(t *testing.T) {
 
 func TestSink_ProcessWithCommit(t *testing.T) {
 	ch := make(chan streams.Message, 1)
-	sink := channel.NewSink(ch,1)
+	sink := channel.NewSink(ch, 1)
 
 	pipe := mocks.NewPipe(t)
 	pipe.ExpectCommit()

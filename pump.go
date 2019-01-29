@@ -27,14 +27,23 @@ type syncPump struct {
 	name      string
 	processor Processor
 	pipe      TimedPipe
+
+	ctx   context.Context
+	stats stats.Stats
 }
 
 // NewSyncPump creates a new synchronous Pump instance.
-func NewSyncPump(node Node, pipe TimedPipe) Pump {
+func NewSyncPump(ctx context.Context, node Node, pipe TimedPipe) Pump {
 	p := &syncPump{
 		name:      node.Name(),
 		processor: node.Processor(),
 		pipe:      pipe,
+		ctx:       ctx,
+		stats:     stats.Null,
+	}
+
+	if s, ok := stats.FromContext(ctx); ok {
+		p.stats = s
 	}
 
 	return p
@@ -52,10 +61,8 @@ func (p *syncPump) Accept(msg Message) error {
 	latency := time.Duration(nanotime()-start) - p.pipe.Duration()
 
 	tags := []interface{}{"name", p.name}
-	withStats(msg.Ctx, func(s stats.Stats) {
-		s.Timing("node.latency", latency, 0.1, tags...)
-		s.Inc("node.throughput", 1, 0.1, tags...)
-	})
+	_ = p.stats.Timing("node.latency", latency, 0.1, tags...)
+	_ = p.stats.Inc("node.throughput", 1, 0.1, tags...)
 
 	return nil
 }
@@ -77,19 +84,28 @@ type asyncPump struct {
 	pipe      TimedPipe
 	errFn     ErrorFunc
 
+	ctx   context.Context
+	stats stats.Stats
+
 	ch chan Message
 
 	wg sync.WaitGroup
 }
 
 // NewAsyncPump creates a new asynchronous Pump instance.
-func NewAsyncPump(node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
+func NewAsyncPump(ctx context.Context, node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
 	p := &asyncPump{
 		name:      node.Name(),
 		processor: node.Processor(),
 		pipe:      pipe,
 		errFn:     errFn,
+		ctx:       ctx,
+		stats:     stats.Null,
 		ch:        make(chan Message, 1000),
+	}
+
+	if s, ok := stats.FromContext(ctx); ok {
+		p.stats = s
 	}
 
 	go p.run()
@@ -120,11 +136,9 @@ func (p *asyncPump) run() {
 
 		p.Unlock()
 
-		withStats(msg.Ctx, func(s stats.Stats) {
-			s.Timing("node.latency", latency, 0.1, tags...)
-			s.Inc("node.throughput", 1, 0.1, tags...)
-			s.Gauge("node.back-pressure", pressure(p.ch), 0.1, tags...)
-		})
+		_ = p.stats.Timing("node.latency", latency, 0.1, tags...)
+		_ = p.stats.Inc("node.throughput", 1, 0.1, tags...)
+		_ = p.stats.Gauge("node.back-pressure", pressure(p.ch), 0.1, tags...)
 	}
 
 	// It is not safe to do anything after the loop
@@ -184,18 +198,27 @@ type sourcePump struct {
 	pumps  []Pump
 	errFn  ErrorFunc
 
+	ctx   context.Context
+	stats stats.Stats
+
 	quit chan struct{}
 	wg   sync.WaitGroup
 }
 
 // NewSourcePump creates a new SourcePump.
-func NewSourcePump(name string, source Source, pumps []Pump, errFn ErrorFunc) SourcePump {
+func NewSourcePump(ctx context.Context, name string, source Source, pumps []Pump, errFn ErrorFunc) SourcePump {
 	p := &sourcePump{
 		name:   name,
 		source: source,
 		pumps:  pumps,
 		errFn:  errFn,
+		ctx:    ctx,
+		stats:  stats.Null,
 		quit:   make(chan struct{}, 2),
+	}
+
+	if s, ok := stats.FromContext(ctx); ok {
+		p.stats = s
 	}
 
 	go p.run()
@@ -227,10 +250,8 @@ func (p *sourcePump) run() {
 			}
 
 			latency := time.Duration(nanotime() - start)
-			withStats(msg.Ctx, func(s stats.Stats) {
-				s.Timing("node.latency", latency, 0.1, tags...)
-				s.Inc("node.throughput", 1, 0.1, tags...)
-			})
+			_ = p.stats.Timing("node.latency", latency, 0.1, tags...)
+			_ = p.stats.Inc("node.throughput", 1, 0.1, tags...)
 
 			for _, pump := range p.pumps {
 				err = pump.Accept(msg)
@@ -255,10 +276,4 @@ func (p *sourcePump) Close() error {
 	close(p.quit)
 
 	return p.source.Close()
-}
-
-func withStats(ctx context.Context, fn func(s stats.Stats)) {
-	if s, ok := stats.FromContext(ctx); ok {
-		fn(s)
-	}
 }

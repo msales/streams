@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -87,7 +88,7 @@ func (p *Sink) Process(msg streams.Message) error {
 }
 
 //Commit commits a processors batch.
-func (p *Sink) Commit() error {
+func (p *Sink) Commit(ctx context.Context) error {
 	p.count = 0
 
 	return p.commitTransaction()
