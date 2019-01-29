@@ -12,7 +12,7 @@ type fakeSource struct {
 	Value interface{}
 }
 
-func (s *fakeSource) Consume() (*streams.Message, error) {
+func (s *fakeSource) Consume() (streams.Message, error) {
 	return streams.NewMessage(s.Key, s.Value), nil
 }
 
@@ -28,7 +28,7 @@ type fakeCommitter struct{}
 
 func (*fakeCommitter) WithPipe(streams.Pipe) {}
 
-func (*fakeCommitter) Process(*streams.Message) error {
+func (*fakeCommitter) Process(streams.Message) error {
 	return nil
 }
 
@@ -69,7 +69,7 @@ type fakePump struct {
 	sync.Mutex
 }
 
-func (*fakePump) Accept(*streams.Message) error {
+func (*fakePump) Accept(streams.Message) error {
 	return nil
 }
 

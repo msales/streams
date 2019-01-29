@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func passThroughMapper(msg *streams.Message) (*streams.Message, error) {
+func passThroughMapper(msg streams.Message) (streams.Message, error) {
 	return msg, nil
 }
 
@@ -22,7 +22,7 @@ func TestNewTask(t *testing.T) {
 }
 
 func TestStreamTask_ConsumesAsyncMessages(t *testing.T) {
-	msgs := make(chan *streams.Message)
+	msgs := make(chan streams.Message)
 	msg := streams.NewMessage("test", "test")
 
 	p := new(MockProcessor)
@@ -56,7 +56,7 @@ func TestStreamTask_ConsumesAsyncMessages(t *testing.T) {
 }
 
 func TestStreamTask_ConsumesSyncMessages(t *testing.T) {
-	msgs := make(chan *streams.Message)
+	msgs := make(chan streams.Message)
 	msg := streams.NewMessage("test", "test")
 
 	p := new(MockProcessor)
@@ -90,7 +90,7 @@ func TestStreamTask_ConsumesSyncMessages(t *testing.T) {
 }
 
 func TestStreamTask_Throughput(t *testing.T) {
-	msgs := make(chan *streams.Message)
+	msgs := make(chan streams.Message)
 	msg := streams.NewMessage("test", "test")
 
 	count := 0
@@ -98,7 +98,7 @@ func TestStreamTask_Throughput(t *testing.T) {
 	b := streams.NewStreamBuilder()
 	b.Source("src", &chanSource{msgs: msgs}).
 		Map("pass-through", streams.MapperFunc(passThroughMapper)).
-		Map("count", streams.MapperFunc(func(msg *streams.Message) (*streams.Message, error) {
+		Map("count", streams.MapperFunc(func(msg streams.Message) (streams.Message, error) {
 			count++
 			return msg, nil
 		}))
@@ -126,7 +126,7 @@ func TestStreamTask_Throughput(t *testing.T) {
 }
 
 func TestStreamTask_CannotStartTwice(t *testing.T) {
-	msgs := make(chan *streams.Message)
+	msgs := make(chan streams.Message)
 
 	b := streams.NewStreamBuilder()
 	b.Source("src", &chanSource{msgs: msgs})
@@ -174,7 +174,7 @@ func TestStreamTask_HandleSourceError(t *testing.T) {
 func TestStreamTask_HandleProcessorError(t *testing.T) {
 	gotError := false
 
-	msgs := make(chan *streams.Message)
+	msgs := make(chan streams.Message)
 	msg := streams.NewMessage("test", "test")
 
 	p := new(MockProcessor)
@@ -333,10 +333,10 @@ func TestTasks_Close_WithError(t *testing.T) {
 }
 
 type chanSource struct {
-	msgs chan *streams.Message
+	msgs chan streams.Message
 }
 
-func (s *chanSource) Consume() (*streams.Message, error) {
+func (s *chanSource) Consume() (streams.Message, error) {
 	select {
 
 	case msg := <-s.msgs:

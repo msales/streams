@@ -16,7 +16,7 @@ type record struct {
 // ChildMessage represents a message forwarded to a child index.
 type ChildMessage struct {
 	Index int
-	Msg   *streams.Message
+	Msg   streams.Message
 }
 
 var _ = (streams.Pipe)(&Pipe{})
@@ -50,7 +50,7 @@ func (p *Pipe) Messages() []ChildMessage {
 }
 
 // Mark indicates that the message has been delt with
-func (p *Pipe) Mark(msg *streams.Message) error {
+func (p *Pipe) Mark(msg streams.Message) error {
 	if len(p.expectMark) == 0 {
 		p.t.Error("streams: mock: Unexpected call to Mark")
 		return nil
@@ -72,7 +72,7 @@ func (p *Pipe) Mark(msg *streams.Message) error {
 }
 
 // Forward queues the data to all processor children in the topology.
-func (p *Pipe) Forward(msg *streams.Message) error {
+func (p *Pipe) Forward(msg streams.Message) error {
 	if len(p.expectForward) == 0 {
 		p.t.Error("streams: mock: Unexpected call to Forward")
 		return nil
@@ -96,7 +96,7 @@ func (p *Pipe) Forward(msg *streams.Message) error {
 }
 
 // ForwardToChild queues the data to the the given processor(s) child in the topology.
-func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
+func (p *Pipe) ForwardToChild(msg streams.Message, index int) error {
 	if len(p.expectForward) == 0 {
 		p.t.Error("streams: mock: Unexpected call to ForwardToChild")
 		return nil
@@ -121,7 +121,7 @@ func (p *Pipe) ForwardToChild(msg *streams.Message, index int) error {
 }
 
 // Commit commits the current state in the sources.
-func (p *Pipe) Commit(msg *streams.Message) error {
+func (p *Pipe) Commit(msg streams.Message) error {
 	if !p.expectCommit {
 		p.t.Error("streams: mock: Unexpected call to Commit")
 	}

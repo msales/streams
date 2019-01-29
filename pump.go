@@ -13,7 +13,7 @@ type Pump interface {
 	sync.Locker
 
 	// Accept takes a message to be processed in the Pump.
-	Accept(*Message) error
+	Accept(Message) error
 	// Stop stops the pump.
 	Stop()
 	// Close closes the pump.
@@ -50,7 +50,7 @@ func NewSyncPump(ctx context.Context, node Node, pipe TimedPipe) Pump {
 }
 
 // Accept takes a message to be processed in the Pump.
-func (p *syncPump) Accept(msg *Message) error {
+func (p *syncPump) Accept(msg Message) error {
 	p.pipe.Reset()
 
 	start := nanotime()
@@ -87,7 +87,7 @@ type asyncPump struct {
 	ctx   context.Context
 	stats stats.Stats
 
-	ch chan *Message
+	ch chan Message
 
 	wg sync.WaitGroup
 }
@@ -101,7 +101,7 @@ func NewAsyncPump(ctx context.Context, node Node, pipe TimedPipe, errFn ErrorFun
 		errFn:     errFn,
 		ctx:       ctx,
 		stats:     stats.Null,
-		ch:        make(chan *Message, 1000),
+		ch:        make(chan Message, 1000),
 	}
 
 	if s, ok := stats.FromContext(ctx); ok {
@@ -145,7 +145,7 @@ func (p *asyncPump) run() {
 }
 
 // Accept takes a message to be processed in the Pump.
-func (p *asyncPump) Accept(msg *Message) error {
+func (p *asyncPump) Accept(msg Message) error {
 	p.ch <- msg
 
 	return nil
@@ -166,7 +166,7 @@ func (p *asyncPump) Close() error {
 }
 
 // pressure calculates how full a channel is.
-func pressure(ch chan *Message) float64 {
+func pressure(ch chan Message) float64 {
 	l := float64(len(ch))
 	c := float64(cap(ch))
 

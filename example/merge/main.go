@@ -45,7 +45,7 @@ func newRandIntSource() streams.Source {
 	}
 }
 
-func (s *randIntSource) Consume() (*streams.Message, error) {
+func (s *randIntSource) Consume() (streams.Message, error) {
 	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
@@ -57,19 +57,19 @@ func (s *randIntSource) Close() error {
 	return nil
 }
 
-func lowNumberFilter(msg *streams.Message) (bool, error) {
+func lowNumberFilter(msg streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num < 50, nil
 }
 
-func highNumberFilter(msg *streams.Message) (bool, error) {
+func highNumberFilter(msg streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num >= 50, nil
 }
 
-func addHundredMapper(msg *streams.Message) (*streams.Message, error) {
+func addHundredMapper(msg streams.Message) (streams.Message, error) {
 	num := msg.Value.(int)
 	msg.Value = num + 100
 

@@ -65,7 +65,7 @@ func (*fakePump) Lock() {}
 
 func (*fakePump) Unlock() {}
 
-func (*fakePump) Accept(*Message) error {
+func (*fakePump) Accept(Message) error {
 	return nil
 }
 
@@ -80,7 +80,7 @@ type fakeProcessor struct{}
 
 func (*fakeProcessor) WithPipe(Pipe) {}
 
-func (*fakeProcessor) Process(*Message) error {
+func (*fakeProcessor) Process(Message) error {
 	return nil
 }
 

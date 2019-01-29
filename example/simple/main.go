@@ -40,7 +40,7 @@ func newRandIntSource() streams.Source {
 	}
 }
 
-func (s *randIntSource) Consume() (*streams.Message, error) {
+func (s *randIntSource) Consume() (streams.Message, error) {
 	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
@@ -52,13 +52,13 @@ func (s *randIntSource) Close() error {
 	return nil
 }
 
-func oddNumberFilter(msg *streams.Message) (bool, error) {
+func oddNumberFilter(msg streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num%2 == 1, nil
 }
 
-func doubleMapper(msg *streams.Message) (*streams.Message, error) {
+func doubleMapper(msg streams.Message) (streams.Message, error) {
 	num := msg.Value.(int)
 	msg.Value = num * 2
 
