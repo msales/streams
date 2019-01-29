@@ -15,7 +15,7 @@ type Sink struct {
 // NewSink creates a new channel Sink.
 //
 // A batch size of 0 will never commit.
-func NewSink(ch chan *streams.Message, batch int) *Sink {
+func NewSink(ch chan streams.Message, batch int) *Sink {
 	return &Sink{
 		ch:    ch,
 		batch: batch,

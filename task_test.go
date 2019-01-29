@@ -55,7 +55,7 @@ func TestStreamTask_ConsumesAsyncMessages(t *testing.T) {
 }
 
 func TestStreamTask_ConsumesSyncMessages(t *testing.T) {
-	msgs := make(chan *streams.Message)
+	msgs := make(chan streams.Message)
 	msg := streams.NewMessage("test", "test")
 
 	p := new(MockProcessor)

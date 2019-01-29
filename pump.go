@@ -41,7 +41,7 @@ func NewSyncPump(node Node, pipe TimedPipe) Pump {
 }
 
 // Accept takes a message to be processed in the Pump.
-func (p *syncPump) Accept(msg *Message) error {
+func (p *syncPump) Accept(msg Message) error {
 	p.pipe.Reset()
 
 	start := nanotime()
