@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestProcessorPump_Accept(t *testing.T) {
+func TestSyncPump_Accept(t *testing.T) {
 	ctx := stats.WithStats(context.Background(), stats.Null)
 	msg := streams.NewMessageWithContext(ctx, "test", "test")
 	processor := new(MockProcessor)
@@ -21,7 +21,68 @@ func TestProcessorPump_Accept(t *testing.T) {
 	pipe := new(MockTimedPipe)
 	pipe.On("Reset")
 	pipe.On("Duration").Return(time.Duration(0))
-	p := streams.NewPump(node, pipe, func(error) {})
+	p := streams.NewSyncPump(node, pipe)
+	defer p.Close()
+
+	err := p.Accept(msg)
+
+	assert.NoError(t, err)
+	processor.AssertExpectations(t)
+}
+
+func TestSyncPump_AcceptError(t *testing.T) {
+	msg := streams.NewMessage("test", "test")
+	processor := new(MockProcessor)
+	processor.On("Process", msg).Return(errors.New("test"))
+	processor.On("Close").Return(nil)
+	node := streams.NewProcessorNode("test", processor)
+	pipe := new(MockTimedPipe)
+	pipe.On("Reset")
+	pipe.On("Duration").Return(time.Duration(0))
+	p := streams.NewSyncPump(node, pipe)
+	defer p.Close()
+
+	err := p.Accept(msg)
+
+	assert.Error(t, err)
+}
+
+func TestSyncPump_Close(t *testing.T) {
+	processor := new(MockProcessor)
+	processor.On("Close").Return(nil)
+	node := streams.NewProcessorNode("test", processor)
+	pipe := new(MockTimedPipe)
+	p := streams.NewSyncPump(node, pipe)
+
+	err := p.Close()
+
+	assert.NoError(t, err)
+	processor.AssertExpectations(t)
+}
+
+func TestSyncPump_CloseError(t *testing.T) {
+	processor := new(MockProcessor)
+	processor.On("Close").Return(errors.New("test"))
+	node := streams.NewProcessorNode("test", processor)
+	pipe := new(MockTimedPipe)
+	p := streams.NewSyncPump(node, pipe)
+
+	err := p.Close()
+
+	assert.Error(t, err)
+}
+
+func TestAsyncPump_Accept(t *testing.T) {
+	ctx := stats.WithStats(context.Background(), stats.Null)
+	msg := streams.NewMessageWithContext(ctx, "test", "test")
+	processor := new(MockProcessor)
+	processor.On("Process", msg).Return(nil)
+	processor.On("Close").Maybe().Return(nil)
+	node := streams.NewProcessorNode("test", processor)
+	pipe := new(MockTimedPipe)
+	pipe.On("Reset")
+	pipe.On("Duration").Return(time.Duration(0))
+	p := streams.NewAsyncPump(node, pipe, func(error) {})
 	defer p.Close()
 
 	err := p.Accept(msg)
@@ -32,7 +93,7 @@ func TestProcessorPump_Accept(t *testing.T) {
 	processor.AssertExpectations(t)
 }
 
-func TestProcessorPump_AcceptError(t *testing.T) {
+func TestAsyncPump_AcceptError(t *testing.T) {
 	var err error
 
 	msg := streams.NewMessage("test", "test")
@@ -43,7 +104,7 @@ func TestProcessorPump_AcceptError(t *testing.T) {
 	pipe := new(MockTimedPipe)
 	pipe.On("Reset")
 	pipe.On("Duration").Return(time.Duration(0))
-	p := streams.NewPump(node, pipe, func(e error) {
+	p := streams.NewAsyncPump(node, pipe, func(e error) {
 		err = e
 	})
 	defer p.Close()
@@ -55,12 +116,12 @@ func TestProcessorPump_AcceptError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestProcessorPump_Close(t *testing.T) {
+func TestAsyncPump_Close(t *testing.T) {
 	processor := new(MockProcessor)
 	processor.On("Close").Return(nil)
 	node := streams.NewProcessorNode("test", processor)
 	pipe := new(MockTimedPipe)
-	p := streams.NewPump(node, pipe, func(error) {})
+	p := streams.NewAsyncPump(node, pipe, func(error) {})
 
 	err := p.Close()
 
@@ -68,12 +129,12 @@ func TestProcessorPump_Close(t *testing.T) {
 	processor.AssertExpectations(t)
 }
 
-func TestProcessorPump_CloseError(t *testing.T) {
+func TestAsyncPump_CloseError(t *testing.T) {
 	processor := new(MockProcessor)
 	processor.On("Close").Return(errors.New("test"))
 	node := streams.NewProcessorNode("test", processor)
 	pipe := new(MockTimedPipe)
-	p := streams.NewPump(node, pipe, func(error) {})
+	p := streams.NewAsyncPump(node, pipe, func(error) {})
 
 	err := p.Close()
 
