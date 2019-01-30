@@ -75,7 +75,7 @@ func TestSyncPump_CloseError(t *testing.T) {
 
 func TestAsyncPump_Accept(t *testing.T) {
 	mon := new(MockMonitor)
-	mon.On("Processed", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mon.On("Processed", mock.Anything, mock.Anything, mock.Anything).Maybe().Return(nil)
 	msg := streams.NewMessage("test", "test")
 	processor := new(MockProcessor)
 	processor.On("Process", msg).Return(nil)

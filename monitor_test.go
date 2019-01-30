@@ -26,11 +26,12 @@ func TestMonitor_Processed(t *testing.T) {
 
 	ctx := stats.WithStats(context.Background(), stat)
 	mon := streams.NewMonitor(ctx, time.Microsecond)
-	defer mon.Close()
 
 	mon.Processed("test", time.Second, 50)
 
-	time.Sleep(3 * time.Millisecond)
+	time.Sleep(3 * time.Microsecond)
+
+	_ = mon.Close()
 
 	stat.AssertExpectations(t)
 }
@@ -42,11 +43,12 @@ func TestMonitor_Committed(t *testing.T) {
 
 	ctx := stats.WithStats(context.Background(), stat)
 	mon := streams.NewMonitor(ctx, time.Microsecond)
-	defer mon.Close()
 
 	mon.Committed(time.Second)
 
-	time.Sleep(3 * time.Millisecond)
+	time.Sleep(3 * time.Microsecond)
+
+	_ = mon.Close()
 
 	stat.AssertExpectations(t)
 }

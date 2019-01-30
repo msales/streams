@@ -31,8 +31,9 @@ type Monitor interface {
 type monitor struct {
 	stats stats.Stats
 
-	wg      sync.WaitGroup
+	eventWg sync.WaitGroup
 	eventCh chan event
+	flushWg sync.WaitGroup
 	flushCh chan []event
 }
 
@@ -48,16 +49,17 @@ func NewMonitor(ctx context.Context, interval time.Duration) Monitor {
 		m.stats = s
 	}
 
-	m.wg.Add(1)
+	m.eventWg.Add(1)
 	go m.runCache(interval)
 
+	m.flushWg.Add(1)
 	go m.runFlush()
 
 	return m
 }
 
 func (m *monitor) runCache(interval time.Duration) {
-	defer m.wg.Done()
+	defer m.eventWg.Done()
 
 	var cache []event
 	timer := time.NewTicker(interval)
@@ -67,6 +69,10 @@ func (m *monitor) runCache(interval time.Duration) {
 		select {
 		case e, ok := <-m.eventCh:
 			if !ok {
+				if len(cache) > 0 {
+					m.flushCh <- cache
+				}
+
 				return
 			}
 
@@ -100,6 +106,8 @@ func eventIndexOf(v event, arr []event) int {
 }
 
 func (m *monitor) runFlush() {
+	defer m.flushWg.Done()
+
 	for cache := range m.flushCh {
 		for _, event := range cache {
 			switch event.EventType {
@@ -144,9 +152,11 @@ func (m *monitor) Committed(l time.Duration) {
 func (m *monitor) Close() error {
 	close(m.eventCh)
 
-	m.wg.Wait()
+	m.eventWg.Wait()
 
 	close(m.flushCh)
+
+	m.flushWg.Wait()
 
 	return nil
 }
