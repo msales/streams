@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/msales/pkg/v3/stats"
 	"github.com/msales/pkg/v3/syncx"
 )
 
@@ -45,6 +44,9 @@ type Supervisor interface {
 	// WithContext sets the context.
 	WithContext(context.Context)
 
+	// WithMonitor sets the Monitor.
+	WithMonitor(Monitor)
+
 	// WithPumps sets a map of Pumps.
 	WithPumps(map[Node]Pump)
 
@@ -64,8 +66,8 @@ type supervisor struct {
 	store    Metastore
 	strategy MetadataStrategy
 
-	ctx   context.Context
-	stats stats.Stats
+	ctx context.Context
+	mon Monitor
 
 	pumps map[Processor]Pump
 
@@ -78,7 +80,6 @@ func NewSupervisor(store Metastore, strategy MetadataStrategy) Supervisor {
 		store:    store,
 		strategy: strategy,
 		ctx:      context.Background(),
-		stats:    stats.Null,
 	}
 }
 
@@ -93,10 +94,11 @@ func (s *supervisor) Start() error {
 // WithContext sets the context.
 func (s *supervisor) WithContext(ctx context.Context) {
 	s.ctx = ctx
+}
 
-	if st, ok := stats.FromContext(ctx); ok {
-		s.stats = st
-	}
+// WithMonitor sets the Monitor.
+func (s *supervisor) WithMonitor(mon Monitor) {
+	s.mon = mon
 }
 
 // WithPumps sets a map of Pumps.
@@ -152,8 +154,7 @@ func (s *supervisor) Commit(caller Processor) error {
 	}
 
 	latency := time.Duration(nanotime() - start)
-	_ = s.stats.Timing("commit.latency", latency, 1)
-	_ = s.stats.Inc("commit.commits", 1, 1)
+	s.mon.Committed(latency)
 
 	return nil
 }
@@ -218,6 +219,11 @@ func NewTimedSupervisor(inner Supervisor, d time.Duration, errFn ErrorFunc) Supe
 // WithContext sets the context.
 func (s *timedSupervisor) WithContext(ctx context.Context) {
 	s.inner.WithContext(ctx)
+}
+
+// WithMonitor sets the Monitor.
+func (s *timedSupervisor) WithMonitor(mon Monitor) {
+	s.inner.WithMonitor(mon)
 }
 
 // WithPumps sets a map of Pumps.

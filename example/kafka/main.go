@@ -13,7 +13,8 @@ import (
 	"github.com/msales/streams/v2/kafka"
 )
 
-const BatchSize = 10000
+const BatchSize = 5000
+const Mode = streams.Async
 
 func main() {
 	ctx := context.Background()
@@ -65,7 +66,7 @@ func producerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
 		Process("kafka-sink", sink)
 
 	tp, _ := builder.Build()
-	task := streams.NewTask(tp)
+	task := streams.NewTask(tp, streams.WithMode(Mode))
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -94,7 +95,7 @@ func consumerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
 		Process("commit-sink", sink)
 
 	tp, _ := builder.Build()
-	task := streams.NewTask(tp)
+	task := streams.NewTask(tp, streams.WithMode(Mode))
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})

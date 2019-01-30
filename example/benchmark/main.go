@@ -4,15 +4,16 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 
+	"github.com/msales/pkg/v3/clix"
 	"github.com/msales/pkg/v3/stats"
 	"github.com/msales/streams/v2"
 )
 
 import _ "net/http/pprof"
+
+const BatchSize = 5000
+const Mode = streams.Async
 
 func main() {
 	ctx := context.Background()
@@ -35,16 +36,17 @@ func main() {
 	defer task.Close()
 
 	// Wait for SIGTERM
-	<-waitForSignals()
+	<-clix.WaitForSignals()
 }
 
 func task(ctx context.Context) (streams.Task, error) {
 	builder := streams.NewStreamBuilder()
 	builder.Source("nil-source", newNilSource()).
-		MapFunc("do-nothing", nothingMapper)
+		MapFunc("do-nothing", nothingMapper).
+		Process("commit", newCommitProcessor(BatchSize))
 
 	tp, _ := builder.Build()
-	task := streams.NewTask(tp)
+	task := streams.NewTask(tp, streams.WithMode(Mode))
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -74,9 +76,39 @@ func nothingMapper(msg streams.Message) (streams.Message, error) {
 	return streams.EmptyMessage, nil
 }
 
-func waitForSignals() chan os.Signal {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+type commitProcessor struct {
+	pipe streams.Pipe
 
-	return sigs
+	batch int
+	count int
+}
+
+func newCommitProcessor(batch int) streams.Processor {
+	return &commitProcessor{
+		batch: batch,
+	}
+}
+
+func (p *commitProcessor) WithPipe(pipe streams.Pipe) {
+	p.pipe = pipe
+}
+
+func (p *commitProcessor) Process(msg streams.Message) error {
+	p.count++
+
+	if p.count >= p.batch {
+		return p.pipe.Commit(msg)
+	}
+
+	return p.pipe.Mark(msg)
+}
+
+func (p *commitProcessor) Commit(ctx context.Context) error {
+	p.count = 0
+
+	return nil
+}
+
+func (p *commitProcessor) Close() error {
+	return nil
 }
