@@ -25,7 +25,7 @@ func TestMonitor_Processed(t *testing.T) {
 	stat.On("Timing", "node.latency", time.Second, float32(1), mock.Anything)
 
 	ctx := stats.WithStats(context.Background(), stat)
-	mon := streams.NewMonitor(ctx, time.Millisecond)
+	mon := streams.NewMonitor(ctx, time.Microsecond)
 	defer mon.Close()
 
 	mon.Processed("test", time.Second, 50)
@@ -41,7 +41,7 @@ func TestMonitor_Committed(t *testing.T) {
 	stat.On("Timing", "commit.latency", time.Second, float32(1), mock.Anything)
 
 	ctx := stats.WithStats(context.Background(), stat)
-	mon := streams.NewMonitor(ctx, time.Millisecond)
+	mon := streams.NewMonitor(ctx, time.Microsecond)
 	defer mon.Close()
 
 	mon.Committed(time.Second)
