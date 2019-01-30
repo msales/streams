@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"strconv"
+	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/msales/pkg/v3/clix"
@@ -30,6 +31,8 @@ func main() {
 		log.Fatal(err.Error())
 	}
 	ctx = stats.WithStats(ctx, client)
+
+	go stats.RuntimeFromContext(ctx, 30*time.Second)
 
 	tasks := streams.Tasks{}
 	p, err := producerTask([]string{"127.0.0.1:9092"}, config)

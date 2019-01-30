@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/msales/pkg/v3/clix"
 	"github.com/msales/pkg/v3/stats"
@@ -30,6 +31,8 @@ func main() {
 		log.Fatal(err.Error())
 	}
 	ctx = stats.WithStats(ctx, client)
+
+	go stats.RuntimeFromContext(ctx, 30*time.Second)
 
 	task, err := task(ctx)
 	if err != nil {
