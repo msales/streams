@@ -13,7 +13,10 @@ import (
 	"github.com/msales/streams/v2/kafka"
 )
 
+// BatchSize is the size of commit batches.
 const BatchSize = 5000
+
+// Mode is the Task Mode
 const Mode = streams.Async
 
 func main() {

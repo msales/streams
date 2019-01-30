@@ -3,6 +3,7 @@ package streams
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -21,11 +22,19 @@ func TestWithMetadataStrategy(t *testing.T) {
 	assert.Equal(t, Dupless, task.(*streamTask).supervisor.(*supervisor).strategy)
 }
 
+func TestWithMonitorInterval(t *testing.T) {
+	task := NewTask(&Topology{sources: map[Source]Node{}}, WithMonitorInterval(time.Second))
+
+	assert.Equal(t, time.Second, task.(*streamTask).monitorInterval)
+}
+
 func TestStreamTask_StartSupervisorStartError(t *testing.T) {
 	task := &streamTask{
-		topology:   &Topology{sources: map[Source]Node{}},
-		supervisor: &fakeSupervisor{StartErr: errors.New("start error")},
+		topology:        &Topology{sources: map[Source]Node{}},
+		supervisor:      &fakeSupervisor{StartErr: errors.New("start error")},
+		monitorInterval: time.Second,
 	}
+	defer task.Close()
 
 	err := task.Start(context.Background())
 
@@ -63,11 +72,11 @@ type fakeSupervisor struct {
 	CloseErr    error
 }
 
-func (*fakeSupervisor) WithContext(ctx context.Context) {
+func (*fakeSupervisor) WithContext(context.Context) {}
 
-}
+func (*fakeSupervisor) WithMonitor(Monitor) {}
 
-func (s *fakeSupervisor) WithPumps(pumps map[Node]Pump) {}
+func (s *fakeSupervisor) WithPumps(map[Node]Pump) {}
 
 func (s *fakeSupervisor) Start() error {
 	return s.StartErr

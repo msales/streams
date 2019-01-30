@@ -80,6 +80,7 @@ func NewSupervisor(store Metastore, strategy MetadataStrategy) Supervisor {
 		store:    store,
 		strategy: strategy,
 		ctx:      context.Background(),
+		mon:      &nullMonitor{},
 	}
 }
 

@@ -25,7 +25,7 @@ type Monitor interface {
 	Committed(l time.Duration)
 
 	// Close closes the monitor.
-	Close()
+	Close() error
 }
 
 type monitor struct {
@@ -36,6 +36,7 @@ type monitor struct {
 	flushCh chan []event
 }
 
+//NewMonitor creates a new Monitor.
 func NewMonitor(ctx context.Context, interval time.Duration) Monitor {
 	m := &monitor{
 		stats:   stats.Null,
@@ -59,25 +60,30 @@ func (m *monitor) runCache(interval time.Duration) {
 	defer m.wg.Done()
 
 	var cache []event
-	lastFlush := nanotime()
+	timer := time.NewTicker(interval)
+	defer timer.Stop()
 
-	for e := range m.eventCh {
-		i := eventIndexOf(e, cache)
-		if i < 0 {
-			cache = append(cache, e)
-			continue
-		}
+	for {
+		select {
+		case e, ok := <-m.eventCh:
+			if !ok {
+				return
+			}
 
-		cached := cache[i]
-		e.Count += cached.Count
-		e.Latency = (cached.Latency + e.Latency) / 2
-		cache[i] = e
+			i := eventIndexOf(e, cache)
+			if i < 0 {
+				cache = append(cache, e)
+				continue
+			}
 
-		now := nanotime()
-		if time.Duration(now-lastFlush) >= interval {
+			cached := cache[i]
+			e.Count += cached.Count
+			e.Latency = (cached.Latency + e.Latency) / 2
+			cache[i] = e
+
+		case <-timer.C:
 			m.flushCh <- cache
 
-			lastFlush = now
 			cache = []event{}
 		}
 	}
@@ -135,10 +141,22 @@ func (m *monitor) Committed(l time.Duration) {
 }
 
 // Close closes the monitor.
-func (m *monitor) Close() {
+func (m *monitor) Close() error {
 	close(m.eventCh)
 
 	m.wg.Wait()
 
 	close(m.flushCh)
+
+	return nil
+}
+
+type nullMonitor struct{}
+
+func (nullMonitor) Processed(name string, l time.Duration, bp float64) {}
+
+func (nullMonitor) Committed(l time.Duration) {}
+
+func (nullMonitor) Close() error {
+	return nil
 }
