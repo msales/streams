@@ -30,7 +30,7 @@ func TestMonitor_Processed(t *testing.T) {
 
 	mon.Processed("test", time.Second, 50)
 
-	time.Sleep(2 * time.Millisecond)
+	time.Sleep(3 * time.Millisecond)
 
 	stat.AssertExpectations(t)
 }
@@ -46,7 +46,7 @@ func TestMonitor_Committed(t *testing.T) {
 
 	mon.Committed(time.Second)
 
-	time.Sleep(2 * time.Millisecond)
+	time.Sleep(3 * time.Millisecond)
 
 	stat.AssertExpectations(t)
 }
