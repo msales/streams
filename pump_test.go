@@ -89,7 +89,7 @@ func TestAsyncPump_Accept(t *testing.T) {
 
 	err := p.Accept(msg)
 
-	time.Sleep(time.Millisecond)
+	time.Sleep(3*time.Millisecond)
 
 	assert.NoError(t, err)
 	processor.AssertExpectations(t)
