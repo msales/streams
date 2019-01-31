@@ -23,6 +23,7 @@ func TestMonitor_Processed(t *testing.T) {
 	stat.On("Inc", "node.throughput", int64(1), float32(1), mock.Anything)
 	stat.On("Gauge", "node.back-pressure", float64(50), float32(1), mock.Anything)
 	stat.On("Timing", "node.latency", time.Second, float32(1), mock.Anything)
+	stat.On("Gauge", "monitor.back-pressure", mock.Anything, mock.Anything, mock.Anything)
 
 	ctx := stats.WithStats(context.Background(), stat)
 	mon := streams.NewMonitor(ctx, time.Microsecond)
@@ -40,6 +41,7 @@ func TestMonitor_Committed(t *testing.T) {
 	stat := new(MockStats)
 	stat.On("Inc", "commit.commits", int64(1), float32(1), mock.Anything)
 	stat.On("Timing", "commit.latency", time.Second, float32(1), mock.Anything)
+	stat.On("Gauge", "monitor.back-pressure", mock.Anything, mock.Anything, mock.Anything)
 
 	ctx := stats.WithStats(context.Background(), stat)
 	mon := streams.NewMonitor(ctx, time.Microsecond)
