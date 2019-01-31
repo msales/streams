@@ -124,6 +124,8 @@ func (m *monitor) runFlush() {
 				_ = m.stats.Inc("commit.commits", event.Count, 1)
 			}
 		}
+
+		_ = m.stats.Gauge("monitor.back-pressure", float64(len(m.eventCh))/float64(cap(m.eventCh))*100, 1)
 	}
 }
 
