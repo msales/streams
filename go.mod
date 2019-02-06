@@ -1,4 +1,4 @@
-module github.com/msales/streams/v2
+module github.com/msales/streams/v3
 
 require (
 	github.com/DataDog/zstd v1.3.5 // indirect

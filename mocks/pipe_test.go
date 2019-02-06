@@ -3,8 +3,8 @@ package mocks_test
 import (
 	"testing"
 
-	"github.com/msales/streams/v2"
-	"github.com/msales/streams/v2/mocks"
+	"github.com/msales/streams/v3"
+	"github.com/msales/streams/v3/mocks"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/msales/pkg/v3/clix"
 	"github.com/msales/pkg/v3/stats"
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 )
 
 import _ "net/http/pprof"

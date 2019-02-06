@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 )
 
 type record struct {

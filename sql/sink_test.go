@@ -6,9 +6,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/msales/streams/v2"
-	"github.com/msales/streams/v2/mocks"
-	sqlx "github.com/msales/streams/v2/sql"
+	"github.com/msales/streams/v3"
+	"github.com/msales/streams/v3/mocks"
+	sqlx "github.com/msales/streams/v3/sql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"

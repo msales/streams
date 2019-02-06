@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
