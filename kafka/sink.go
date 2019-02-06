@@ -1,8 +1,10 @@
 package kafka
 
 import (
+	"context"
+
 	"github.com/Shopify/sarama"
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 )
 
 // SinkConfig represents the configuration of a Sink.
@@ -25,6 +27,7 @@ func NewSinkConfig() *SinkConfig {
 	}
 
 	c.Producer.Return.Successes = true
+	c.Producer.Compression = sarama.CompressionSnappy
 	c.KeyEncoder = ByteEncoder{}
 	c.ValueEncoder = ByteEncoder{}
 	c.BatchSize = 1000
@@ -97,7 +100,7 @@ func (p *Sink) WithPipe(pipe streams.Pipe) {
 }
 
 // Process processes the stream record.
-func (p *Sink) Process(msg *streams.Message) error {
+func (p *Sink) Process(msg streams.Message) error {
 	k, err := p.keyEncoder.Encode(msg.Key)
 	if err != nil {
 		return err
@@ -129,7 +132,7 @@ func (p *Sink) Process(msg *streams.Message) error {
 }
 
 //Commit commits a processors batch.
-func (p *Sink) Commit() error {
+func (p *Sink) Commit(ctx context.Context) error {
 	if err := p.producer.SendMessages(p.buf); err != nil {
 		return err
 	}

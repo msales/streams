@@ -1,10 +1,11 @@
 package sql
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 )
 
 // Transaction represents a SQL transaction handler.
@@ -18,14 +19,14 @@ type Transaction interface {
 // Executor represents a SQL query executor.
 type Executor interface {
 	// Exec executes a query on the given transaction.
-	Exec(*sql.Tx, *streams.Message) error
+	Exec(*sql.Tx, streams.Message) error
 }
 
 // ExecFunc represents a function implementing an Executor.
-type ExecFunc func(*sql.Tx, *streams.Message) error
+type ExecFunc func(*sql.Tx, streams.Message) error
 
 // Exec executes a query on the given transaction.
-func (fn ExecFunc) Exec(tx *sql.Tx, msg *streams.Message) error {
+func (fn ExecFunc) Exec(tx *sql.Tx, msg streams.Message) error {
 	return fn(tx, msg)
 }
 
@@ -69,7 +70,7 @@ func (p *Sink) WithPipe(pipe streams.Pipe) {
 }
 
 // Process processes the stream record.
-func (p *Sink) Process(msg *streams.Message) error {
+func (p *Sink) Process(msg streams.Message) error {
 	if err := p.ensureTransaction(); err != nil {
 		return err
 	}
@@ -87,7 +88,7 @@ func (p *Sink) Process(msg *streams.Message) error {
 }
 
 //Commit commits a processors batch.
-func (p *Sink) Commit() error {
+func (p *Sink) Commit(ctx context.Context) error {
 	p.count = 0
 
 	return p.commitTransaction()

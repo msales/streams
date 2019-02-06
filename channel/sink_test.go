@@ -3,9 +3,9 @@ package channel_test
 import (
 	"testing"
 
-	"github.com/msales/streams/v2"
-	"github.com/msales/streams/v2/channel"
-	"github.com/msales/streams/v2/mocks"
+	"github.com/msales/streams/v3"
+	"github.com/msales/streams/v3/channel"
+	"github.com/msales/streams/v3/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,15 +16,15 @@ func TestNewSink(t *testing.T) {
 }
 
 func TestSink_Process(t *testing.T) {
-	ch := make(chan *streams.Message, 1)
-	sink := channel.NewSink(ch,2)
+	ch := make(chan streams.Message, 1)
+	sink := channel.NewSink(ch, 2)
 
 	pipe := mocks.NewPipe(t)
 	pipe.ExpectMark(nil, "test")
 
 	sink.WithPipe(pipe)
 
-	msg := &streams.Message{Value: "test"}
+	msg := streams.Message{Value: "test"}
 
 	err := sink.Process(msg)
 
@@ -34,15 +34,15 @@ func TestSink_Process(t *testing.T) {
 }
 
 func TestSink_ProcessWithCommit(t *testing.T) {
-	ch := make(chan *streams.Message, 1)
-	sink := channel.NewSink(ch,1)
+	ch := make(chan streams.Message, 1)
+	sink := channel.NewSink(ch, 1)
 
 	pipe := mocks.NewPipe(t)
 	pipe.ExpectCommit()
 
 	sink.WithPipe(pipe)
 
-	msg := &streams.Message{Value: "test"}
+	msg := streams.Message{Value: "test"}
 
 	err := sink.Process(msg)
 
@@ -52,7 +52,7 @@ func TestSink_ProcessWithCommit(t *testing.T) {
 }
 
 func TestSink_Close(t *testing.T) {
-	ch := make(chan *streams.Message)
+	ch := make(chan streams.Message)
 	sink := channel.NewSink(ch, 1)
 
 	err := sink.Close()

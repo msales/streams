@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/streams/v2"
-	"github.com/msales/streams/v2/kafka"
+	"github.com/msales/streams/v3"
+	"github.com/msales/streams/v3/kafka"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -307,7 +307,7 @@ func TestSource_ConsumeError(t *testing.T) {
 			GroupProtocol: "protocol",
 		}),
 		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
-			Err: sarama.ErrBrokerNotAvailable,
+			Err:              sarama.ErrBrokerNotAvailable,
 			MemberAssignment: []byte{},
 		}),
 		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{

@@ -1,12 +1,12 @@
 package channel
 
-import "github.com/msales/streams/v2"
+import "github.com/msales/streams/v3"
 
 // Sink represents a channel sink.
 type Sink struct {
 	pipe streams.Pipe
 
-	ch chan *streams.Message
+	ch chan streams.Message
 
 	batch int
 	count int
@@ -15,7 +15,7 @@ type Sink struct {
 // NewSink creates a new channel Sink.
 //
 // A batch size of 0 will never commit.
-func NewSink(ch chan *streams.Message, batch int) *Sink {
+func NewSink(ch chan streams.Message, batch int) *Sink {
 	return &Sink{
 		ch:    ch,
 		batch: batch,
@@ -28,7 +28,7 @@ func (s *Sink) WithPipe(pipe streams.Pipe) {
 }
 
 // Process processes the stream Message.
-func (s *Sink) Process(msg *streams.Message) error {
+func (s *Sink) Process(msg streams.Message) error {
 	s.ch <- msg
 
 	s.count++

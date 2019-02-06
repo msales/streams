@@ -4,15 +4,20 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
+	"time"
 
+	"github.com/msales/pkg/v3/clix"
 	"github.com/msales/pkg/v3/stats"
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 )
 
 import _ "net/http/pprof"
+
+// BatchSize is the size of commit batches.
+const BatchSize = 5000
+
+// Mode is the Task Mode
+const Mode = streams.Async
 
 func main() {
 	ctx := context.Background()
@@ -27,24 +32,27 @@ func main() {
 	}
 	ctx = stats.WithStats(ctx, client)
 
+	go stats.RuntimeFromContext(ctx, 30*time.Second)
+
 	task, err := task(ctx)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	task.Start()
+	task.Start(ctx)
 	defer task.Close()
 
 	// Wait for SIGTERM
-	<-waitForSignals()
+	<-clix.WaitForSignals()
 }
 
 func task(ctx context.Context) (streams.Task, error) {
 	builder := streams.NewStreamBuilder()
-	builder.Source("nil-source", newNilSource(ctx)).
-		MapFunc("do-nothing", nothingMapper)
+	builder.Source("nil-source", newNilSource()).
+		MapFunc("do-nothing", nothingMapper).
+		Process("commit", newCommitProcessor(BatchSize))
 
 	tp, _ := builder.Build()
-	task := streams.NewTask(tp)
+	task := streams.NewTask(tp, streams.WithMode(Mode))
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -52,18 +60,14 @@ func task(ctx context.Context) (streams.Task, error) {
 	return task, nil
 }
 
-type nilSource struct {
-	ctx context.Context
+type nilSource struct{}
+
+func newNilSource() streams.Source {
+	return &nilSource{}
 }
 
-func newNilSource(ctx context.Context) streams.Source {
-	return &nilSource{
-		ctx: ctx,
-	}
-}
-
-func (s *nilSource) Consume() (*streams.Message, error) {
-	return streams.NewMessageWithContext(s.ctx, nil, 1), nil
+func (s *nilSource) Consume() (streams.Message, error) {
+	return streams.NewMessage(nil, 1), nil
 }
 
 func (s *nilSource) Commit(v interface{}) error {
@@ -74,13 +78,43 @@ func (s *nilSource) Close() error {
 	return nil
 }
 
-func nothingMapper(msg *streams.Message) (*streams.Message, error) {
-	return nil, nil
+func nothingMapper(msg streams.Message) (streams.Message, error) {
+	return streams.EmptyMessage, nil
 }
 
-func waitForSignals() chan os.Signal {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+type commitProcessor struct {
+	pipe streams.Pipe
 
-	return sigs
+	batch int
+	count int
+}
+
+func newCommitProcessor(batch int) streams.Processor {
+	return &commitProcessor{
+		batch: batch,
+	}
+}
+
+func (p *commitProcessor) WithPipe(pipe streams.Pipe) {
+	p.pipe = pipe
+}
+
+func (p *commitProcessor) Process(msg streams.Message) error {
+	p.count++
+
+	if p.count >= p.batch {
+		return p.pipe.Commit(msg)
+	}
+
+	return p.pipe.Mark(msg)
+}
+
+func (p *commitProcessor) Commit(ctx context.Context) error {
+	p.count = 0
+
+	return nil
+}
+
+func (p *commitProcessor) Close() error {
+	return nil
 }

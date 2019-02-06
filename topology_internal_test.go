@@ -1,6 +1,7 @@
 package streams
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -89,54 +90,54 @@ func TestFlattenNodeTree(t *testing.T) {
 
 func TestFlattenNodeTree_HandlesComplexTrees(t *testing.T) {
 	node11 := &testNode{
-		name: "node11",
+		name:      "node11",
 		processor: &testProcessor{},
 	}
 	node10 := &testNode{
-		name: "node10",
+		name:      "node10",
 		processor: &testProcessor{},
 	}
 	node9 := &testNode{
-		name: "node9",
+		name:      "node9",
 		children:  []Node{node10, node11},
 		processor: &testProcessor{},
 	}
 	node8 := &testNode{
-		name: "node8",
+		name:      "node8",
 		children:  []Node{node9},
 		processor: &testProcessor{},
 	}
 	node7 := &testNode{
-		name: "node7",
+		name:      "node7",
 		children:  []Node{node8},
 		processor: &testProcessor{},
 	}
 	node6 := &testNode{
-		name: "node6",
+		name:      "node6",
 		children:  []Node{node7},
 		processor: &testProcessor{},
 	}
 	node5 := &testNode{
-		name: "node5",
+		name:      "node5",
 		children:  []Node{node6},
 		processor: &testProcessor{},
 	}
 	node4 := &testNode{
-		name: "node4",
+		name:      "node4",
 		children:  []Node{node8},
 		processor: &testProcessor{},
 	}
 	node2 := &testNode{
-		name: "node2",
+		name:     "node2",
 		children: []Node{node4},
 	}
 	node3 := &testNode{
-		name: "node3",
+		name:      "node3",
 		children:  []Node{node5},
 		processor: &testProcessor{},
 	}
 	node1 := &testNode{
-		name: "node1",
+		name:     "node1",
 		children: []Node{node3},
 	}
 
@@ -249,8 +250,8 @@ func (t *testNode) Processor() Processor {
 
 type testSource int
 
-func (s testSource) Consume() (*Message, error) {
-	return nil, nil
+func (s testSource) Consume() (Message, error) {
+	return EmptyMessage, nil
 }
 
 func (s testSource) Commit(v interface{}) error {
@@ -265,7 +266,7 @@ type testProcessor struct{}
 
 func (p testProcessor) WithPipe(Pipe) {}
 
-func (p testProcessor) Process(msg *Message) error {
+func (p testProcessor) Process(msg Message) error {
 	return nil
 }
 
@@ -277,11 +278,11 @@ type testCommitter struct{}
 
 func (p testCommitter) WithPipe(Pipe) {}
 
-func (p testCommitter) Process(msg *Message) error {
+func (p testCommitter) Process(msg Message) error {
 	return nil
 }
 
-func (p testCommitter) Commit() error {
+func (p testCommitter) Commit(ctx context.Context) error {
 	return nil
 }
 

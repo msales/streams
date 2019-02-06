@@ -6,7 +6,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 	"github.com/pkg/errors"
 )
 
@@ -165,21 +165,21 @@ func NewSource(c *SourceConfig) (*Source, error) {
 }
 
 // Consume gets the next record from the Source.
-func (s *Source) Consume() (*streams.Message, error) {
+func (s *Source) Consume() (streams.Message, error) {
 	if s.lastErr != nil {
-		return nil, s.lastErr
+		return streams.EmptyMessage, s.lastErr
 	}
 
 	select {
 	case msg := <-s.buf:
 		k, err := s.keyDecoder.Decode(msg.Key)
 		if err != nil {
-			return nil, err
+			return streams.EmptyMessage, err
 		}
 
 		v, err := s.valueDecoder.Decode(msg.Value)
 		if err != nil {
-			return nil, err
+			return streams.EmptyMessage, err
 		}
 
 		m := streams.NewMessageWithContext(s.ctx, k, v).
@@ -187,7 +187,7 @@ func (s *Source) Consume() (*streams.Message, error) {
 		return m, nil
 
 	case <-time.After(100 * time.Millisecond):
-		return streams.NewMessage(nil, nil), nil
+		return streams.EmptyMessage, nil
 	}
 }
 

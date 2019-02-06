@@ -1,6 +1,7 @@
 package streams
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -9,7 +10,7 @@ type Committer interface {
 	Processor
 
 	//Commit commits a processors batch.
-	Commit() error
+	Commit(ctx context.Context) error
 }
 
 // Processor represents a stream processor.
@@ -17,7 +18,7 @@ type Processor interface {
 	// WithPipe sets the pipe on the Processor.
 	WithPipe(Pipe)
 	// Process processes the stream Message.
-	Process(*Message) error
+	Process(Message) error
 	// Close closes the processor.
 	Close() error
 }
@@ -25,48 +26,48 @@ type Processor interface {
 // Mapper represents a message transformer.
 type Mapper interface {
 	// Map transforms a message into a new value.
-	Map(*Message) (*Message, error)
+	Map(Message) (Message, error)
 }
 
 // FlatMapper represents a transformer that returns zero or many messages.
 type FlatMapper interface {
 	// FlatMap transforms a message into multiple messages.
-	FlatMap(*Message) ([]*Message, error)
+	FlatMap(Message) ([]Message, error)
 }
 
 // Predicate represents a predicate (boolean-valued function) of a message.
 type Predicate interface {
 	// Assert tests if the given message satisfies the predicate.
-	Assert(*Message) (bool, error)
+	Assert(Message) (bool, error)
 }
 
 var _ = (Mapper)(MapperFunc(nil))
 
 // MapperFunc represents a function implementing the Mapper interface.
-type MapperFunc func(*Message) (*Message, error)
+type MapperFunc func(Message) (Message, error)
 
 // Map transforms a message into a new value.
-func (fn MapperFunc) Map(msg *Message) (*Message, error) {
+func (fn MapperFunc) Map(msg Message) (Message, error) {
 	return fn(msg)
 }
 
 var _ = (FlatMapper)(FlatMapperFunc(nil))
 
 // FlatMapperFunc represents a function implementing the FlatMapper interface.
-type FlatMapperFunc func(*Message) ([]*Message, error)
+type FlatMapperFunc func(Message) ([]Message, error)
 
 // FlatMap transforms a message into multiple messages.
-func (fn FlatMapperFunc) FlatMap(msg *Message) ([]*Message, error) {
+func (fn FlatMapperFunc) FlatMap(msg Message) ([]Message, error) {
 	return fn(msg)
 }
 
 var _ = (Predicate)(PredicateFunc(nil))
 
 // PredicateFunc represents a function implementing the Predicate interface.
-type PredicateFunc func(*Message) (bool, error)
+type PredicateFunc func(Message) (bool, error)
 
 // Assert tests if the given message satisfies the predicate.
-func (fn PredicateFunc) Assert(msg *Message) (bool, error) {
+func (fn PredicateFunc) Assert(msg Message) (bool, error) {
 	return fn(msg)
 }
 
@@ -90,7 +91,7 @@ func (p *BranchProcessor) WithPipe(pipe Pipe) {
 }
 
 // Process processes the stream nodeMessage.
-func (p *BranchProcessor) Process(msg *Message) error {
+func (p *BranchProcessor) Process(msg Message) error {
 	for i, pred := range p.preds {
 		ok, err := pred.Assert(msg)
 		if err != nil {
@@ -133,7 +134,7 @@ func (p *FilterProcessor) WithPipe(pipe Pipe) {
 }
 
 // Process processes the stream Message.
-func (p *FilterProcessor) Process(msg *Message) error {
+func (p *FilterProcessor) Process(msg Message) error {
 	ok, err := p.pred.Assert(msg)
 	if err != nil {
 		return err
@@ -170,7 +171,7 @@ func (p *FlatMapProcessor) WithPipe(pipe Pipe) {
 }
 
 // Process processes the stream Message.
-func (p *FlatMapProcessor) Process(msg *Message) error {
+func (p *FlatMapProcessor) Process(msg Message) error {
 	msgs, err := p.mapper.FlatMap(msg)
 	if err != nil {
 		return err
@@ -209,7 +210,7 @@ func (p *MapProcessor) WithPipe(pipe Pipe) {
 }
 
 // Process processes the stream Message.
-func (p *MapProcessor) Process(msg *Message) error {
+func (p *MapProcessor) Process(msg Message) error {
 	msg, err := p.mapper.Map(msg)
 	if err != nil {
 		return err
@@ -239,7 +240,7 @@ func (p *MergeProcessor) WithPipe(pipe Pipe) {
 }
 
 // Process processes the stream Message.
-func (p *MergeProcessor) Process(msg *Message) error {
+func (p *MergeProcessor) Process(msg Message) error {
 	return p.pipe.Forward(msg)
 }
 
@@ -264,7 +265,7 @@ func (p *PrintProcessor) WithPipe(pipe Pipe) {
 }
 
 // Process processes the stream Message.
-func (p *PrintProcessor) Process(msg *Message) error {
+func (p *PrintProcessor) Process(msg Message) error {
 	fmt.Printf("%v:%v\n", msg.Key, msg.Value)
 
 	return p.pipe.Forward(msg)

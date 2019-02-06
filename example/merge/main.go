@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 )
 
 func main() {
@@ -27,7 +28,7 @@ func main() {
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
-	task.Start()
+	task.Start(context.Background())
 	defer task.Close()
 
 	// Wait for SIGTERM
@@ -44,7 +45,7 @@ func newRandIntSource() streams.Source {
 	}
 }
 
-func (s *randIntSource) Consume() (*streams.Message, error) {
+func (s *randIntSource) Consume() (streams.Message, error) {
 	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
@@ -56,19 +57,19 @@ func (s *randIntSource) Close() error {
 	return nil
 }
 
-func lowNumberFilter(msg *streams.Message) (bool, error) {
+func lowNumberFilter(msg streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num < 50, nil
 }
 
-func highNumberFilter(msg *streams.Message) (bool, error) {
+func highNumberFilter(msg streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num >= 50, nil
 }
 
-func addHundredMapper(msg *streams.Message) (*streams.Message, error) {
+func addHundredMapper(msg streams.Message) (streams.Message, error) {
 	num := msg.Value.(int)
 	msg.Value = num + 100
 

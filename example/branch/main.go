@@ -7,7 +7,7 @@ import (
 
 	"github.com/msales/pkg/v3/clix"
 	"github.com/msales/pkg/v3/stats"
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 )
 
 func main() {
@@ -21,7 +21,7 @@ func main() {
 
 	builder := streams.NewStreamBuilder()
 
-	s := builder.Source("rand-source", newRandIntSource(ctx)).
+	s := builder.Source("rand-source", newRandIntSource()).
 		BranchFunc("branch", branchEvenNumberFilter, branchOddNumberFilter)
 
 	sink1 := newCommitProcessor(1000)
@@ -41,7 +41,7 @@ func main() {
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
-	task.Start()
+	task.Start(ctx)
 	defer task.Close()
 
 	// Wait for SIGTERM
@@ -49,19 +49,17 @@ func main() {
 }
 
 type randIntSource struct {
-	ctx  context.Context
 	rand *rand.Rand
 }
 
-func newRandIntSource(ctx context.Context) streams.Source {
+func newRandIntSource() streams.Source {
 	return &randIntSource{
-		ctx:  ctx,
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
-func (s *randIntSource) Consume() (*streams.Message, error) {
-	return streams.NewMessageWithContext(s.ctx, nil, s.rand.Intn(100)), nil
+func (s *randIntSource) Consume() (streams.Message, error) {
+	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
 func (s *randIntSource) Commit(v interface{}) error {
@@ -89,7 +87,7 @@ func (p *commitProcessor) WithPipe(pipe streams.Pipe) {
 	p.pipe = pipe
 }
 
-func (p *commitProcessor) Process(msg *streams.Message) error {
+func (p *commitProcessor) Process(msg streams.Message) error {
 	p.count++
 
 	if p.count >= p.batch {
@@ -109,19 +107,19 @@ func (p *commitProcessor) Close() error {
 	return nil
 }
 
-func branchOddNumberFilter(msg *streams.Message) (bool, error) {
+func branchOddNumberFilter(msg streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num%2 == 1, nil
 }
 
-func branchEvenNumberFilter(msg *streams.Message) (bool, error) {
+func branchEvenNumberFilter(msg streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num%2 == 0, nil
 }
 
-func negativeMapper(msg *streams.Message) (*streams.Message, error) {
+func negativeMapper(msg streams.Message) (streams.Message, error) {
 	num := msg.Value.(int)
 	msg.Value = num * -1
 

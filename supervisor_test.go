@@ -1,11 +1,12 @@
 package streams_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -256,6 +257,30 @@ func TestNewTimedSupervisor(t *testing.T) {
 	assert.Implements(t, (*streams.Supervisor)(nil), supervisor)
 }
 
+func TestTimedSupervisor_WithContext(t *testing.T) {
+	ctx := context.Background()
+	inner := new(MockSupervisor)
+	inner.On("WithContext", ctx).Return()
+
+	supervisor := streams.NewTimedSupervisor(inner, 0, nil)
+
+	supervisor.WithContext(ctx)
+
+	inner.AssertCalled(t, "WithContext", ctx)
+}
+
+func TestTimedSupervisor_WithMonitor(t *testing.T) {
+	mon := new(MockMonitor)
+	inner := new(MockSupervisor)
+	inner.On("WithMonitor", mon).Return()
+
+	supervisor := streams.NewTimedSupervisor(inner, 0, nil)
+
+	supervisor.WithMonitor(mon)
+
+	inner.AssertCalled(t, "WithMonitor", mon)
+}
+
 func TestTimedSupervisor_WithPumps(t *testing.T) {
 	pumps := map[streams.Node]streams.Pump{}
 	inner := new(MockSupervisor)
@@ -288,14 +313,14 @@ func TestTimedSupervisor_GlobalCommitSourceError(t *testing.T) {
 	inner.On("Close").Return(nil)
 
 	called := false
-	supervisor := streams.NewTimedSupervisor(inner, 5 * time.Millisecond, func(err error) {
+	supervisor := streams.NewTimedSupervisor(inner, time.Millisecond, func(err error) {
 		assert.Equal(t, "error", err.Error())
 		called = true
 	})
 	_ = supervisor.Start()
 	defer supervisor.Close()
 
-	time.Sleep(6 * time.Millisecond)
+	time.Sleep(8 * time.Millisecond)
 
 	inner.AssertCalled(t, "Commit", nil)
 	assert.True(t, called, "Expected error function to be called")
@@ -437,7 +462,7 @@ func source(err error) *MockSource {
 
 func committer(err error) *MockCommitter {
 	c := new(MockCommitter)
-	c.On("Commit").Return(err)
+	c.On("Commit", mock.Anything).Return(err)
 
 	return c
 }

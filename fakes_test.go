@@ -1,9 +1,11 @@
 package streams_test
 
 import (
+	"context"
 	"sync"
+	"time"
 
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 )
 
 type fakeSource struct {
@@ -11,7 +13,7 @@ type fakeSource struct {
 	Value interface{}
 }
 
-func (s *fakeSource) Consume() (*streams.Message, error) {
+func (s *fakeSource) Consume() (streams.Message, error) {
 	return streams.NewMessage(s.Key, s.Value), nil
 }
 
@@ -27,7 +29,7 @@ type fakeCommitter struct{}
 
 func (*fakeCommitter) WithPipe(streams.Pipe) {}
 
-func (*fakeCommitter) Process(*streams.Message) error {
+func (*fakeCommitter) Process(streams.Message) error {
 	return nil
 }
 
@@ -68,7 +70,7 @@ type fakePump struct {
 	sync.Mutex
 }
 
-func (*fakePump) Accept(*streams.Message) error {
+func (*fakePump) Accept(streams.Message) error {
 	return nil
 }
 
@@ -100,9 +102,11 @@ func (n *fakeNode) Processor() streams.Processor {
 
 type fakeSupervisor struct{}
 
-func (*fakeSupervisor) WithPumps(pumps map[streams.Node]streams.Pump) {
+func (*fakeSupervisor) WithContext(context.Context) {}
 
-}
+func (*fakeSupervisor) WithMonitor(streams.Monitor) {}
+
+func (*fakeSupervisor) WithPumps(map[streams.Node]streams.Pump) {}
 
 func (*fakeSupervisor) Start() error {
 	return nil
@@ -113,5 +117,15 @@ func (*fakeSupervisor) Commit(streams.Processor) error {
 }
 
 func (*fakeSupervisor) Close() error {
+	return nil
+}
+
+type fakeMonitor struct{}
+
+func (*fakeMonitor) Processed(name string, l time.Duration, bp float64) {}
+
+func (*fakeMonitor) Committed(l time.Duration) {}
+
+func (*fakeMonitor) Close() error {
 	return nil
 }

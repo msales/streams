@@ -1,6 +1,7 @@
 package streams
 
 import (
+	"context"
 	"errors"
 	"io"
 	"sync"
@@ -40,8 +41,14 @@ func (*nopLocker) Unlock() {}
 type Supervisor interface {
 	io.Closer
 
+	// WithContext sets the context.
+	WithContext(context.Context)
+
+	// WithMonitor sets the Monitor.
+	WithMonitor(Monitor)
+
 	// WithPumps sets a map of Pumps.
-	WithPumps(pumps map[Node]Pump)
+	WithPumps(map[Node]Pump)
 
 	// Start starts the supervisor.
 	//
@@ -59,6 +66,9 @@ type supervisor struct {
 	store    Metastore
 	strategy MetadataStrategy
 
+	ctx context.Context
+	mon Monitor
+
 	pumps map[Processor]Pump
 
 	commitMu syncx.Mutex
@@ -69,6 +79,8 @@ func NewSupervisor(store Metastore, strategy MetadataStrategy) Supervisor {
 	return &supervisor{
 		store:    store,
 		strategy: strategy,
+		ctx:      context.Background(),
+		mon:      &nullMonitor{},
 	}
 }
 
@@ -78,6 +90,16 @@ func NewSupervisor(store Metastore, strategy MetadataStrategy) Supervisor {
 // It must not be a blocking call.
 func (s *supervisor) Start() error {
 	return nil
+}
+
+// WithContext sets the context.
+func (s *supervisor) WithContext(ctx context.Context) {
+	s.ctx = ctx
+}
+
+// WithMonitor sets the Monitor.
+func (s *supervisor) WithMonitor(mon Monitor) {
+	s.mon = mon
 }
 
 // WithPumps sets a map of Pumps.
@@ -99,6 +121,8 @@ func (s *supervisor) Commit(caller Processor) error {
 		return nil
 	}
 	defer s.commitMu.Unlock()
+
+	start := nanotime()
 
 	metadata, err := s.store.PullAll()
 	if err != nil {
@@ -130,6 +154,9 @@ func (s *supervisor) Commit(caller Processor) error {
 		}
 	}
 
+	latency := time.Duration(nanotime() - start)
+	s.mon.Committed(latency)
+
 	return nil
 }
 
@@ -142,7 +169,7 @@ func (s *supervisor) commit(caller Processor, comm Committer) (Metaitems, error)
 	locker.Lock()
 	defer locker.Unlock()
 
-	err = comm.Commit()
+	err = comm.Commit(s.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -188,6 +215,16 @@ func NewTimedSupervisor(inner Supervisor, d time.Duration, errFn ErrorFunc) Supe
 		d:     d,
 		errFn: errFn,
 	}
+}
+
+// WithContext sets the context.
+func (s *timedSupervisor) WithContext(ctx context.Context) {
+	s.inner.WithContext(ctx)
+}
+
+// WithMonitor sets the Monitor.
+func (s *timedSupervisor) WithMonitor(mon Monitor) {
+	s.inner.WithMonitor(mon)
 }
 
 // WithPumps sets a map of Pumps.

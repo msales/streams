@@ -1,9 +1,10 @@
 package streams_test
 
 import (
+	"context"
 	"time"
 
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -45,6 +46,26 @@ func (mn *MockNode) Children() []streams.Node {
 func (mn *MockNode) Processor() streams.Processor {
 	args := mn.Called()
 	return args.Get(0).(streams.Processor)
+}
+
+var _ = (streams.Monitor)(&MockMonitor{})
+
+type MockMonitor struct {
+	mock.Mock
+}
+
+func (m *MockMonitor) Processed(name string, l time.Duration, bp float64) {
+	m.Called(name, l, bp)
+}
+
+func (m *MockMonitor) Committed(l time.Duration) {
+	m.Called(l)
+}
+
+func (m *MockMonitor) Close() error {
+	args := m.Called()
+
+	return args.Error(0)
 }
 
 var _ = (streams.Metastore)(&MockMetastore{})
@@ -92,6 +113,14 @@ func (s *MockSupervisor) Close() error {
 	return args.Error(0)
 }
 
+func (s *MockSupervisor) WithContext(ctx context.Context) {
+	s.Called(ctx)
+}
+
+func (s *MockSupervisor) WithMonitor(mon streams.Monitor) {
+	s.Called(mon)
+}
+
 func (s *MockSupervisor) WithPumps(pumps map[streams.Node]streams.Pump) {
 	s.Called(pumps)
 }
@@ -130,7 +159,7 @@ func (p *MockPump) Unlock() {
 	p.Called()
 }
 
-func (p *MockPump) Accept(msg *streams.Message) error {
+func (p *MockPump) Accept(msg streams.Message) error {
 	args := p.Called(msg)
 	return args.Error(0)
 }
@@ -159,7 +188,7 @@ func (p *MockProcessor) WithPipe(pipe streams.Pipe) {
 	p.Called(pipe)
 }
 
-func (p *MockProcessor) Process(msg *streams.Message) error {
+func (p *MockProcessor) Process(msg streams.Message) error {
 	args := p.Called(msg)
 	return args.Error(0)
 }
@@ -180,13 +209,13 @@ func (p *MockCommitter) WithPipe(pipe streams.Pipe) {
 	p.Called(pipe)
 }
 
-func (p *MockCommitter) Process(msg *streams.Message) error {
+func (p *MockCommitter) Process(msg streams.Message) error {
 	args := p.Called(msg)
 	return args.Error(0)
 }
 
-func (p *MockCommitter) Commit() error {
-	args := p.Called()
+func (p *MockCommitter) Commit(ctx context.Context) error {
+	args := p.Called(ctx)
 	return args.Error(0)
 }
 
@@ -201,9 +230,9 @@ type MockSource struct {
 	mock.Mock
 }
 
-func (s *MockSource) Consume() (*streams.Message, error) {
+func (s *MockSource) Consume() (streams.Message, error) {
 	args := s.Called()
-	return args.Get(0).(*streams.Message), args.Error(1)
+	return args.Get(0).(streams.Message), args.Error(1)
 }
 
 func (s *MockSource) Commit(v interface{}) error {
@@ -224,10 +253,10 @@ type MockTask struct {
 	closeCalled   time.Time
 }
 
-func (t *MockTask) Start() error {
+func (t *MockTask) Start(ctx context.Context) error {
 	t.startCalled = time.Now()
 
-	return t.Called().Error(0)
+	return t.Called(ctx).Error(0)
 }
 
 func (t *MockTask) OnError(fn streams.ErrorFunc) {

@@ -5,13 +5,20 @@ import (
 	"log"
 	"math/rand"
 	"strconv"
+	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/msales/pkg/v3/clix"
 	"github.com/msales/pkg/v3/stats"
-	"github.com/msales/streams/v2"
-	"github.com/msales/streams/v2/kafka"
+	"github.com/msales/streams/v3"
+	"github.com/msales/streams/v3/kafka"
 )
+
+// BatchSize is the size of commit batches.
+const BatchSize = 5000
+
+// Mode is the Task Mode
+const Mode = streams.Async
 
 func main() {
 	ctx := context.Background()
@@ -25,31 +32,34 @@ func main() {
 	}
 	ctx = stats.WithStats(ctx, client)
 
+	go stats.RuntimeFromContext(ctx, 30*time.Second)
+
 	tasks := streams.Tasks{}
-	p, err := producerTask(ctx, []string{"127.0.0.1:9092"}, config)
+	p, err := producerTask([]string{"127.0.0.1:9092"}, config)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 	tasks = append(tasks, p)
 
-	c, err := consumerTask(ctx, []string{"127.0.0.1:9092"}, config)
+	c, err := consumerTask([]string{"127.0.0.1:9092"}, config)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 	tasks = append(tasks, c)
 
-	tasks.Start()
+	tasks.Start(ctx)
 	defer tasks.Close()
 
 	<-clix.WaitForSignals()
 }
 
-func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (streams.Task, error) {
+func producerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
 	config := kafka.NewSinkConfig()
 	config.Config = *c
 	config.Brokers = brokers
 	config.Topic = "example1"
 	config.ValueEncoder = kafka.StringEncoder{}
+	config.BatchSize = BatchSize
 
 	sink, err := kafka.NewSink(config)
 	if err != nil {
@@ -57,12 +67,12 @@ func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 	}
 
 	builder := streams.NewStreamBuilder()
-	builder.Source("rand-source", newRandIntSource(ctx)).
+	builder.Source("rand-source", newRandIntSource()).
 		MapFunc("to-string", stringMapper).
 		Process("kafka-sink", sink)
 
 	tp, _ := builder.Build()
-	task := streams.NewTask(tp)
+	task := streams.NewTask(tp, streams.WithMode(Mode))
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -70,21 +80,20 @@ func producerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 	return task, nil
 }
 
-func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (streams.Task, error) {
+func consumerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
 	config := kafka.NewSourceConfig()
 	config.Config = *c
 	config.Brokers = brokers
 	config.Topic = "example1"
 	config.GroupID = "example-consumer"
 	config.ValueDecoder = kafka.StringDecoder{}
-	config.Ctx = ctx
 
 	src, err := kafka.NewSource(config)
 	if err != nil {
 		return nil, err
 	}
 
-	sink := newCommitProcessor(1000)
+	sink := newCommitProcessor(BatchSize)
 
 	builder := streams.NewStreamBuilder()
 	builder.Source("kafka-source", src).
@@ -92,7 +101,7 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 		Process("commit-sink", sink)
 
 	tp, _ := builder.Build()
-	task := streams.NewTask(tp)
+	task := streams.NewTask(tp, streams.WithMode(Mode))
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -101,19 +110,17 @@ func consumerTask(ctx context.Context, brokers []string, c *sarama.Config) (stre
 }
 
 type randIntSource struct {
-	ctx  context.Context
 	rand *rand.Rand
 }
 
-func newRandIntSource(ctx context.Context) streams.Source {
+func newRandIntSource() streams.Source {
 	return &randIntSource{
-		ctx:  ctx,
 		rand: rand.New(rand.NewSource(1234)),
 	}
 }
 
-func (s *randIntSource) Consume() (*streams.Message, error) {
-	return streams.NewMessageWithContext(s.ctx, nil, s.rand.Intn(100)), nil
+func (s *randIntSource) Consume() (streams.Message, error) {
+	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
 func (s *randIntSource) Commit(v interface{}) error {
@@ -124,18 +131,18 @@ func (s *randIntSource) Close() error {
 	return nil
 }
 
-func stringMapper(msg *streams.Message) (*streams.Message, error) {
+func stringMapper(msg streams.Message) (streams.Message, error) {
 	i := msg.Value.(int)
 	msg.Value = strconv.Itoa(i)
 
 	return msg, nil
 }
 
-func intMapper(msg *streams.Message) (*streams.Message, error) {
+func intMapper(msg streams.Message) (streams.Message, error) {
 	s := msg.Value.(string)
 	i, err := strconv.Atoi(s)
 	if err != nil {
-		return nil, err
+		return streams.EmptyMessage, err
 	}
 
 	msg.Value = i
@@ -160,7 +167,7 @@ func (p *commitProcessor) WithPipe(pipe streams.Pipe) {
 	p.pipe = pipe
 }
 
-func (p *commitProcessor) Process(msg *streams.Message) error {
+func (p *commitProcessor) Process(msg streams.Message) error {
 	p.count++
 
 	if p.count >= p.batch {
@@ -170,7 +177,7 @@ func (p *commitProcessor) Process(msg *streams.Message) error {
 	return p.pipe.Mark(msg)
 }
 
-func (p *commitProcessor) Commit() error {
+func (p *commitProcessor) Commit(ctx context.Context) error {
 	p.count = 0
 
 	return nil

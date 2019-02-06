@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/msales/pkg/v3/cache"
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 )
 
 // Sink represents a Cache streams sink.
@@ -14,8 +14,8 @@ type Sink struct {
 	cache  cache.Cache
 	expire time.Duration
 
-	batch   int
-	count   int
+	batch int
+	count int
 }
 
 // NewSink creates a new cache insert sink.
@@ -33,7 +33,7 @@ func (p *Sink) WithPipe(pipe streams.Pipe) {
 }
 
 // Process processes the stream record.
-func (p *Sink) Process(msg *streams.Message) error {
+func (p *Sink) Process(msg streams.Message) error {
 	str := msg.Key.(string)
 
 	if err := p.cache.Set(str, msg.Value, p.expire); err != nil {

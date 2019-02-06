@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 )
 
 func main() {
@@ -22,7 +23,7 @@ func main() {
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
-	task.Start()
+	task.Start(context.Background())
 	defer task.Close()
 
 	// Wait for SIGTERM
@@ -39,7 +40,7 @@ func newRandIntSource() streams.Source {
 	}
 }
 
-func (s *randIntSource) Consume() (*streams.Message, error) {
+func (s *randIntSource) Consume() (streams.Message, error) {
 	return streams.NewMessage(nil, s.rand.Intn(100)), nil
 }
 
@@ -51,13 +52,13 @@ func (s *randIntSource) Close() error {
 	return nil
 }
 
-func oddNumberFilter(msg *streams.Message) (bool, error) {
+func oddNumberFilter(msg streams.Message) (bool, error) {
 	num := msg.Value.(int)
 
 	return num%2 == 1, nil
 }
 
-func doubleMapper(msg *streams.Message) (*streams.Message, error) {
+func doubleMapper(msg streams.Message) (streams.Message, error) {
 	num := msg.Value.(int)
 	msg.Value = num * 2
 

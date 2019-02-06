@@ -1,13 +1,14 @@
 package sql_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"testing"
 
-	"github.com/msales/streams/v2"
-	"github.com/msales/streams/v2/mocks"
-	sqlx "github.com/msales/streams/v2/sql"
+	"github.com/msales/streams/v3"
+	"github.com/msales/streams/v3/mocks"
+	sqlx "github.com/msales/streams/v3/sql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
@@ -21,7 +22,7 @@ func newDB(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 }
 
 func TestExecFunc_ImplementsExecutor(t *testing.T) {
-	exec := sqlx.ExecFunc(func(*sql.Tx, *streams.Message) error {
+	exec := sqlx.ExecFunc(func(*sql.Tx, streams.Message) error {
 		return nil
 	})
 
@@ -30,23 +31,23 @@ func TestExecFunc_ImplementsExecutor(t *testing.T) {
 
 func TestExecFunc_Exec(t *testing.T) {
 	called := false
-	exec := sqlx.ExecFunc(func(*sql.Tx, *streams.Message) error {
+	exec := sqlx.ExecFunc(func(*sql.Tx, streams.Message) error {
 		called = true
 		return nil
 	})
 
-	err := exec.Exec(nil, nil)
+	err := exec.Exec(nil, streams.EmptyMessage)
 
 	assert.NoError(t, err)
 	assert.True(t, called)
 }
 
 func TestExecFunc_ExecError(t *testing.T) {
-	exec := sqlx.ExecFunc(func(*sql.Tx, *streams.Message) error {
+	exec := sqlx.ExecFunc(func(*sql.Tx, streams.Message) error {
 		return errors.New("test")
 	})
 
-	err := exec.Exec(nil, nil)
+	err := exec.Exec(nil, streams.EmptyMessage)
 
 	assert.Error(t, err)
 }
@@ -213,7 +214,7 @@ func TestSink_Commit(t *testing.T) {
 	s.WithPipe(pipe)
 	_ = s.Process(streams.NewMessage("test1", "test1"))
 
-	err := s.Commit()
+	err := s.Commit(context.Background())
 
 	assert.NoError(t, err)
 	if err := dbMock.ExpectationsWereMet(); err != nil {
@@ -230,7 +231,7 @@ func TestSink_CommitNoTransaction(t *testing.T) {
 	s, _ := sqlx.NewSink(db, 2, exec)
 	s.WithPipe(pipe)
 
-	err := s.Commit()
+	err := s.Commit(context.Background())
 
 	assert.NoError(t, err)
 }
@@ -253,7 +254,7 @@ func TestSink_CommitTxCommit(t *testing.T) {
 	s.WithPipe(pipe)
 	_ = s.Process(streams.NewMessage("test1", "test1"))
 
-	err := s.Commit()
+	err := s.Commit(context.Background())
 
 	assert.NoError(t, err)
 	exec.AssertExpectations(t)
@@ -276,7 +277,7 @@ func TestSink_CommitTxCommitError(t *testing.T) {
 	s.WithPipe(pipe)
 	_ = s.Process(streams.NewMessage("test1", "test1"))
 
-	err := s.Commit()
+	err := s.Commit(context.Background())
 
 	assert.Error(t, err)
 }
@@ -299,7 +300,7 @@ func TestSink_CommitDBError(t *testing.T) {
 	s.WithPipe(pipe)
 	_ = s.Process(streams.NewMessage("test1", "test1"))
 
-	err := s.Commit()
+	err := s.Commit(context.Background())
 
 	assert.Error(t, err)
 	if err := dbMock.ExpectationsWereMet(); err != nil {
@@ -354,7 +355,7 @@ type MockExecutor struct {
 	mock.Mock
 }
 
-func (m *MockExecutor) Exec(tx *sql.Tx, msg *streams.Message) error {
+func (m *MockExecutor) Exec(tx *sql.Tx, msg streams.Message) error {
 	args := m.Called(tx, msg)
 	return args.Error(0)
 }
@@ -368,7 +369,7 @@ func (m *MockExecutorTx) Begin(tx *sql.Tx) error {
 	return args.Error(0)
 }
 
-func (m *MockExecutorTx) Exec(tx *sql.Tx, msg *streams.Message) error {
+func (m *MockExecutorTx) Exec(tx *sql.Tx, msg streams.Message) error {
 	args := m.Called(tx, msg)
 	return args.Error(0)
 }

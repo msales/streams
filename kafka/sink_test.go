@@ -1,12 +1,13 @@
 package kafka_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/streams/v2"
-	"github.com/msales/streams/v2/kafka"
-	"github.com/msales/streams/v2/mocks"
+	"github.com/msales/streams/v3"
+	"github.com/msales/streams/v3/kafka"
+	"github.com/msales/streams/v3/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -201,7 +202,7 @@ func TestSink_Commit(t *testing.T) {
 
 	p.Process(streams.NewMessage("foo", "foo"))
 
-	err := p.Commit()
+	err := p.Commit(context.Background())
 
 	assert.NoError(t, err)
 }
@@ -232,7 +233,7 @@ func TestSink_CommitError(t *testing.T) {
 
 	p.Process(streams.NewMessage(nil, "foo"))
 
-	err := p.Commit()
+	err := p.Commit(context.Background())
 
 	assert.Error(t, err)
 }

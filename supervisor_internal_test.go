@@ -1,17 +1,41 @@
 package streams
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+type ctxKey int
+
+func TestSupervisor_WithContext(t *testing.T) {
+	ctx := context.WithValue(context.Background(), ctxKey(1), "test")
+
+	supervisor := &supervisor{}
+
+	supervisor.WithContext(ctx)
+
+	assert.Equal(t, ctx, supervisor.ctx)
+}
+
+func TestSupervisor_WithMonitor(t *testing.T) {
+	mon := &fakeMonitor{}
+
+	supervisor := &supervisor{}
+
+	supervisor.WithMonitor(mon)
+
+	assert.Equal(t, mon, supervisor.mon)
+}
 
 func TestSupervisor_WithPumps(t *testing.T) {
 	supervisor := &supervisor{}
 
 	pump := &fakePump{}
 	processor := &fakeProcessor{}
-	node := newMockNode(processor)
+	node := newFakeNode(processor)
 
 	input := map[Node]Pump{
 		node: pump,
@@ -35,13 +59,23 @@ func TestSupervisor_Commit_CommitPending(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+type fakeMonitor struct{}
+
+func (*fakeMonitor) Processed(name string, l time.Duration, bp float64) {}
+
+func (*fakeMonitor) Committed(l time.Duration) {}
+
+func (*fakeMonitor) Close() error {
+	return nil
+}
+
 type fakePump struct{}
 
 func (*fakePump) Lock() {}
 
 func (*fakePump) Unlock() {}
 
-func (*fakePump) Accept(*Message) error {
+func (*fakePump) Accept(Message) error {
 	return nil
 }
 
@@ -56,7 +90,7 @@ type fakeProcessor struct{}
 
 func (*fakeProcessor) WithPipe(Pipe) {}
 
-func (*fakeProcessor) Process(*Message) error {
+func (*fakeProcessor) Process(Message) error {
 	return nil
 }
 
@@ -68,7 +102,7 @@ type fakeNode struct {
 	p Processor
 }
 
-func newMockNode(p Processor) *fakeNode {
+func newFakeNode(p Processor) *fakeNode {
 	return &fakeNode{p: p}
 }
 

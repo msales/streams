@@ -1,16 +1,17 @@
 package streams_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
-	"github.com/msales/streams/v2"
+	"github.com/msales/streams/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func passThroughMapper(msg *streams.Message) (*streams.Message, error) {
+func passThroughMapper(msg streams.Message) (streams.Message, error) {
 	return msg, nil
 }
 
@@ -21,7 +22,7 @@ func TestNewTask(t *testing.T) {
 }
 
 func TestStreamTask_ConsumesAsyncMessages(t *testing.T) {
-	msgs := make(chan *streams.Message)
+	msgs := make(chan streams.Message)
 	msg := streams.NewMessage("test", "test")
 
 	p := new(MockProcessor)
@@ -40,7 +41,7 @@ func TestStreamTask_ConsumesAsyncMessages(t *testing.T) {
 		t.FailNow()
 	})
 
-	err := task.Start()
+	err := task.Start(context.Background())
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -55,7 +56,7 @@ func TestStreamTask_ConsumesAsyncMessages(t *testing.T) {
 }
 
 func TestStreamTask_ConsumesSyncMessages(t *testing.T) {
-	msgs := make(chan *streams.Message)
+	msgs := make(chan streams.Message)
 	msg := streams.NewMessage("test", "test")
 
 	p := new(MockProcessor)
@@ -74,7 +75,7 @@ func TestStreamTask_ConsumesSyncMessages(t *testing.T) {
 		t.FailNow()
 	})
 
-	err := task.Start()
+	err := task.Start(context.Background())
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -89,7 +90,7 @@ func TestStreamTask_ConsumesSyncMessages(t *testing.T) {
 }
 
 func TestStreamTask_Throughput(t *testing.T) {
-	msgs := make(chan *streams.Message)
+	msgs := make(chan streams.Message)
 	msg := streams.NewMessage("test", "test")
 
 	count := 0
@@ -97,7 +98,7 @@ func TestStreamTask_Throughput(t *testing.T) {
 	b := streams.NewStreamBuilder()
 	b.Source("src", &chanSource{msgs: msgs}).
 		Map("pass-through", streams.MapperFunc(passThroughMapper)).
-		Map("count", streams.MapperFunc(func(msg *streams.Message) (*streams.Message, error) {
+		Map("count", streams.MapperFunc(func(msg streams.Message) (streams.Message, error) {
 			count++
 			return msg, nil
 		}))
@@ -108,7 +109,7 @@ func TestStreamTask_Throughput(t *testing.T) {
 		t.FailNow()
 	})
 
-	err := task.Start()
+	err := task.Start(context.Background())
 	if err != nil {
 		assert.FailNow(t, err.Error())
 	}
@@ -125,7 +126,7 @@ func TestStreamTask_Throughput(t *testing.T) {
 }
 
 func TestStreamTask_CannotStartTwice(t *testing.T) {
-	msgs := make(chan *streams.Message)
+	msgs := make(chan streams.Message)
 
 	b := streams.NewStreamBuilder()
 	b.Source("src", &chanSource{msgs: msgs})
@@ -136,9 +137,9 @@ func TestStreamTask_CannotStartTwice(t *testing.T) {
 		t.FailNow()
 	})
 
-	_ = task.Start()
+	_ = task.Start(context.Background())
 
-	err := task.Start()
+	err := task.Start(context.Background())
 
 	_ = task.Close()
 
@@ -161,7 +162,7 @@ func TestStreamTask_HandleSourceError(t *testing.T) {
 		gotError = true
 	})
 
-	_ = task.Start()
+	_ = task.Start(context.Background())
 
 	time.Sleep(time.Millisecond)
 
@@ -173,7 +174,7 @@ func TestStreamTask_HandleSourceError(t *testing.T) {
 func TestStreamTask_HandleProcessorError(t *testing.T) {
 	gotError := false
 
-	msgs := make(chan *streams.Message)
+	msgs := make(chan streams.Message)
 	msg := streams.NewMessage("test", "test")
 
 	p := new(MockProcessor)
@@ -191,7 +192,7 @@ func TestStreamTask_HandleProcessorError(t *testing.T) {
 		gotError = true
 	})
 
-	_ = task.Start()
+	_ = task.Start(context.Background())
 
 	msgs <- msg
 
@@ -217,7 +218,7 @@ func TestStreamTask_HandleCloseWithProcessorError(t *testing.T) {
 
 	tp, _ := b.Build()
 	task := streams.NewTask(tp)
-	_ = task.Start()
+	_ = task.Start(context.Background())
 
 	time.Sleep(time.Millisecond)
 
@@ -236,7 +237,7 @@ func TestStreamTask_HandleCloseWithSourceError(t *testing.T) {
 
 	tp, _ := b.Build()
 	task := streams.NewTask(tp)
-	_ = task.Start()
+	_ = task.Start(context.Background())
 
 	time.Sleep(time.Millisecond)
 
@@ -246,14 +247,15 @@ func TestStreamTask_HandleCloseWithSourceError(t *testing.T) {
 }
 
 func TestTasks_Start(t *testing.T) {
+	ctx := context.Background()
 	t1, t2, t3 := new(MockTask), new(MockTask), new(MockTask)
-	t1.On("Start").Return(nil)
-	t2.On("Start").Return(nil)
-	t3.On("Start").Return(nil)
+	t1.On("Start", ctx).Return(nil)
+	t2.On("Start", ctx).Return(nil)
+	t3.On("Start", ctx).Return(nil)
 
 	tasks := streams.Tasks{t1, t2, t3}
 
-	err := tasks.Start()
+	err := tasks.Start(ctx)
 
 	assert.NoError(t, err)
 	t1.AssertExpectations(t)
@@ -264,13 +266,14 @@ func TestTasks_Start(t *testing.T) {
 }
 
 func TestTasks_Start_WithError(t *testing.T) {
+	ctx := context.Background()
 	t1, t2, t3 := new(MockTask), new(MockTask), new(MockTask)
-	t1.On("Start").Return(nil)
-	t2.On("Start").Return(errors.New("test error"))
+	t1.On("Start", ctx).Return(nil)
+	t2.On("Start", ctx).Return(errors.New("test error"))
 
 	tasks := streams.Tasks{t1, t2, t3}
 
-	err := tasks.Start()
+	err := tasks.Start(ctx)
 
 	assert.Error(t, err)
 	t1.AssertExpectations(t)
@@ -330,10 +333,10 @@ func TestTasks_Close_WithError(t *testing.T) {
 }
 
 type chanSource struct {
-	msgs chan *streams.Message
+	msgs chan streams.Message
 }
 
-func (s *chanSource) Consume() (*streams.Message, error) {
+func (s *chanSource) Consume() (streams.Message, error) {
 	select {
 
 	case msg := <-s.msgs:

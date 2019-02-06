@@ -1,11 +1,8 @@
 package streams
 
 import (
-	"context"
 	"sync"
 	"time"
-
-	"github.com/msales/pkg/v3/stats"
 )
 
 // Pump represent a Message pump.
@@ -13,7 +10,7 @@ type Pump interface {
 	sync.Locker
 
 	// Accept takes a message to be processed in the Pump.
-	Accept(*Message) error
+	Accept(Message) error
 	// Stop stops the pump.
 	Stop()
 	// Close closes the pump.
@@ -27,21 +24,24 @@ type syncPump struct {
 	name      string
 	processor Processor
 	pipe      TimedPipe
+
+	mon Monitor
 }
 
 // NewSyncPump creates a new synchronous Pump instance.
-func NewSyncPump(node Node, pipe TimedPipe) Pump {
+func NewSyncPump(mon Monitor, node Node, pipe TimedPipe) Pump {
 	p := &syncPump{
 		name:      node.Name(),
 		processor: node.Processor(),
 		pipe:      pipe,
+		mon:       mon,
 	}
 
 	return p
 }
 
 // Accept takes a message to be processed in the Pump.
-func (p *syncPump) Accept(msg *Message) error {
+func (p *syncPump) Accept(msg Message) error {
 	p.pipe.Reset()
 
 	start := nanotime()
@@ -51,11 +51,7 @@ func (p *syncPump) Accept(msg *Message) error {
 	}
 	latency := time.Duration(nanotime()-start) - p.pipe.Duration()
 
-	tags := []interface{}{"name", p.name}
-	withStats(msg.Ctx, func(s stats.Stats) {
-		s.Timing("node.latency", latency, 0.1, tags...)
-		s.Inc("node.throughput", 1, 0.1, tags...)
-	})
+	p.mon.Processed(p.name, latency, -1)
 
 	return nil
 }
@@ -77,19 +73,22 @@ type asyncPump struct {
 	pipe      TimedPipe
 	errFn     ErrorFunc
 
-	ch chan *Message
+	mon Monitor
+
+	ch chan Message
 
 	wg sync.WaitGroup
 }
 
 // NewAsyncPump creates a new asynchronous Pump instance.
-func NewAsyncPump(node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
+func NewAsyncPump(mon Monitor, node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
 	p := &asyncPump{
 		name:      node.Name(),
 		processor: node.Processor(),
 		pipe:      pipe,
 		errFn:     errFn,
-		ch:        make(chan *Message, 1000),
+		mon:       mon,
+		ch:        make(chan Message, 1000),
 	}
 
 	go p.run()
@@ -100,8 +99,6 @@ func NewAsyncPump(node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
 func (p *asyncPump) run() {
 	p.wg.Add(1)
 	defer p.wg.Done()
-
-	tags := []interface{}{"name", p.name}
 
 	for msg := range p.ch {
 		p.pipe.Reset()
@@ -120,18 +117,14 @@ func (p *asyncPump) run() {
 
 		p.Unlock()
 
-		withStats(msg.Ctx, func(s stats.Stats) {
-			s.Timing("node.latency", latency, 0.1, tags...)
-			s.Inc("node.throughput", 1, 0.1, tags...)
-			s.Gauge("node.back-pressure", pressure(p.ch), 0.1, tags...)
-		})
+		p.mon.Processed(p.name, latency, pressure(p.ch))
 	}
 
 	// It is not safe to do anything after the loop
 }
 
 // Accept takes a message to be processed in the Pump.
-func (p *asyncPump) Accept(msg *Message) error {
+func (p *asyncPump) Accept(msg Message) error {
 	p.ch <- msg
 
 	return nil
@@ -152,7 +145,7 @@ func (p *asyncPump) Close() error {
 }
 
 // pressure calculates how full a channel is.
-func pressure(ch chan *Message) float64 {
+func pressure(ch chan Message) float64 {
 	l := float64(len(ch))
 	c := float64(cap(ch))
 
@@ -184,17 +177,20 @@ type sourcePump struct {
 	pumps  []Pump
 	errFn  ErrorFunc
 
+	mon Monitor
+
 	quit chan struct{}
 	wg   sync.WaitGroup
 }
 
 // NewSourcePump creates a new SourcePump.
-func NewSourcePump(name string, source Source, pumps []Pump, errFn ErrorFunc) SourcePump {
+func NewSourcePump(mon Monitor, name string, source Source, pumps []Pump, errFn ErrorFunc) SourcePump {
 	p := &sourcePump{
 		name:   name,
 		source: source,
 		pumps:  pumps,
 		errFn:  errFn,
+		mon:    mon,
 		quit:   make(chan struct{}, 2),
 	}
 
@@ -206,8 +202,6 @@ func NewSourcePump(name string, source Source, pumps []Pump, errFn ErrorFunc) So
 func (p *sourcePump) run() {
 	p.wg.Add(1)
 	defer p.wg.Done()
-
-	tags := []interface{}{"name", p.name}
 
 	for {
 		select {
@@ -227,10 +221,7 @@ func (p *sourcePump) run() {
 			}
 
 			latency := time.Duration(nanotime() - start)
-			withStats(msg.Ctx, func(s stats.Stats) {
-				s.Timing("node.latency", latency, 0.1, tags...)
-				s.Inc("node.throughput", 1, 0.1, tags...)
-			})
+			p.mon.Processed(p.name, latency, -1)
 
 			for _, pump := range p.pumps {
 				err = pump.Accept(msg)
@@ -255,10 +246,4 @@ func (p *sourcePump) Close() error {
 	close(p.quit)
 
 	return p.source.Close()
-}
-
-func withStats(ctx context.Context, fn func(s stats.Stats)) {
-	if s, ok := stats.FromContext(ctx); ok {
-		fn(s)
-	}
 }
