@@ -43,8 +43,14 @@ func WithMode(m TaskMode) TaskOptFunc {
 }
 
 // WithMonitorInterval defines an interval of stats collection.
+//
+// Minimum interval is 100ms.
 func WithMonitorInterval(d time.Duration) TaskOptFunc {
 	return func(t *streamTask) {
+		if d < 100 * time.Millisecond {
+			d = 100 * time.Millisecond
+		}
+
 		t.monitorInterval = d
 	}
 }

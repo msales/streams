@@ -28,6 +28,12 @@ func TestWithMonitorInterval(t *testing.T) {
 	assert.Equal(t, time.Second, task.(*streamTask).monitorInterval)
 }
 
+func TestWithMonitorInterval_EnforceMinimum(t *testing.T) {
+	task := NewTask(&Topology{sources: map[Source]Node{}}, WithMonitorInterval(time.Millisecond))
+
+	assert.Equal(t, 100*time.Millisecond, task.(*streamTask).monitorInterval)
+}
+
 func TestStreamTask_StartSupervisorStartError(t *testing.T) {
 	task := &streamTask{
 		topology:        &Topology{sources: map[Source]Node{}},
