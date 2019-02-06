@@ -84,7 +84,7 @@ func (m *monitor) runCache(interval time.Duration) {
 
 			cached := cache[i]
 			e.Count += cached.Count
-			e.Latency = (cached.Latency + e.Latency) / 2
+			e.Latency += cached.Latency
 			cache[i] = e
 
 		case <-timer.C:
@@ -113,14 +113,14 @@ func (m *monitor) runFlush() {
 			switch event.EventType {
 			case "node":
 				tags := []interface{}{"name", event.Name}
-				_ = m.stats.Timing("node.latency", event.Latency, 1, tags...)
+				_ = m.stats.Timing("node.latency", time.Duration(int64(event.Latency)/event.Count), 1, tags...)
 				_ = m.stats.Inc("node.throughput", event.Count, 1, tags...)
 				if event.BackPressure >= 0 {
 					_ = m.stats.Gauge("node.back-pressure", event.BackPressure, 1, tags...)
 				}
 
 			case "commit":
-				_ = m.stats.Timing("commit.latency", event.Latency, 1)
+				_ = m.stats.Timing("commit.latency", time.Duration(int64(event.Latency)/event.Count), 1)
 				_ = m.stats.Inc("commit.commits", event.Count, 1)
 			}
 		}
