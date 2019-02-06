@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"strconv"
+	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/msales/pkg/v3/clix"
@@ -13,7 +14,11 @@ import (
 	"github.com/msales/streams/v2/kafka"
 )
 
-const BatchSize = 10000
+// BatchSize is the size of commit batches.
+const BatchSize = 5000
+
+// Mode is the Task Mode
+const Mode = streams.Async
 
 func main() {
 	ctx := context.Background()
@@ -26,6 +31,8 @@ func main() {
 		log.Fatal(err.Error())
 	}
 	ctx = stats.WithStats(ctx, client)
+
+	go stats.RuntimeFromContext(ctx, 30*time.Second)
 
 	tasks := streams.Tasks{}
 	p, err := producerTask([]string{"127.0.0.1:9092"}, config)
@@ -65,7 +72,7 @@ func producerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
 		Process("kafka-sink", sink)
 
 	tp, _ := builder.Build()
-	task := streams.NewTask(tp)
+	task := streams.NewTask(tp, streams.WithMode(Mode))
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})
@@ -94,7 +101,7 @@ func consumerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
 		Process("commit-sink", sink)
 
 	tp, _ := builder.Build()
-	task := streams.NewTask(tp)
+	task := streams.NewTask(tp, streams.WithMode(Mode))
 	task.OnError(func(err error) {
 		log.Fatal(err.Error())
 	})

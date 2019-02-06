@@ -2,7 +2,7 @@ version: "3"
 
 services:
     zookeeper:
-        image: zookeeper:3.3.6
+        image: zookeeper:3.5
         environment:
             ZOO_STANDALONE_ENABLED: "TRUE"
         ports:
@@ -10,7 +10,7 @@ services:
         restart: on-failure
 
     kafka:
-        image: wurstmeister/kafka:1.1.0
+        image: wurstmeister/kafka:2.12-2.1.0
         environment:
             KAFKA_ADVERTISED_HOST_NAME: 'localhost'
             KAFKA_ADVERTISED_PORT: 9092

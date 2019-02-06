@@ -269,6 +269,18 @@ func TestTimedSupervisor_WithContext(t *testing.T) {
 	inner.AssertCalled(t, "WithContext", ctx)
 }
 
+func TestTimedSupervisor_WithMonitor(t *testing.T) {
+	mon := new(MockMonitor)
+	inner := new(MockSupervisor)
+	inner.On("WithMonitor", mon).Return()
+
+	supervisor := streams.NewTimedSupervisor(inner, 0, nil)
+
+	supervisor.WithMonitor(mon)
+
+	inner.AssertCalled(t, "WithMonitor", mon)
+}
+
 func TestTimedSupervisor_WithPumps(t *testing.T) {
 	pumps := map[streams.Node]streams.Pump{}
 	inner := new(MockSupervisor)
@@ -301,14 +313,14 @@ func TestTimedSupervisor_GlobalCommitSourceError(t *testing.T) {
 	inner.On("Close").Return(nil)
 
 	called := false
-	supervisor := streams.NewTimedSupervisor(inner, 5*time.Millisecond, func(err error) {
+	supervisor := streams.NewTimedSupervisor(inner, time.Millisecond, func(err error) {
 		assert.Equal(t, "error", err.Error())
 		called = true
 	})
 	_ = supervisor.Start()
 	defer supervisor.Close()
 
-	time.Sleep(6 * time.Millisecond)
+	time.Sleep(8 * time.Millisecond)
 
 	inner.AssertCalled(t, "Commit", nil)
 	assert.True(t, called, "Expected error function to be called")

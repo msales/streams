@@ -42,6 +42,19 @@ func WithMode(m TaskMode) TaskOptFunc {
 	}
 }
 
+// WithMonitorInterval defines an interval of stats collection.
+//
+// Minimum interval is 100ms.
+func WithMonitorInterval(d time.Duration) TaskOptFunc {
+	return func(t *streamTask) {
+		if d < 100 * time.Millisecond {
+			d = 100 * time.Millisecond
+		}
+
+		t.monitorInterval = d
+	}
+}
+
 // Task represents a streams task.
 type Task interface {
 	// Start starts the streams processors.
@@ -60,13 +73,15 @@ type supervisorOpts struct {
 type streamTask struct {
 	topology *Topology
 
-	running bool
-	mode    TaskMode
-	errorFn ErrorFunc
+	running         bool
+	mode            TaskMode
+	monitorInterval time.Duration
+	errorFn         ErrorFunc
 
 	store          Metastore
 	supervisorOpts supervisorOpts
 	supervisor     Supervisor
+	monitor        Monitor
 	srcPumps       SourcePumps
 	pumps          map[Node]Pump
 }
@@ -76,10 +91,11 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 	store := NewMetastore()
 
 	t := &streamTask{
-		topology: topology,
-		mode:     Async,
-		store:    store,
-		errorFn:  func(_ error) {},
+		topology:        topology,
+		mode:            Async,
+		monitorInterval: time.Second,
+		store:           store,
+		errorFn:         func(_ error) {},
 		supervisorOpts: supervisorOpts{
 			Strategy: Lossless,
 			Interval: 0,
@@ -114,31 +130,34 @@ func (t *streamTask) Start(ctx context.Context) error {
 }
 
 func (t *streamTask) setupTopology(ctx context.Context) {
+	t.monitor = NewMonitor(ctx, t.monitorInterval)
+
 	nodes := flattenNodeTree(t.topology.Sources())
 	reverseNodes(nodes)
 	for _, node := range nodes {
 		pipe := NewPipe(t.store, t.supervisor, node.Processor(), t.resolvePumps(node.Children()))
 		node.Processor().WithPipe(pipe)
 
-		pump := t.newPump(ctx, node, pipe.(TimedPipe), t.handleError)
+		pump := t.newPump(t.monitor, node, pipe.(TimedPipe), t.handleError)
 		t.pumps[node] = pump
 	}
 
 	t.supervisor.WithPumps(t.pumps)
 	t.supervisor.WithContext(ctx)
+	t.supervisor.WithMonitor(t.monitor)
 
 	for source, node := range t.topology.Sources() {
-		srcPump := NewSourcePump(ctx, node.Name(), source, t.resolvePumps(node.Children()), t.handleError)
+		srcPump := NewSourcePump(t.monitor, node.Name(), source, t.resolvePumps(node.Children()), t.handleError)
 		t.srcPumps = append(t.srcPumps, srcPump)
 	}
 }
 
-func (t *streamTask) newPump(ctx context.Context, node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
+func (t *streamTask) newPump(mon Monitor, node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
 	if t.mode == Sync {
-		return NewSyncPump(ctx, node, pipe)
+		return NewSyncPump(mon, node, pipe)
 	}
 
-	return NewAsyncPump(ctx, node, pipe, errFn)
+	return NewAsyncPump(mon, node, pipe, errFn)
 }
 
 func (t *streamTask) resolvePumps(nodes []Node) []Pump {
@@ -187,6 +206,8 @@ func (t *streamTask) closeTopology() error {
 			return err
 		}
 	}
+
+	t.monitor.Close()
 
 	return nil
 }

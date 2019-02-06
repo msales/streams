@@ -3,6 +3,7 @@ package streams_test
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/msales/streams/v2"
 )
@@ -101,13 +102,11 @@ func (n *fakeNode) Processor() streams.Processor {
 
 type fakeSupervisor struct{}
 
-func (*fakeSupervisor) WithContext(ctx context.Context) {
+func (*fakeSupervisor) WithContext(context.Context) {}
 
-}
+func (*fakeSupervisor) WithMonitor(streams.Monitor) {}
 
-func (*fakeSupervisor) WithPumps(pumps map[streams.Node]streams.Pump) {
-
-}
+func (*fakeSupervisor) WithPumps(map[streams.Node]streams.Pump) {}
 
 func (*fakeSupervisor) Start() error {
 	return nil
@@ -118,5 +117,15 @@ func (*fakeSupervisor) Commit(streams.Processor) error {
 }
 
 func (*fakeSupervisor) Close() error {
+	return nil
+}
+
+type fakeMonitor struct{}
+
+func (*fakeMonitor) Processed(name string, l time.Duration, bp float64) {}
+
+func (*fakeMonitor) Committed(l time.Duration) {}
+
+func (*fakeMonitor) Close() error {
 	return nil
 }

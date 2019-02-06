@@ -27,6 +27,7 @@ func NewSinkConfig() *SinkConfig {
 	}
 
 	c.Producer.Return.Successes = true
+	c.Producer.Compression = sarama.CompressionSnappy
 	c.KeyEncoder = ByteEncoder{}
 	c.ValueEncoder = ByteEncoder{}
 	c.BatchSize = 1000

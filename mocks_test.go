@@ -48,6 +48,26 @@ func (mn *MockNode) Processor() streams.Processor {
 	return args.Get(0).(streams.Processor)
 }
 
+var _ = (streams.Monitor)(&MockMonitor{})
+
+type MockMonitor struct {
+	mock.Mock
+}
+
+func (m *MockMonitor) Processed(name string, l time.Duration, bp float64) {
+	m.Called(name, l, bp)
+}
+
+func (m *MockMonitor) Committed(l time.Duration) {
+	m.Called(l)
+}
+
+func (m *MockMonitor) Close() error {
+	args := m.Called()
+
+	return args.Error(0)
+}
+
 var _ = (streams.Metastore)(&MockMetastore{})
 
 type MockMetastore struct {
@@ -95,6 +115,10 @@ func (s *MockSupervisor) Close() error {
 
 func (s *MockSupervisor) WithContext(ctx context.Context) {
 	s.Called(ctx)
+}
+
+func (s *MockSupervisor) WithMonitor(mon streams.Monitor) {
+	s.Called(mon)
 }
 
 func (s *MockSupervisor) WithPumps(pumps map[streams.Node]streams.Pump) {
