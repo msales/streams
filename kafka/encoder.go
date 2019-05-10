@@ -1,5 +1,8 @@
 package kafka
 
+// NilDecoder is a decoder that always returns a nil, no matter the input.
+var NilDecoder DecoderFunc = func([]byte) (interface{}, error) { return nil, nil }
+
 // Decoder represents a Kafka data decoder.
 type Decoder interface {
 	// Decode transforms byte data to the desired type.
