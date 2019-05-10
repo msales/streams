@@ -113,3 +113,23 @@ func TestEncoderFunc_Encode(t *testing.T) {
 	assert.Equal(t, b, result)
 	assert.True(t, e == err, "Received error is not exactly the same object that was returned by the function.")
 }
+
+func TestNilDecoder(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []byte
+	}{
+		{name: "some bytes", in: []byte("test")},
+		{name: "empty bytes", in: []byte{}},
+		{name: "nil", in: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := kafka.NilDecoder.Decode(tt.in)
+
+			assert.NoError(t, err)
+			assert.Nil(t, got)
+		})
+	}
+}
