@@ -2,7 +2,7 @@ module github.com/msales/streams/v3
 
 require (
 	github.com/DataDog/zstd v1.3.5 // indirect
-	github.com/Shopify/sarama v1.20.1
+	github.com/Shopify/sarama v1.22.1
 	github.com/Shopify/toxiproxy v2.1.4+incompatible // indirect
 	github.com/bsm/sarama-cluster v2.1.15+incompatible
 	github.com/eapache/go-resiliency v1.1.0 // indirect
