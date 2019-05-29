@@ -1,26 +1,24 @@
 module github.com/msales/streams/v3
 
 require (
-	github.com/DataDog/zstd v1.3.5 // indirect
-	github.com/Shopify/sarama v1.20.1
-	github.com/Shopify/toxiproxy v2.1.4+incompatible // indirect
+	github.com/DATA-DOG/go-sqlmock v1.3.3
+	github.com/DataDog/zstd v1.4.0 // indirect
+	github.com/Shopify/sarama v1.22.1
+	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668 // indirect
 	github.com/bsm/sarama-cluster v2.1.15+incompatible
-	github.com/eapache/go-resiliency v1.1.0 // indirect
-	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
-	github.com/eapache/queue v1.1.0 // indirect
-	github.com/go-redis/redis v6.15.1+incompatible // indirect
-	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
-	github.com/msales/pkg/v3 v3.8.0
+	github.com/go-redis/redis v6.15.2+incompatible // indirect
+	github.com/magiconair/properties v1.8.1 // indirect
+	github.com/msales/pkg/v3 v3.16.2
+	github.com/onsi/ginkgo v1.8.0 // indirect
+	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
 	github.com/pkg/errors v0.8.1
-	github.com/prometheus/client_model v0.0.0-20190115171406-56726106282f // indirect
-	github.com/prometheus/common v0.2.0 // indirect
-	github.com/prometheus/procfs v0.0.0-20190117184657-bf6a532e95b1 // indirect
-	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a // indirect
+	github.com/prometheus/client_golang v0.9.3 // indirect
+	github.com/prometheus/common v0.4.1 // indirect
+	github.com/prometheus/procfs v0.0.0-20190528151240-3cb620ac02d0 // indirect
+	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.3.0
-	golang.org/x/net v0.0.0-20190125091013-d26f9f9a57f3 // indirect
-	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4 // indirect
-	golang.org/x/sys v0.0.0-20190129075346-302c3dd5f1cc // indirect
-	golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2 // indirect
-	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
+	golang.org/x/net v0.0.0-20190522155817-f3200d17e092 // indirect
+	golang.org/x/sys v0.0.0-20190529085034-854af27f14a7 // indirect
+	golang.org/x/text v0.3.2 // indirect
 )

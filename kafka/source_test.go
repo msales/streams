@@ -268,9 +268,8 @@ func TestSource_Consume(t *testing.T) {
 			SetOffset("test_topic", 0, sarama.OffsetNewest, 10).
 			SetOffset("test_topic", 0, sarama.OffsetOldest, 7),
 		"FetchRequest": sarama.NewMockFetchResponse(t, 1).
+			SetVersion(1).
 			SetMessage("test_topic", 0, 10, sarama.StringEncoder("foo")).
-			SetMessage("test_topic", 0, 11, sarama.StringEncoder("bar")).
-			SetMessage("test_topic", 0, 12, sarama.StringEncoder("baz")).
 			SetHighWaterMark("test_topic", 0, 14),
 		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{
 			Err: sarama.ErrNoError,
@@ -283,7 +282,7 @@ func TestSource_Consume(t *testing.T) {
 	s, _ := kafka.NewSource(c)
 	defer s.Close()
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 	msg, err := s.Consume()
 
@@ -359,6 +358,7 @@ func TestSource_Commit(t *testing.T) {
 			SetOffset("test_topic", 0, sarama.OffsetNewest, 10).
 			SetOffset("test_topic", 0, sarama.OffsetOldest, 7),
 		"FetchRequest": sarama.NewMockFetchResponse(t, 1).
+			SetVersion(1).
 			SetMessage("test_topic", 0, 10, sarama.StringEncoder("foo")).
 			SetHighWaterMark("test_topic", 0, 14),
 		"OffsetCommitRequest": sarama.NewMockOffsetCommitResponse(t),
@@ -414,6 +414,7 @@ func TestSource_CommitNilMetadata(t *testing.T) {
 			SetOffset("test_topic", 0, sarama.OffsetNewest, 10).
 			SetOffset("test_topic", 0, sarama.OffsetOldest, 7),
 		"FetchRequest": sarama.NewMockFetchResponse(t, 1).
+			SetVersion(1).
 			SetMessage("test_topic", 0, 10, sarama.StringEncoder("foo")).
 			SetHighWaterMark("test_topic", 0, 14),
 		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{
@@ -467,6 +468,7 @@ func TestSource_CommitReturnError(t *testing.T) {
 			SetOffset("test_topic", 0, sarama.OffsetNewest, 10).
 			SetOffset("test_topic", 0, sarama.OffsetOldest, 7),
 		"FetchRequest": sarama.NewMockFetchResponse(t, 1).
+			SetVersion(1).
 			SetMessage("test_topic", 0, 10, sarama.StringEncoder("foo")).
 			SetHighWaterMark("test_topic", 0, 14),
 		"OffsetCommitRequest": sarama.NewMockOffsetCommitResponse(t).
