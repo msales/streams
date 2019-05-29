@@ -10,7 +10,7 @@ require (
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/go-redis/redis v6.15.1+incompatible // indirect
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
-	github.com/msales/pkg/v3 v3.8.0
+	github.com/msales/pkg/v3 v3.16.2
 	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_model v0.0.0-20190115171406-56726106282f // indirect
