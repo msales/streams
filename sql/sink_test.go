@@ -6,12 +6,12 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/msales/streams/v3"
 	"github.com/msales/streams/v3/mocks"
 	sqlx "github.com/msales/streams/v3/sql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 func newDB(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {

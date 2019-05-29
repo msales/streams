@@ -29,6 +29,19 @@ func TestPipe_MessagesForForward(t *testing.T) {
 	assert.Exactly(t, msg, msgs[0].Msg)
 }
 
+func TestPipe_MessagesForForwardWithSlice(t *testing.T) {
+	msg := streams.NewMessage("test", []byte{0, 1, 2, 3})
+	p := mocks.NewPipe(t)
+	p.ExpectForward("test", []byte{0, 1, 2, 3})
+
+	p.Forward(msg)
+
+	msgs := p.Messages()
+	assert.Len(t, msgs, 1)
+	assert.Exactly(t, -1, msgs[0].Index)
+	assert.Exactly(t, msg, msgs[0].Msg)
+}
+
 func TestPipe_MessagesForForwardToChild(t *testing.T) {
 	msg := streams.NewMessage("test", "test")
 	p := mocks.NewPipe(t)
