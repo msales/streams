@@ -2,6 +2,8 @@ package streams
 
 import (
 	"context"
+	"runtime"
+	"sync/atomic"
 )
 
 // MetadataOrigin represents the metadata origin type.
@@ -81,4 +83,79 @@ func NewMessageWithContext(ctx context.Context, k, v interface{}) Message {
 		Key:      k,
 		Value:    v,
 	}
+}
+
+type MessageBuffer struct {
+	head int64
+	tail int64
+	data []Message
+	mask int64
+	done int32
+}
+
+func NewMessageBuffer(size int) *MessageBuffer {
+	buf := &MessageBuffer{}
+	buf.data = make([]Message, roundUp2(uint32(size)))
+	buf.mask = int64(len(buf.data) - 1)
+
+	return buf
+}
+
+func (b *MessageBuffer) Write(msg Message) {
+	head := b.head
+	if diff, tail := head-b.mask, atomic.LoadInt64(&b.tail); diff >= tail {
+		for ; diff >= tail; tail = atomic.LoadInt64(&b.tail) {
+			b.wait()
+		}
+	}
+
+	b.data[head&b.mask] = msg
+	atomic.AddInt64(&b.head, 1)
+}
+
+func (b *MessageBuffer) Read(p []Message) int {
+	pl := len(p)
+	tail := b.tail
+	count := 0
+
+	for {
+		head := atomic.LoadInt64(&b.head)
+		for tail >= head {
+			// If we have read at least some data or are closed, dont wait, just return what we read
+			if atomic.LoadInt32(&b.done) > 0 || count > 0 {
+				return count
+			}
+			b.wait()
+			head = atomic.LoadInt64(&b.head)
+		}
+
+		for ; tail < head && count < pl; count++ {
+			p[count] = b.data[tail&b.mask]
+			tail++
+		}
+
+		atomic.StoreInt64(&b.tail, tail)
+	}
+}
+
+func (b *MessageBuffer) wait() {
+	runtime.Gosched()
+}
+
+func (b *MessageBuffer) Done() bool {
+	return atomic.LoadInt64(&b.head) <= atomic.LoadInt64(&b.tail) && atomic.LoadInt32(&b.done) > 0
+}
+
+func (b *MessageBuffer) Close() {
+	atomic.AddInt32(&b.done, 1)
+}
+
+func roundUp2(v uint32) uint32 {
+	v--
+	v |= v >> 1
+	v |= v >> 2
+	v |= v >> 4
+	v |= v >> 8
+	v |= v >> 16
+	return v + 1
 }
