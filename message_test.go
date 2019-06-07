@@ -2,7 +2,7 @@ package streams_test
 
 import (
 	"context"
-	"fmt"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -65,7 +65,7 @@ func TestMessageBuffer(t *testing.T) {
 	const N = 10000
 	var wg sync.WaitGroup
 
-	buf := streams.NewMessageBuffer(4)
+	buf := streams.NewMessageBuffer(1024)
 
 	wg.Add(2)
 	go func() {
@@ -99,10 +99,70 @@ func TestMessageBuffer(t *testing.T) {
 	assert.Equal(t, N, read)
 }
 
+func TestMessageBuffer_SyncRead(t *testing.T) {
+	const N = 10000
+
+	buf := streams.NewMessageBuffer(1024)
+
+	go func() {
+		for i := 0; i < N; i++ {
+			buf.Write(streams.NewMessage(nil, i))
+			time.Sleep(1 * time.Microsecond)
+		}
+		buf.Close()
+	}()
+
+	time.Sleep(time.Second)
+
+	read := 0
+	var msgs [100]streams.Message
+	i := 0
+	for !buf.Done() {
+		n := buf.Read(msgs[:])
+		for _, msg := range msgs[:n] {
+			assert.Equal(t, i, msg.Value)
+			i++
+			read++
+		}
+	}
+
+	assert.Equal(t, N, read)
+}
+
+func TestMessageBuffer_SmallBuffer(t *testing.T) {
+	const N = 10000
+
+	buf := streams.NewMessageBuffer(10)
+
+	go func() {
+		for i := 0; i < N; i++ {
+			buf.Write(streams.NewMessage(nil, i))
+			time.Sleep(1 * time.Microsecond)
+		}
+		buf.Close()
+	}()
+
+	time.Sleep(time.Second)
+
+	read := 0
+	var msgs [100]streams.Message
+	i := 0
+	for !buf.Done() {
+		n := buf.Read(msgs[:])
+		for _, msg := range msgs[:n] {
+			assert.Equal(t, i, msg.Value)
+			i++
+			read++
+		}
+	}
+
+	assert.Equal(t, N, read)
+}
+
 func BenchmarkMessageBuffer_NoPin(b *testing.B) {
 	var wg sync.WaitGroup
 
-	buf := streams.NewMessageBuffer(8000)
+	buf := streams.NewMessageBuffer(1024)
 	msg := streams.NewMessage(nil, "hello")
 
 	b.ReportAllocs()
@@ -110,17 +170,14 @@ func BenchmarkMessageBuffer_NoPin(b *testing.B) {
 
 	wg.Add(2)
 	go func() {
-		fmt.Println("\nstarted writer")
 		for i := 0; i < b.N; i++ {
 			buf.Write(msg)
 		}
-		fmt.Printf("\ndone writing %d\n", b.N)
 		buf.Close()
 		wg.Done()
 	}()
 
 	go func() {
-		fmt.Println("\nstarted reader")
 		i := 0
 		var msgs [100]streams.Message
 		for !buf.Done() {
@@ -130,11 +187,44 @@ func BenchmarkMessageBuffer_NoPin(b *testing.B) {
 				i++
 			}
 		}
-		fmt.Printf("\ndone reading %d\n", i)
 		wg.Done()
 	}()
 
-	fmt.Printf("\n waiting %d\n", b.N)
 	wg.Wait()
-	fmt.Printf("\n done waiting %d\n", b.N)
+}
+
+func BenchmarkMessageBuffer_Pin(b *testing.B) {
+	var wg sync.WaitGroup
+
+	buf := streams.NewMessageBuffer(1024)
+	msg := streams.NewMessage(nil, "hello")
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	wg.Add(2)
+	go func() {
+		runtime.LockOSThread()
+		for i := 0; i < b.N; i++ {
+			buf.Write(msg)
+		}
+		buf.Close()
+		wg.Done()
+	}()
+
+	go func() {
+		runtime.LockOSThread()
+		i := 0
+		var msgs [100]streams.Message
+		for !buf.Done() {
+			n := buf.Read(msgs[:])
+			for _, msg := range msgs[:n] {
+				_ = msg
+				i++
+			}
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
 }

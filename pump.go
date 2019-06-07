@@ -75,7 +75,7 @@ type asyncPump struct {
 
 	mon Monitor
 
-	ch chan Message
+	buf *MessageBuffer
 
 	wg sync.WaitGroup
 }
@@ -88,7 +88,7 @@ func NewAsyncPump(mon Monitor, node Node, pipe TimedPipe, errFn ErrorFunc) Pump 
 		pipe:      pipe,
 		errFn:     errFn,
 		mon:       mon,
-		ch:        make(chan Message, 1000),
+		buf:       NewMessageBuffer(1024),
 	}
 
 	go p.run()
@@ -100,24 +100,28 @@ func (p *asyncPump) run() {
 	p.wg.Add(1)
 	defer p.wg.Done()
 
-	for msg := range p.ch {
-		p.pipe.Reset()
+	var msgs [100]Message
+	for !p.buf.Done() {
+		n := p.buf.Read(msgs[:])
+		for _, msg := range msgs[:n] {
+			p.pipe.Reset()
 
-		p.Lock()
+			p.Lock()
 
-		start := nanotime()
-		err := p.processor.Process(msg)
-		if err != nil {
+			start := nanotime()
+			err := p.processor.Process(msg)
+			if err != nil {
+				p.Unlock()
+				p.errFn(err)
+
+				return
+			}
+			latency := time.Duration(nanotime()-start) - p.pipe.Duration()
+
 			p.Unlock()
-			p.errFn(err)
 
-			return
+			p.mon.Processed(p.name, latency, pressure(p.buf))
 		}
-		latency := time.Duration(nanotime()-start) - p.pipe.Duration()
-
-		p.Unlock()
-
-		p.mon.Processed(p.name, latency, pressure(p.ch))
 	}
 
 	// It is not safe to do anything after the loop
@@ -125,14 +129,14 @@ func (p *asyncPump) run() {
 
 // Accept takes a message to be processed in the Pump.
 func (p *asyncPump) Accept(msg Message) error {
-	p.ch <- msg
+	p.buf.Write(msg)
 
 	return nil
 }
 
 // Stop stops the pump, but does not close it.
 func (p *asyncPump) Stop() {
-	close(p.ch)
+	p.buf.Close()
 
 	p.wg.Wait()
 }
@@ -145,9 +149,9 @@ func (p *asyncPump) Close() error {
 }
 
 // pressure calculates how full a channel is.
-func pressure(ch chan Message) float64 {
-	l := float64(len(ch))
-	c := float64(cap(ch))
+func pressure(buf *MessageBuffer) float64 {
+	l := float64(buf.Len())
+	c := float64(buf.Cap())
 
 	return l / c * 100
 }

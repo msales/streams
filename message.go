@@ -88,6 +88,8 @@ func NewMessageWithContext(ctx context.Context, k, v interface{}) Message {
 type MessageBuffer struct {
 	head int64
 	tail int64
+	len  int64
+	size int64
 	data []Message
 	mask int64
 	done int32
@@ -97,44 +99,57 @@ func NewMessageBuffer(size int) *MessageBuffer {
 	buf := &MessageBuffer{}
 	buf.data = make([]Message, roundUp2(uint32(size)))
 	buf.mask = int64(len(buf.data) - 1)
+	buf.size = int64(size)
 
 	return buf
 }
 
 func (b *MessageBuffer) Write(msg Message) {
 	head := b.head
-	if diff, tail := head-b.mask, atomic.LoadInt64(&b.tail); diff >= tail {
-		for ; diff >= tail; tail = atomic.LoadInt64(&b.tail) {
+	if l := atomic.LoadInt64(&b.len); l >= b.size {
+		for ; l >= b.size; l = atomic.LoadInt64(&b.len) {
 			b.wait()
 		}
 	}
 
-	b.data[head&b.mask] = msg
-	atomic.AddInt64(&b.head, 1)
+	b.data[head] = msg
+	atomic.AddInt64(&b.len, 1)
+	atomic.StoreInt64(&b.head, (head+1)&b.mask)
 }
 
 func (b *MessageBuffer) Read(p []Message) int {
 	pl := len(p)
+	if pl > int(b.size) {
+		pl = int(b.size)
+	}
 	tail := b.tail
 	count := 0
 
 	for {
-		head := atomic.LoadInt64(&b.head)
-		for tail >= head {
+		l := atomic.LoadInt64(&b.len)
+		for l == 0 {
 			// If we have read at least some data or are closed, dont wait, just return what we read
-			if atomic.LoadInt32(&b.done) > 0 || count > 0 {
+			if atomic.LoadInt32(&b.done) > 0 {
 				return count
 			}
 			b.wait()
-			head = atomic.LoadInt64(&b.head)
+			l = atomic.LoadInt64(&b.len)
 		}
 
-		for ; tail < head && count < pl; count++ {
-			p[count] = b.data[tail&b.mask]
-			tail++
+		i := int64(0)
+		for ; l > 0 && count < pl; count++ {
+			p[count] = b.data[tail]
+			tail = (tail + 1) & b.mask
+			i++
+			l--
 		}
 
 		atomic.StoreInt64(&b.tail, tail)
+		atomic.AddInt64(&b.len, -i)
+
+		if count == pl {
+			return count
+		}
 	}
 }
 
@@ -143,7 +158,15 @@ func (b *MessageBuffer) wait() {
 }
 
 func (b *MessageBuffer) Done() bool {
-	return atomic.LoadInt64(&b.head) <= atomic.LoadInt64(&b.tail) && atomic.LoadInt32(&b.done) > 0
+	return atomic.LoadInt64(&b.len) == 0 && atomic.LoadInt32(&b.done) > 0
+}
+
+func (b *MessageBuffer) Len() int {
+	return int(atomic.LoadInt64(&b.len))
+}
+
+func (b *MessageBuffer) Cap() int {
+	return int(b.size)
 }
 
 func (b *MessageBuffer) Close() {
