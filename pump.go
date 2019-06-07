@@ -100,7 +100,7 @@ func (p *asyncPump) run() {
 	p.wg.Add(1)
 	defer p.wg.Done()
 
-	var msgs [100]Message
+	var msgs [1000]Message
 	for !p.buf.Done() {
 		n := p.buf.Read(msgs[:])
 		for _, msg := range msgs[:n] {

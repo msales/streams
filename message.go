@@ -129,7 +129,7 @@ func (b *MessageBuffer) Read(p []Message) int {
 		l := atomic.LoadInt64(&b.len)
 		for l == 0 {
 			// If we have read at least some data or are closed, dont wait, just return what we read
-			if atomic.LoadInt32(&b.done) > 0 {
+			if atomic.LoadInt32(&b.done) > 0 || count > 0 {
 				return count
 			}
 			b.wait()
