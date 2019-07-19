@@ -214,12 +214,15 @@ func (t *streamTask) closeTopology() error {
 
 func (t *streamTask) handleError(err error) {
 	t.running = false
-	t.srcPumps.StopAll()
 
 	t.errorFn(err)
 }
 
 // OnError sets the error handler.
+//
+// When an error occurrs on the stream, it is safe to assume
+// there is deadlock in the system. It is not safe to Close
+// the task at this point as it will either hang or panic.
 func (t *streamTask) OnError(fn ErrorFunc) {
 	t.errorFn = fn
 }
