@@ -1,7 +1,6 @@
 package streams
 
 import (
-	"context"
 	"sync"
 	"time"
 )
@@ -126,14 +125,9 @@ func (p *asyncPump) run() {
 
 // Accept takes a message to be processed in the Pump.
 func (p *asyncPump) Accept(msg Message) error {
-	select {
-	case p.ch <- msg:
-		return nil
-	case <-msg.Ctx.Done():
-		// No error is needed here, as whoever called this should deal
-		// with the fact of cancellation
-		return nil
-	}
+	p.ch <- msg
+
+	return nil
 }
 
 // Stop stops the pump, but does not close it.
@@ -187,9 +181,6 @@ type sourcePump struct {
 
 	quit chan struct{}
 	wg   sync.WaitGroup
-
-	cancel   context.CancelFunc
-	cancelMx sync.Mutex
 }
 
 // NewSourcePump creates a new SourcePump.
@@ -232,10 +223,6 @@ func (p *sourcePump) run() {
 			latency := time.Duration(nanotime() - start)
 			p.mon.Processed(p.name, latency, -1)
 
-			p.cancelMx.Lock()
-			msg.Ctx, p.cancel = context.WithCancel(msg.Ctx)
-			p.cancelMx.Unlock()
-
 			for _, pump := range p.pumps {
 				err = pump.Accept(msg)
 				if err != nil {
@@ -250,12 +237,6 @@ func (p *sourcePump) run() {
 // Stop stops the source pump from running.
 func (p *sourcePump) Stop() {
 	p.quit <- struct{}{}
-
-	p.cancelMx.Lock()
-	if p.cancel != nil {
-		p.cancel()
-	}
-	p.cancelMx.Unlock()
 
 	p.wg.Wait()
 }
