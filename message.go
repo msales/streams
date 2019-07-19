@@ -31,6 +31,9 @@ type Metadata interface {
 }
 
 // Message represents data the flows through the stream.
+//
+// It is important that the Ctx has not timeout or cancel function attached.
+// Doing so will cause a go routine leak in the source pump.
 type Message struct {
 	source   Source
 	metadata Metadata

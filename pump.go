@@ -130,7 +130,9 @@ func (p *asyncPump) Accept(msg Message) error {
 	case p.ch <- msg:
 		return nil
 	case <-msg.Ctx.Done():
-		return context.Canceled
+		// No error is needed here, as whoever called this should deal
+		// with the fact of cancellation
+		return nil
 	}
 }
 
@@ -186,7 +188,7 @@ type sourcePump struct {
 	quit chan struct{}
 	wg   sync.WaitGroup
 
-	cancel   func()
+	cancel   context.CancelFunc
 	cancelMx sync.Mutex
 }
 
@@ -235,9 +237,6 @@ func (p *sourcePump) run() {
 			p.cancelMx.Unlock()
 
 			for _, pump := range p.pumps {
-				// context.Canceled err here will run the err handler again, attempting to stop the pumps again.
-				// Maybe it's not such a great idea after all? Maybe accept should return nil, as the
-				// error is "handled" there, in the select statement?
 				err = pump.Accept(msg)
 				if err != nil {
 					go p.errFn(err)

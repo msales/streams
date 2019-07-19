@@ -160,6 +160,9 @@ func (p *MockPump) Unlock() {
 }
 
 func (p *MockPump) Accept(msg streams.Message) error {
+	// We need to strip the context on the mock message, otherwise it will fail
+	msg.Ctx = context.Background()
+
 	args := p.Called(msg)
 	return args.Error(0)
 }
@@ -189,6 +192,9 @@ func (p *MockProcessor) WithPipe(pipe streams.Pipe) {
 }
 
 func (p *MockProcessor) Process(msg streams.Message) error {
+	// We need to strip the context on the mock message, otherwise it will fail
+	msg.Ctx = context.Background()
+
 	args := p.Called(msg)
 	return args.Error(0)
 }
