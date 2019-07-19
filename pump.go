@@ -1,6 +1,7 @@
 package streams
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -125,9 +126,12 @@ func (p *asyncPump) run() {
 
 // Accept takes a message to be processed in the Pump.
 func (p *asyncPump) Accept(msg Message) error {
-	p.ch <- msg
-
-	return nil
+	select {
+	case p.ch <- msg:
+		return nil
+	case <-msg.Ctx.Done():
+		return context.Canceled
+	}
 }
 
 // Stop stops the pump, but does not close it.
@@ -181,6 +185,9 @@ type sourcePump struct {
 
 	quit chan struct{}
 	wg   sync.WaitGroup
+
+	cancel   func()
+	cancelMx sync.Mutex
 }
 
 // NewSourcePump creates a new SourcePump.
@@ -223,7 +230,14 @@ func (p *sourcePump) run() {
 			latency := time.Duration(nanotime() - start)
 			p.mon.Processed(p.name, latency, -1)
 
+			p.cancelMx.Lock()
+			msg.Ctx, p.cancel = context.WithCancel(msg.Ctx)
+			p.cancelMx.Unlock()
+
 			for _, pump := range p.pumps {
+				// context.Canceled err here will run the err handler again, attempting to stop the pumps again.
+				// Maybe it's not such a great idea after all? Maybe accept should return nil, as the
+				// error is "handled" there, in the select statement?
 				err = pump.Accept(msg)
 				if err != nil {
 					go p.errFn(err)
@@ -237,6 +251,12 @@ func (p *sourcePump) run() {
 // Stop stops the source pump from running.
 func (p *sourcePump) Stop() {
 	p.quit <- struct{}{}
+
+	p.cancelMx.Lock()
+	if p.cancel != nil {
+		p.cancel()
+	}
+	p.cancelMx.Unlock()
 
 	p.wg.Wait()
 }
