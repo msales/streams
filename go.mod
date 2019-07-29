@@ -8,7 +8,7 @@ require (
 	github.com/bsm/sarama-cluster v2.1.15+incompatible
 	github.com/go-redis/redis v6.15.2+incompatible // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
-	github.com/msales/pkg/v3 v3.17.0
+	github.com/msales/pkg/v3 v3.17.1
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
