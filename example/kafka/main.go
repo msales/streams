@@ -58,7 +58,7 @@ func producerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
 	config := kafka.NewSinkConfig()
 	config.Config = *c
 	config.Brokers = brokers
-	config.Topic = "test_topic"
+	config.Topic = "example1"
 	config.ValueEncoder = kafka.StringEncoder{}
 	config.BatchSize = BatchSize
 
@@ -85,7 +85,7 @@ func consumerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
 	config := kafka.NewSourceConfig()
 	config.Config = *c
 	config.Brokers = brokers
-	config.Topic = "test_topic"
+	config.Topic = "example1"
 	config.GroupID = "example-consumer"
 	config.ValueDecoder = kafka.StringDecoder{}
 

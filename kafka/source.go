@@ -270,14 +270,9 @@ func (s *Source) Cleanup(_ sarama.ConsumerGroupSession) error {
 
 // ConsumeClaim consumes messages from a single partition of a topic.
 func (s *Source) ConsumeClaim(_ sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	var cnt int
 	for msg := range claim.Messages() {
 		select {
 		case s.buf <- msg:
-			cnt++
-			if cnt%25000 == 0 {
-				println(cnt)
-			}
 		// This is to avoid deadlocking during shutdown in a case where:
 		// - the pumps are not running anymore
 		// - s.buf is full (but not draining, since pumps are off)
