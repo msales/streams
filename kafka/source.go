@@ -23,7 +23,8 @@ type SourceConfig struct {
 	KeyDecoder   Decoder
 	ValueDecoder Decoder
 
-	BufferSize int
+	BufferSize       int
+	ErrorsBufferSize int
 }
 
 // NewSourceConfig creates a new Kafka source configuration.
@@ -36,7 +37,7 @@ func NewSourceConfig() *SourceConfig {
 	c.KeyDecoder = ByteDecoder{}
 	c.ValueDecoder = ByteDecoder{}
 	c.BufferSize = 1000
-	c.Version = sarama.V2_1_0_0
+	c.ErrorsBufferSize = 10
 
 	return c
 }
@@ -133,13 +134,16 @@ type Source struct {
 	valueDecoder Decoder
 
 	buf     chan *sarama.ConsumerMessage
+	errs    chan error
 	lastErr error
 
-	session     sarama.ConsumerGroupSession
-	sessionLock sync.Mutex
-	cancelCtx   func()
+	session   sarama.ConsumerGroupSession
+	cancelCtx func()
 
-	consumerWG sync.WaitGroup
+	consumerWG  sync.WaitGroup
+	sessionWG   sync.WaitGroup
+	sessionLock sync.Mutex
+	done        chan struct{}
 }
 
 // NewSource creates a new Kafka stream source.
@@ -166,12 +170,14 @@ func NewSource(c *SourceConfig) (*Source, error) {
 		keyDecoder:   c.KeyDecoder,
 		valueDecoder: c.ValueDecoder,
 		buf:          make(chan *sarama.ConsumerMessage, c.BufferSize),
+		errs:         make(chan error, c.ErrorsBufferSize),
 		cancelCtx:    cancel,
+		done:         make(chan struct{}),
 	}
+	s.sessionWG.Add(1)
 
 	go s.readErrors()
-	s.consumerWG.Add(1)
-	go s.runConsumer(ctx, c.Topic)
+	go s.runConsumerGroup(ctx, c.Topic)
 
 	return s, nil
 }
@@ -209,10 +215,11 @@ func (s *Source) Commit(v interface{}) error {
 		return nil
 	}
 
-	s.sessionLock.Lock()
+	s.sessionWG.Wait()    	// Wait for the session to become available...
+	s.sessionLock.Lock()	// ...then lock to prevent session from changing (avoid concurrent read-write).
 	defer s.sessionLock.Unlock()
 
-	if s.session == nil {
+	if s.session == nil { // May still happen, although it's a very slim chance.
 		return errors.Errorf("kafka: consumer session was closed or doesn't exist")
 	}
 
@@ -230,35 +237,54 @@ func (s *Source) Commit(v interface{}) error {
 
 // Close closes the Source.
 func (s *Source) Close() error {
-	s.cancelCtx()
-	s.consumerWG.Wait()
-	return s.consumer.Close()
+	close(s.done)       // Stop claiming messages and consuming errors.
+	s.cancelCtx()       // Stop consuming (close the session).
+	s.consumerWG.Wait() // Wait for the consumer group to stop consuming.
+
+	return s.consumer.Close() // Close the consumer group.
 }
 
 // Setup is ran once for a new consumer session, before the consumption starts.
 func (s *Source) Setup(session sarama.ConsumerGroupSession) error {
 	s.sessionLock.Lock()
-	defer s.sessionLock.Unlock()
 
 	s.session = session
+
+	s.sessionLock.Unlock()
+	s.sessionWG.Done()
 
 	return nil
 }
 
 // Cleanup is ran once for a session, after the consumption ends.
 func (s *Source) Cleanup(_ sarama.ConsumerGroupSession) error {
+	s.sessionWG.Add(1)
 	s.sessionLock.Lock()
-	defer s.sessionLock.Unlock()
 
 	s.session = nil
+
+	s.sessionLock.Unlock()
 
 	return nil
 }
 
 // ConsumeClaim consumes messages from a single partition of a topic.
 func (s *Source) ConsumeClaim(_ sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	for message := range claim.Messages() {
-		s.buf <- message
+	var cnt int
+	for msg := range claim.Messages() {
+		select {
+		case s.buf <- msg:
+			cnt++
+			if cnt%25000 == 0 {
+				println(cnt)
+			}
+		// This is to avoid deadlocking during shutdown in a case where:
+		// - the pumps are not running anymore
+		// - s.buf is full (but not draining, since pumps are off)
+		// - we have consumed a message and are attempting to send it to s.buf
+		case <-s.done:
+			break
+		}
 	}
 
 	return nil
@@ -273,26 +299,33 @@ func (s *Source) createMetadata(msg *sarama.ConsumerMessage) Metadata {
 }
 
 func (s *Source) readErrors() {
-	for err := range s.consumer.Errors() {
-		s.lastErr = err
+	for {
+		select {
+		case <-s.done:
+			return
+		case err := <-s.errs:
+			s.lastErr = err
+		case err := <-s.consumer.Errors():
+			s.lastErr = err
+		}
 	}
 }
 
-func (s *Source) runConsumer(ctx context.Context, topic string) {
+func (s *Source) runConsumerGroup(ctx context.Context, topic string) {
+	s.consumerWG.Add(1)
 	defer s.consumerWG.Done()
+
 	for {
 		err := s.consumer.Consume(ctx, []string{topic}, s)
-		if err != nil {
-			panic(err)
+		if ctx.Err() == context.Canceled { // This is the proper way to end the consumption.
+			return
 		}
-		if ctx.Err() != nil {
+		if err == nil {
+			err = ctx.Err()
+		}
+		if err != nil {
+			s.errs <- err
 			return
 		}
 	}
 }
-
-// func (s *Source) readMessages() {
-// 	for msg := range s.consumer.Messages() {
-// 		s.buf <- msg
-// 	}
-// }

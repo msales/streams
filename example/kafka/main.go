@@ -25,6 +25,7 @@ func main() {
 
 	config := sarama.NewConfig()
 	config.Producer.Return.Successes = true
+	config.Version = sarama.V2_3_0_0
 
 	client, err := stats.NewBufferedStatsd("localhost:8125", "streams.example")
 	if err != nil {
