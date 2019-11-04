@@ -279,7 +279,10 @@ func TestSource_Consume(t *testing.T) {
 	c.Brokers = []string{broker0.Addr()}
 	c.Topic = "test_topic"
 	c.GroupID = "test_group"
-	s, _ := kafka.NewSource(c)
+	s, err := kafka.NewSource(c)
+	if err != nil {
+		panic(err)
+	}
 	defer s.Close()
 
 	time.Sleep(500 * time.Millisecond)

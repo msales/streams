@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -35,6 +36,7 @@ func NewSourceConfig() *SourceConfig {
 	c.KeyDecoder = ByteDecoder{}
 	c.ValueDecoder = ByteDecoder{}
 	c.BufferSize = 1000
+	c.Version = sarama.V2_1_0_0
 
 	return c
 }
@@ -124,7 +126,7 @@ type PartitionOffset struct {
 // Source represents a Kafka stream source.
 type Source struct {
 	topic    string
-	consumer *cluster.Consumer
+	consumer sarama.ConsumerGroup
 
 	ctx          context.Context
 	keyDecoder   Decoder
@@ -132,6 +134,12 @@ type Source struct {
 
 	buf     chan *sarama.ConsumerMessage
 	lastErr error
+
+	session     sarama.ConsumerGroupSession
+	sessionLock sync.Mutex
+	cancelCtx   func()
+
+	consumerWG sync.WaitGroup
 }
 
 // NewSource creates a new Kafka stream source.
@@ -144,22 +152,26 @@ func NewSource(c *SourceConfig) (*Source, error) {
 	cc.Config = c.Config
 	cc.Consumer.Return.Errors = true
 
-	consumer, err := cluster.NewConsumer(c.Brokers, c.GroupID, []string{c.Topic}, cc)
+	consumer, err := sarama.NewConsumerGroup(c.Brokers, c.GroupID, &c.Config)
 	if err != nil {
 		return nil, err
 	}
 
+	ctx, cancel := context.WithCancel(c.Ctx)
+
 	s := &Source{
 		topic:        c.Topic,
 		consumer:     consumer,
-		ctx:          c.Ctx,
+		ctx:          ctx,
 		keyDecoder:   c.KeyDecoder,
 		valueDecoder: c.ValueDecoder,
 		buf:          make(chan *sarama.ConsumerMessage, c.BufferSize),
+		cancelCtx:    cancel,
 	}
 
 	go s.readErrors()
-	go s.readMessages()
+	s.consumerWG.Add(1)
+	go s.runConsumer(ctx, c.Topic)
 
 	return s, nil
 }
@@ -197,13 +209,20 @@ func (s *Source) Commit(v interface{}) error {
 		return nil
 	}
 
-	state := v.(Metadata)
-	for _, pos := range state {
-		s.consumer.MarkPartitionOffset(pos.Topic, pos.Partition, pos.Offset, "")
+	s.sessionLock.Lock()
+	defer s.sessionLock.Unlock()
+
+	if s.session == nil {
+		return errors.Errorf("kafka: consumer session was closed or doesn't exist")
 	}
 
-	if err := s.consumer.CommitOffsets(); err != nil {
-		return errors.Wrap(err, "kafka: could not commit kafka offset")
+	state := v.(Metadata)
+	for _, pos := range state {
+		// This function does not guarantee immediate commit (efficiency reasons). Therefore it is possible
+		// that the offsets are never committed if the application crashes. This may lead to double-committing
+		// on rare occasions.
+		// The result of the "Commit" method on the Committer should be idempotent whenever possible!
+		s.session.MarkOffset(pos.Topic, pos.Partition, pos.Offset+1, "")
 	}
 
 	return nil
@@ -211,7 +230,38 @@ func (s *Source) Commit(v interface{}) error {
 
 // Close closes the Source.
 func (s *Source) Close() error {
+	s.cancelCtx()
+	s.consumerWG.Wait()
 	return s.consumer.Close()
+}
+
+// Setup is ran once for a new consumer session, before the consumption starts.
+func (s *Source) Setup(session sarama.ConsumerGroupSession) error {
+	s.sessionLock.Lock()
+	defer s.sessionLock.Unlock()
+
+	s.session = session
+
+	return nil
+}
+
+// Cleanup is ran once for a session, after the consumption ends.
+func (s *Source) Cleanup(_ sarama.ConsumerGroupSession) error {
+	s.sessionLock.Lock()
+	defer s.sessionLock.Unlock()
+
+	s.session = nil
+
+	return nil
+}
+
+// ConsumeClaim consumes messages from a single partition of a topic.
+func (s *Source) ConsumeClaim(_ sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	for message := range claim.Messages() {
+		s.buf <- message
+	}
+
+	return nil
 }
 
 func (s *Source) createMetadata(msg *sarama.ConsumerMessage) Metadata {
@@ -228,8 +278,21 @@ func (s *Source) readErrors() {
 	}
 }
 
-func (s *Source) readMessages() {
-	for msg := range s.consumer.Messages() {
-		s.buf <- msg
+func (s *Source) runConsumer(ctx context.Context, topic string) {
+	defer s.consumerWG.Done()
+	for {
+		err := s.consumer.Consume(ctx, []string{topic}, s)
+		if err != nil {
+			panic(err)
+		}
+		if ctx.Err() != nil {
+			return
+		}
 	}
 }
+
+// func (s *Source) readMessages() {
+// 	for msg := range s.consumer.Messages() {
+// 		s.buf <- msg
+// 	}
+// }
