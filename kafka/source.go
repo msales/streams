@@ -215,8 +215,8 @@ func (s *Source) Commit(v interface{}) error {
 		return nil
 	}
 
-	s.sessionWG.Wait()    	// Wait for the session to become available...
-	s.sessionLock.Lock()	// ...then lock to prevent session from changing (avoid concurrent read-write).
+	s.sessionWG.Wait()   // Wait for the session to become available...
+	s.sessionLock.Lock() // ...then lock to prevent session from changing (avoid concurrent read-write).
 	defer s.sessionLock.Unlock()
 
 	if s.session == nil { // May still happen, although it's a very slim chance.
@@ -225,6 +225,15 @@ func (s *Source) Commit(v interface{}) error {
 
 	state := v.(Metadata)
 	for _, pos := range state {
+		claims := s.session.Claims()
+		for _, part := range claims[pos.Topic] {
+			if part == pos.Partition {
+				break // Partition is claimed.
+			}
+
+			return nil // This partition is no longer claimed.
+		}
+
 		// This function does not guarantee immediate commit (efficiency reasons). Therefore it is possible
 		// that the offsets are never committed if the application crashes. This may lead to double-committing
 		// on rare occasions.
