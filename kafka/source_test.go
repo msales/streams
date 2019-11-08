@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/streams/v3"
-	"github.com/msales/streams/v3/kafka"
+	"github.com/msales/streams/v4"
+	"github.com/msales/streams/v4/kafka"
 	"github.com/stretchr/testify/assert"
 )
 

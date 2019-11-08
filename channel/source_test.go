@@ -3,8 +3,8 @@ package channel_test
 import (
 	"testing"
 
-	"github.com/msales/streams/v3"
-	"github.com/msales/streams/v3/channel"
+	"github.com/msales/streams/v4"
+	"github.com/msales/streams/v4/channel"
 	"github.com/stretchr/testify/assert"
 )
 

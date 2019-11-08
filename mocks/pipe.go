@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/msales/streams/v3"
+	"github.com/msales/streams/v4"
 )
 
 type record struct {
