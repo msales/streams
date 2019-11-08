@@ -3,7 +3,7 @@ package streams_test
 import (
 	"testing"
 
-	"github.com/msales/streams/v3"
+	"github.com/msales/streams/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )

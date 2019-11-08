@@ -10,8 +10,8 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/msales/pkg/v3/clix"
 	"github.com/msales/pkg/v3/stats"
-	"github.com/msales/streams/v3"
-	"github.com/msales/streams/v3/kafka"
+	"github.com/msales/streams/v4"
+	"github.com/msales/streams/v4/kafka"
 )
 
 // BatchSize is the size of commit batches.
@@ -25,6 +25,7 @@ func main() {
 
 	config := sarama.NewConfig()
 	config.Producer.Return.Successes = true
+	config.Version = sarama.V2_1_0_0
 
 	client, err := stats.NewBufferedStatsd("localhost:8125", "streams.example")
 	if err != nil {

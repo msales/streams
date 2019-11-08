@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/msales/streams/v3"
+	"github.com/msales/streams/v4"
 )
 
 type fakeSource struct {

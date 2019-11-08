@@ -1,6 +1,6 @@
 package channel
 
-import "github.com/msales/streams/v3"
+import "github.com/msales/streams/v4"
 
 // Sink represents a channel sink.
 type Sink struct {
