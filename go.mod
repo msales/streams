@@ -3,7 +3,7 @@ module github.com/msales/streams/v4
 go 1.13
 
 require (
-	github.com/DATA-DOG/go-sqlmock v1.3.3
+	github.com/DATA-DOG/go-sqlmock v1.4.0
 	github.com/DataDog/zstd v1.4.0 // indirect
 	github.com/Shopify/sarama v1.24.1
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668 // indirect
