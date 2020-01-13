@@ -14,7 +14,7 @@ require (
 	github.com/msales/pkg/v3 v3.20.0
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
-	github.com/pkg/errors v0.8.1
+	github.com/pkg/errors v0.9.0
 	github.com/pkg/profile v1.2.1 // indirect
 	github.com/prometheus/client_golang v1.2.1 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
