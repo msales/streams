@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/DATA-DOG/go-sqlmock v1.3.3
 	github.com/DataDog/zstd v1.4.0 // indirect
-	github.com/Shopify/sarama v1.24.1
+	github.com/Shopify/sarama v1.25.0
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668 // indirect
 	github.com/bsm/sarama-cluster v2.1.15+incompatible
 	github.com/cactus/go-statsd-client v3.2.0+incompatible // indirect
