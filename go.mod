@@ -18,7 +18,7 @@ require (
 	github.com/pkg/profile v1.2.1 // indirect
 	github.com/prometheus/client_golang v1.2.1 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.5.1
 	golang.org/x/sys v0.0.0-20191105231009-c1f44814a5cd // indirect
 	golang.org/x/text v0.3.2 // indirect
 )
