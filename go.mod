@@ -11,7 +11,7 @@ require (
 	github.com/cactus/go-statsd-client v3.2.0+incompatible // indirect
 	github.com/cactus/go-statsd-client/statsd v0.0.0-20191106001114-12b4e2b38748 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
-	github.com/msales/pkg/v3 v3.20.0
+	github.com/msales/pkg/v3 v3.21.2
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pkg/errors v0.9.1
