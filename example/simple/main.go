@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/msales/streams/v4"
+	"github.com/msales/streams/v5"
 )
 
 func main() {

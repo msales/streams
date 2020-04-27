@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/msales/pkg/v3/stats"
-	"github.com/msales/streams/v4"
+	"github.com/msales/pkg/v4/stats"
+	"github.com/msales/streams/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

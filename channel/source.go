@@ -3,7 +3,7 @@ package channel
 import (
 	"time"
 
-	"github.com/msales/streams/v4"
+	"github.com/msales/streams/v5"
 )
 
 // Compile-time interface check.

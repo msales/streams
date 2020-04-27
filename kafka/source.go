@@ -7,7 +7,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
-	"github.com/msales/streams/v4"
+	"github.com/msales/streams/v5"
 	"github.com/pkg/errors"
 )
 

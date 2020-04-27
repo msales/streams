@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/streams/v4"
-	"github.com/msales/streams/v4/kafka"
-	"github.com/msales/streams/v4/mocks"
+	"github.com/msales/streams/v5"
+	"github.com/msales/streams/v5/kafka"
+	"github.com/msales/streams/v5/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
