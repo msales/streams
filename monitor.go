@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/msales/pkg/v3/stats"
+	"github.com/msales/pkg/v4/stats"
 )
 
 type event struct {

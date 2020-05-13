@@ -3,7 +3,7 @@ package cache
 import (
 	"time"
 
-	"github.com/msales/pkg/v3/cache"
+	"github.com/msales/pkg/v4/cache"
 	"github.com/msales/streams/v4"
 )
 
