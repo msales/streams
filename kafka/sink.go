@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/streams/v4"
+	"github.com/msales/streams/v5"
 )
 
 // SinkConfig represents the configuration of a Sink.

@@ -7,7 +7,7 @@ import (
 
 	"github.com/msales/pkg/v4/clix"
 	"github.com/msales/pkg/v4/stats"
-	"github.com/msales/streams/v4"
+	"github.com/msales/streams/v5"
 )
 
 func main() {

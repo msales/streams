@@ -1,6 +1,6 @@
-module github.com/msales/streams/v4
+module github.com/msales/streams/v5
 
-go 1.13
+go 1.14
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.4.1
