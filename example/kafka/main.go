@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/pkg/v3/clix"
-	"github.com/msales/pkg/v3/stats"
-	"github.com/msales/streams/v4"
-	"github.com/msales/streams/v4/kafka"
+	"github.com/msales/pkg/v4/clix"
+	"github.com/msales/pkg/v4/stats"
+	"github.com/msales/streams/v5"
+	"github.com/msales/streams/v5/kafka"
 )
 
 // BatchSize is the size of commit batches.

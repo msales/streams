@@ -5,9 +5,9 @@ import (
 	"log"
 	"math/rand"
 
-	"github.com/msales/pkg/v3/clix"
-	"github.com/msales/pkg/v3/stats"
-	"github.com/msales/streams/v4"
+	"github.com/msales/pkg/v4/clix"
+	"github.com/msales/pkg/v4/stats"
+	"github.com/msales/streams/v5"
 )
 
 func main() {
