@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.4.1
-	github.com/Shopify/sarama v1.26.1
+	github.com/Shopify/sarama v1.26.4
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668 // indirect
 	github.com/bsm/sarama-cluster v2.1.15+incompatible
 	github.com/msales/pkg/v4 v4.1.0
