@@ -47,11 +47,18 @@ func WithMode(m TaskMode) TaskOptFunc {
 // Minimum interval is 100ms.
 func WithMonitorInterval(d time.Duration) TaskOptFunc {
 	return func(t *streamTask) {
-		if d < 100 * time.Millisecond {
+		if d < 100*time.Millisecond {
 			d = 100 * time.Millisecond
 		}
 
 		t.monitorInterval = d
+	}
+}
+
+// WithStats sets the stats handler.
+func WithStats(stats Stats) TaskOptFunc {
+	return func(t *streamTask) {
+		t.stats = stats
 	}
 }
 
@@ -78,6 +85,8 @@ type streamTask struct {
 	monitorInterval time.Duration
 	errorFn         ErrorFunc
 
+	stats Stats
+
 	store          Metastore
 	supervisorOpts supervisorOpts
 	supervisor     Supervisor
@@ -96,6 +105,7 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 		monitorInterval: time.Second,
 		store:           store,
 		errorFn:         func(_ error) {},
+		stats:           nullStats{},
 		supervisorOpts: supervisorOpts{
 			Strategy: Lossless,
 			Interval: 0,
@@ -130,7 +140,7 @@ func (t *streamTask) Start(ctx context.Context) error {
 }
 
 func (t *streamTask) setupTopology(ctx context.Context) {
-	t.monitor = NewMonitor(ctx, t.monitorInterval)
+	t.monitor = NewMonitor(t.stats, t.monitorInterval)
 
 	nodes := flattenNodeTree(t.topology.Sources())
 	reverseNodes(nodes)
@@ -220,7 +230,7 @@ func (t *streamTask) handleError(err error) {
 
 // OnError sets the error handler.
 //
-// When an error occurrs on the stream, it is safe to assume
+// When an error occurs on the stream, it is safe to assume
 // there is deadlock in the system. It is not safe to Close
 // the task at this point as it will either hang or panic.
 func (t *streamTask) OnError(fn ErrorFunc) {

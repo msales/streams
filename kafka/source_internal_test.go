@@ -1,10 +1,10 @@
 package kafka
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/Shopify/sarama"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 

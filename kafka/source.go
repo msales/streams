@@ -6,9 +6,8 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/bsm/sarama-cluster"
 	"github.com/msales/streams/v5"
-	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
 )
 
 // SourceConfig represents the configuration for a Kafka stream source.
@@ -152,10 +151,6 @@ func NewSource(c *SourceConfig) (*Source, error) {
 		return nil, err
 	}
 
-	cc := cluster.NewConfig()
-	cc.Config = c.Config
-	cc.Consumer.Return.Errors = true
-
 	consumer, err := sarama.NewConsumerGroup(c.Brokers, c.GroupID, &c.Config)
 	if err != nil {
 		return nil, err
@@ -220,7 +215,7 @@ func (s *Source) Commit(v interface{}) error {
 	defer s.sessionLock.Unlock()
 
 	if s.session == nil { // May still happen, although it's a very slim chance.
-		return errors.Errorf("kafka: consumer session was closed or doesn't exist")
+		return xerrors.New("kafka: consumer session was closed or doesn't exist")
 	}
 
 	state := v.(Metadata)

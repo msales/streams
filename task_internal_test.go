@@ -2,11 +2,12 @@ package streams
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestWithCommitInterval(t *testing.T) {
@@ -32,6 +33,14 @@ func TestWithMonitorInterval_EnforceMinimum(t *testing.T) {
 	task := NewTask(&Topology{sources: map[Source]Node{}}, WithMonitorInterval(time.Millisecond))
 
 	assert.Equal(t, 100*time.Millisecond, task.(*streamTask).monitorInterval)
+}
+
+func TestWithStats(t *testing.T) {
+	stat := new(fakeStats)
+
+	task := NewTask(&Topology{sources: map[Source]Node{}}, WithStats(stat))
+
+	assert.Equal(t, stat, task.(*streamTask).stats)
 }
 
 func TestStreamTask_StartSupervisorStartError(t *testing.T) {
@@ -94,4 +103,20 @@ func (s *fakeSupervisor) Commit(Processor) error {
 
 func (s *fakeSupervisor) Close() error {
 	return s.CloseErr
+}
+
+type fakeStats struct {
+	mock.Mock
+}
+
+func (m *fakeStats) Inc(name string, value int64, tags ...interface{}) {
+	m.On("Inc", name, value, tags)
+}
+
+func (m *fakeStats) Gauge(name string, value float64, tags ...interface{}) {
+	m.On("Gauge", name, value, tags)
+}
+
+func (m *fakeStats) Timing(name string, value time.Duration, tags ...interface{}) {
+	m.On("Timing", name, value, tags)
 }

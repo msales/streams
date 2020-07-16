@@ -4,12 +4,12 @@ import (
 	"context"
 	"log"
 	"math/rand"
+	"os"
+	"os/signal"
 	"strconv"
-	"time"
+	"syscall"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/pkg/v4/clix"
-	"github.com/msales/pkg/v4/stats"
 	"github.com/msales/streams/v5"
 	"github.com/msales/streams/v5/kafka"
 )
@@ -27,14 +27,6 @@ func main() {
 	config.Producer.Return.Successes = true
 	config.Version = sarama.V2_1_0_0
 
-	client, err := stats.NewBufferedStatsd("localhost:8125", "streams.example")
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	ctx = stats.WithStats(ctx, client)
-
-	go stats.RuntimeFromContext(ctx, 30*time.Second)
-
 	tasks := streams.Tasks{}
 	p, err := producerTask([]string{"127.0.0.1:9092"}, config)
 	if err != nil {
@@ -51,7 +43,8 @@ func main() {
 	tasks.Start(ctx)
 	defer tasks.Close()
 
-	<-clix.WaitForSignals()
+	// Wait for SIGTERM
+	waitForShutdown()
 }
 
 func producerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
@@ -186,4 +179,14 @@ func (p *commitProcessor) Commit(ctx context.Context) error {
 
 func (p *commitProcessor) Close() error {
 	return nil
+}
+
+// waitForShutdown blocks until a SIGINT or SIGTERM is received.
+func waitForShutdown() {
+	quit := make(chan os.Signal)
+
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(quit)
+
+	<-quit
 }
