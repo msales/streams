@@ -32,7 +32,7 @@ func main() {
 	defer task.Close()
 
 	// Wait for SIGTERM
-	<-waitForSignals()
+	waitForShutdown()
 }
 
 type randIntSource struct {
@@ -76,9 +76,12 @@ func addHundredMapper(msg streams.Message) (streams.Message, error) {
 	return msg, nil
 }
 
-func waitForSignals() chan os.Signal {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+// waitForShutdown blocks until a SIGINT or SIGTERM is received.
+func waitForShutdown() {
+	quit := make(chan os.Signal)
 
-	return sigs
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(quit)
+
+	<-quit
 }

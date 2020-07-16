@@ -1,11 +1,8 @@
 package streams
 
 import (
-	"context"
 	"sync"
 	"time"
-
-	"github.com/msales/pkg/v4/stats"
 )
 
 type event struct {
@@ -20,16 +17,24 @@ type event struct {
 type Monitor interface {
 	// Processed adds a processed event to the Monitor.
 	Processed(name string, l time.Duration, bp float64)
-
 	// Committed adds a committed event to the Monitor.
 	Committed(l time.Duration)
-
 	// Close closes the monitor.
 	Close() error
 }
 
+// Stats represents a stats instance.
+type Stats interface {
+	// Inc increments a count by the value.
+	Inc(name string, value int64, tags ...interface{})
+	// Gauge measures the value of a metric.
+	Gauge(name string, value float64, tags ...interface{})
+	// Timing sends the value of a Duration.
+	Timing(name string, value time.Duration, tags ...interface{})
+}
+
 type monitor struct {
-	stats stats.Stats
+	stats Stats
 
 	eventWg sync.WaitGroup
 	eventCh chan event
@@ -37,16 +42,12 @@ type monitor struct {
 	flushCh chan []event
 }
 
-//NewMonitor creates a new Monitor.
-func NewMonitor(ctx context.Context, interval time.Duration) Monitor {
+// NewMonitor creates a new Monitor.
+func NewMonitor(stats Stats, interval time.Duration) Monitor {
 	m := &monitor{
-		stats:   stats.Null,
+		stats:   stats,
 		eventCh: make(chan event, 1000),
 		flushCh: make(chan []event, 1000),
-	}
-
-	if s, ok := stats.FromContext(ctx); ok {
-		m.stats = s
 	}
 
 	m.eventWg.Add(1)
@@ -113,19 +114,19 @@ func (m *monitor) runFlush() {
 			switch event.EventType {
 			case "node":
 				tags := []interface{}{"name", event.Name}
-				_ = m.stats.Timing("node.latency", time.Duration(int64(event.Latency)/event.Count), 1, tags...)
-				_ = m.stats.Inc("node.throughput", event.Count, 1, tags...)
+				m.stats.Timing("node.latency", time.Duration(int64(event.Latency)/event.Count), tags...)
+				m.stats.Inc("node.throughput", event.Count, tags...)
 				if event.BackPressure >= 0 {
-					_ = m.stats.Gauge("node.back-pressure", event.BackPressure, 1, tags...)
+					m.stats.Gauge("node.back-pressure", event.BackPressure, tags...)
 				}
 
 			case "commit":
-				_ = m.stats.Timing("commit.latency", time.Duration(int64(event.Latency)/event.Count), 1)
-				_ = m.stats.Inc("commit.commits", event.Count, 1)
+				m.stats.Timing("commit.latency", time.Duration(int64(event.Latency)/event.Count))
+				m.stats.Inc("commit.commits", event.Count, 1)
 			}
 		}
 
-		_ = m.stats.Gauge("monitor.back-pressure", float64(len(m.eventCh))/float64(cap(m.eventCh))*100, 1)
+		m.stats.Gauge("monitor.back-pressure", float64(len(m.eventCh))/float64(cap(m.eventCh))*100)
 	}
 }
 
@@ -172,3 +173,11 @@ func (nullMonitor) Committed(l time.Duration) {}
 func (nullMonitor) Close() error {
 	return nil
 }
+
+type nullStats struct{}
+
+func (s nullStats) Inc(string, int64, ...interface{}) {}
+
+func (s nullStats) Gauge(string, float64, ...interface{}) {}
+
+func (s nullStats) Timing(string, time.Duration, ...interface{}) {}

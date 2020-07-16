@@ -4,20 +4,15 @@ import (
 	"context"
 	"log"
 	"math/rand"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/msales/pkg/v4/clix"
-	"github.com/msales/pkg/v4/stats"
 	"github.com/msales/streams/v5"
 )
 
 func main() {
 	ctx := context.Background()
-
-	client, err := stats.NewStatsd("localhost:8125", "streams.example")
-	if err != nil {
-		log.Fatal(err)
-	}
-	ctx = stats.WithStats(ctx, client)
 
 	builder := streams.NewStreamBuilder()
 
@@ -45,7 +40,7 @@ func main() {
 	defer task.Close()
 
 	// Wait for SIGTERM
-	<-clix.WaitForSignals()
+	waitForShutdown()
 }
 
 type randIntSource struct {
@@ -124,4 +119,14 @@ func negativeMapper(msg streams.Message) (streams.Message, error) {
 	msg.Value = num * -1
 
 	return msg, nil
+}
+
+// waitForShutdown blocks until a SIGINT or SIGTERM is received.
+func waitForShutdown() {
+	quit := make(chan os.Signal)
+
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(quit)
+
+	<-quit
 }

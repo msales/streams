@@ -4,14 +4,13 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"time"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/msales/pkg/v4/clix"
-	"github.com/msales/pkg/v4/stats"
 	"github.com/msales/streams/v5"
 )
-
-import _ "net/http/pprof"
 
 // BatchSize is the size of commit batches.
 const BatchSize = 5000
@@ -26,14 +25,6 @@ func main() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
 
-	client, err := stats.NewBufferedStatsd("localhost:8125", "streams.example")
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	ctx = stats.WithStats(ctx, client)
-
-	go stats.RuntimeFromContext(ctx, 30*time.Second)
-
 	task, err := task(ctx)
 	if err != nil {
 		log.Fatal(err.Error())
@@ -42,10 +33,10 @@ func main() {
 	defer task.Close()
 
 	// Wait for SIGTERM
-	<-clix.WaitForSignals()
+	waitForShutdown()
 }
 
-func task(ctx context.Context) (streams.Task, error) {
+func task(_ context.Context) (streams.Task, error) {
 	builder := streams.NewStreamBuilder()
 	builder.Source("nil-source", newNilSource()).
 		MapFunc("do-nothing", nothingMapper).
@@ -117,4 +108,14 @@ func (p *commitProcessor) Commit(ctx context.Context) error {
 
 func (p *commitProcessor) Close() error {
 	return nil
+}
+
+// waitForShutdown blocks until a SIGINT or SIGTERM is received.
+func waitForShutdown() {
+	quit := make(chan os.Signal)
+
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(quit)
+
+	<-quit
 }

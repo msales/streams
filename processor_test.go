@@ -1,11 +1,11 @@
 package streams_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/msales/streams/v5"
 	"github.com/msales/streams/v5/mocks"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 

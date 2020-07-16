@@ -3,7 +3,7 @@ package streams
 import (
 	"time"
 
-	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
 )
 
 // TimedPipe represents a pipe that can accumulate execution time.
@@ -89,7 +89,7 @@ func (p *processorPipe) ForwardToChild(msg Message, index int) error {
 	start := nanotime()
 
 	if index > len(p.children)-1 {
-		return errors.New("streams: child index out of bounds")
+		return xerrors.New("streams: child index out of bounds")
 	}
 
 	child := p.children[index]
