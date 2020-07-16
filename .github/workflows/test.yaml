@@ -4,6 +4,8 @@ on: push
 
 jobs:
   build:
+    runs-on: ubuntu-latest
+
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
