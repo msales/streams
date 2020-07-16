@@ -4,8 +4,6 @@ on: push
 
 jobs:
   build:
-    runs-on: self-hosted
-
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
