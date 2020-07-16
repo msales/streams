@@ -1,4 +1,4 @@
-module github.com/msales/streams/v5
+module github.com/msales/streams/v6
 
 go 1.14
 

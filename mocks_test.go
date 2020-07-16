@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/msales/streams/v5"
+	"github.com/msales/streams/v6"
 	"github.com/stretchr/testify/mock"
 )
 
