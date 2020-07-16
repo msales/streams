@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/msales/pkg/v4/cache"
-	"github.com/msales/streams/v5"
+	"github.com/msales/streams/v6"
 )
 
 // Sink represents a Cache streams sink.

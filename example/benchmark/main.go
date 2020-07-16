@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/msales/streams/v5"
+	"github.com/msales/streams/v6"
 )
 
 // BatchSize is the size of commit batches.

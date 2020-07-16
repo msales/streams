@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/streams/v5"
+	"github.com/msales/streams/v6"
 	"golang.org/x/xerrors"
 )
 

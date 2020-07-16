@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/msales/streams/v5"
-	"github.com/msales/streams/v5/mocks"
-	sqlx "github.com/msales/streams/v5/sql"
+	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v6/mocks"
+	sqlx "github.com/msales/streams/v6/sql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

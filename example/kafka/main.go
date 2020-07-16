@@ -10,8 +10,8 @@ import (
 	"syscall"
 
 	"github.com/Shopify/sarama"
-	"github.com/msales/streams/v5"
-	"github.com/msales/streams/v5/kafka"
+	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v6/kafka"
 )
 
 // BatchSize is the size of commit batches.

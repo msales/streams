@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/msales/streams/v5"
-	"github.com/msales/streams/v5/mocks"
+	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v6/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
