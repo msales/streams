@@ -10,7 +10,6 @@
 Streams is a light weight, simple stream processing library. While Kafka is the main use case for Streams, it is
 flexible enough to be used for any form of processing from any source.
 
-**Note:** This is currently a work in progress. 
 
 ## Installation
 
@@ -32,3 +31,6 @@ Streams breaks processing into the following basic parts.
   the does not forward the data on.
   
 * **Pipe** gives processors an abstract view of the current state, allowing Messages to flow through the system.
+
+### Read more here: 
+https://medium.com/@rafamnich/getting-started-with-streams-v3-b9ab36fb9d54
