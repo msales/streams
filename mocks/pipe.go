@@ -59,8 +59,8 @@ func (p *Pipe) Mark(msg streams.Message) error {
 	record := p.expectMark[0]
 	p.expectMark = p.expectMark[1:]
 
-	if (record.key != Anything && msg.Key != record.key) ||
-		(record.value != Anything && msg.Value != record.value) {
+	if (record.key != Anything && !reflect.DeepEqual(msg.Key, record.key)) ||
+		(record.value != Anything && !reflect.DeepEqual(msg.Value, record.value)) {
 		p.t.Errorf("streams: mock: Arguments to Mark did not match expectation: wanted %v:%v, got %v:%v", record.key, record.value, msg.Key, msg.Value)
 	}
 
