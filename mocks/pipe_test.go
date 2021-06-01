@@ -59,11 +59,13 @@ func TestPipe_HandlesExpectations(t *testing.T) {
 	p := mocks.NewPipe(t)
 
 	p.ExpectMark("test", "test")
+	p.ExpectMark("test", []string{"test", "test2"})
 	p.ExpectForward("test", "test")
 	p.ExpectForwardToChild("test", "test", 1)
 	p.ExpectCommit()
 
 	p.Mark(streams.NewMessage("test", "test"))
+	p.Mark(streams.NewMessage("test", []string{"test", "test2"}))
 	p.Forward(streams.NewMessage("test", "test"))
 	p.ForwardToChild(streams.NewMessage("test", "test"), 1)
 	p.Commit(streams.NewMessage("test", "test"))
