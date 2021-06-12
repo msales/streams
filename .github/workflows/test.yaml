@@ -1,0 +1,25 @@
+name: Test
+
+on: push
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      - name: Checkout actions repository
+        uses: actions/checkout@v2
+        with:
+          repository: msales/github-actions
+          ref: master
+          token: ${{ secrets.GH_TOKEN }}
+          path: .github/actions/external
+
+      - name: Run the tests
+        id: test
+        uses: ./.github/actions/external/go-test
+        with:
+          org_token: ${{ secrets.GH_TOKEN }}
