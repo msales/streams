@@ -67,7 +67,7 @@ func doubleMapper(msg streams.Message) (streams.Message, error) {
 
 // waitForShutdown blocks until a SIGINT or SIGTERM is received.
 func waitForShutdown() {
-	quit := make(chan os.Signal)
+	quit := make(chan os.Signal, 1)
 
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(quit)
