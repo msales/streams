@@ -257,6 +257,8 @@ func (s *Source) Commit(v interface{}) error {
 		// that the offsets are never committed if the application crashes. This may lead to double-committing
 		// on rare occasions.
 		// The result of the "Commit" method on the Committer should be idempotent whenever possible!
+		//
+		// If offsets are needed to be committed immediately, use CommitManual or CommitBoth.
 		s.session.MarkOffset(pos.Topic, pos.Partition, pos.Offset+1, "")
 	}
 
