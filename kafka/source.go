@@ -2,12 +2,32 @@ package kafka
 
 import (
 	"context"
+	"runtime"
 	"sync"
 	"time"
 
-	"github.com/Shopify/sarama"
-	"github.com/msales/streams/v6"
 	"golang.org/x/xerrors"
+
+	"github.com/Shopify/sarama"
+
+	"github.com/msales/streams/v6"
+)
+
+// CommitStrategy represents commit strategy for source commiting.
+type CommitStrategy int
+
+const (
+	// CommitAuto represents automatic commit strategy.
+	// It takes advantage of Shopify/sarama's AutoCommit.
+	CommitAuto CommitStrategy = 0
+
+	// CommitManual represents manual commit strategy. Commiting is done on Commit method in Source.
+	// It turns off Shopify/sarama's AutoCommit by default.
+	CommitManual CommitStrategy = 1
+
+	// CommitBoth represents commit strategy that uses both CommitAuto and CommitManual.
+	// Commiting is done using AutoCommit and on Commit method in Source
+	CommitBoth CommitStrategy = 2
 )
 
 // SourceConfig represents the configuration for a Kafka stream source.
@@ -24,6 +44,8 @@ type SourceConfig struct {
 
 	BufferSize       int
 	ErrorsBufferSize int
+
+	CommitStrategy CommitStrategy
 }
 
 // NewSourceConfig creates a new Kafka source configuration.
@@ -37,6 +59,7 @@ func NewSourceConfig() *SourceConfig {
 	c.ValueDecoder = ByteDecoder{}
 	c.BufferSize = 1000
 	c.ErrorsBufferSize = 10
+	c.Consumer.Return.Errors = true
 
 	return c
 }
@@ -60,6 +83,13 @@ func (c *SourceConfig) Validate() error {
 	}
 
 	return nil
+}
+
+// ModifyConfig modifies config.
+func (c *SourceConfig) ModifyConfig() {
+	if c.CommitStrategy == CommitManual {
+		c.Config.Consumer.Offsets.AutoCommit.Enable = false
+	}
 }
 
 // Metadata represents an the kafka topic metadata.
@@ -125,8 +155,9 @@ type PartitionOffset struct {
 
 // Source represents a Kafka stream source.
 type Source struct {
-	topic    string
-	consumer sarama.ConsumerGroup
+	topic          string
+	consumer       sarama.ConsumerGroup
+	commitStrategy CommitStrategy
 
 	ctx          context.Context
 	keyDecoder   Decoder
@@ -147,6 +178,7 @@ type Source struct {
 
 // NewSource creates a new Kafka stream source.
 func NewSource(c *SourceConfig) (*Source, error) {
+	c.ModifyConfig()
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
@@ -159,15 +191,16 @@ func NewSource(c *SourceConfig) (*Source, error) {
 	ctx, cancel := context.WithCancel(c.Ctx)
 
 	s := &Source{
-		topic:        c.Topic,
-		consumer:     consumer,
-		ctx:          ctx,
-		keyDecoder:   c.KeyDecoder,
-		valueDecoder: c.ValueDecoder,
-		buf:          make(chan *sarama.ConsumerMessage, c.BufferSize),
-		errs:         make(chan error, c.ErrorsBufferSize),
-		cancelCtx:    cancel,
-		done:         make(chan struct{}),
+		topic:          c.Topic,
+		consumer:       consumer,
+		ctx:            ctx,
+		keyDecoder:     c.KeyDecoder,
+		valueDecoder:   c.ValueDecoder,
+		buf:            make(chan *sarama.ConsumerMessage, c.BufferSize),
+		errs:           make(chan error, c.ErrorsBufferSize),
+		cancelCtx:      cancel,
+		done:           make(chan struct{}),
+		commitStrategy: c.CommitStrategy,
 	}
 	s.sessionWG.Add(1)
 
@@ -227,7 +260,13 @@ func (s *Source) Commit(v interface{}) error {
 		s.session.MarkOffset(pos.Topic, pos.Partition, pos.Offset+1, "")
 	}
 
-	return nil
+	// If commit strategy is not CommitAuto, session should perform global, synchronous commit of current marked offsets.
+	if s.commitStrategy != CommitAuto {
+		s.session.Commit()
+	}
+
+	runtime.Gosched() // If any error from consumer side happens after Commiting, it will be read and s.lastErr will be set.
+	return s.lastErr
 }
 
 // Close closes the Source.

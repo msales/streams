@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/Shopify/sarama"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/msales/streams/v6"
 	"github.com/msales/streams/v6/kafka"
 	"github.com/msales/streams/v6/mocks"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNewSinkConfig(t *testing.T) {
@@ -183,7 +184,8 @@ func TestSink_Commit(t *testing.T) {
 		"MetadataRequest": sarama.NewMockMetadataResponse(t).
 			SetBroker(broker0.Addr(), broker0.BrokerID()).
 			SetLeader("test_topic", 0, broker0.BrokerID()),
-		"ProduceRequest": sarama.NewMockProduceResponse(t),
+		"ProduceRequest": sarama.NewMockProduceResponse(t).
+			SetVersion(2),
 	})
 
 	c := kafka.NewSinkConfig()
@@ -215,6 +217,7 @@ func TestSink_CommitError(t *testing.T) {
 			SetBroker(broker0.Addr(), broker0.BrokerID()).
 			SetLeader("test_topic", 0, broker0.BrokerID()),
 		"ProduceRequest": sarama.NewMockProduceResponse(t).
+			SetVersion(2).
 			SetError("test_topic", 0, sarama.ErrBrokerNotAvailable),
 	})
 
