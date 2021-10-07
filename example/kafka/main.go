@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/Shopify/sarama"
+
 	"github.com/msales/streams/v6"
 	"github.com/msales/streams/v6/kafka"
 )
@@ -183,7 +184,7 @@ func (p *commitProcessor) Close() error {
 
 // waitForShutdown blocks until a SIGINT or SIGTERM is received.
 func waitForShutdown() {
-	quit := make(chan os.Signal)
+	quit := make(chan os.Signal, 1)
 
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(quit)

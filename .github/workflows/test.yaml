@@ -23,3 +23,6 @@ jobs:
         uses: ./.github/actions/external/go-test
         with:
           org_token: ${{ secrets.GH_TOKEN }}
+          lint: true
+          test: true
+          vet: true
