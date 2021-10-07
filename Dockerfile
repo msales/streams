@@ -1,4 +1,4 @@
-FROM msales/go-builder:1.16-base-1.0.0 as builder
+FROM msales/go-builder:1.17-base-1.0.0 as builder
 
 # This image only serves testing purposes.
 
