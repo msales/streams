@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"fmt"
 	"runtime"
 	"sync"
 	"time"
@@ -16,40 +15,6 @@ import (
 
 // CommitStrategy represents commit strategy for source commiting.
 type CommitStrategy int
-
-// String to add support for spf13/pflag
-func (c *CommitStrategy) String() string {
-	switch *c {
-	case CommitAuto:
-		return "auto"
-	case CommitManual:
-		return "manual"
-	case CommitBoth:
-		return "both"
-	}
-	return ""
-}
-
-// Set to add support for spf13/pflag
-func (c *CommitStrategy) Set(s string) error {
-	switch s {
-	case "auto":
-		*c = CommitAuto
-		return nil
-	case "manual":
-		*c = CommitManual
-		return nil
-	case "both":
-		*c = CommitBoth
-		return nil
-	}
-	return xerrors.New(fmt.Sprintf("can't set %s as CommitStrategy", s))
-}
-
-// Type to add support for spf13/pflag
-func (c *CommitStrategy) Type() string {
-	return "CommitStrategy"
-}
 
 const (
 	// CommitAuto represents automatic commit strategy.
