@@ -206,6 +206,7 @@ type timedSupervisor struct {
 	t       *time.Ticker
 	commits uint32
 	running uint32
+	mutex   sync.Mutex
 }
 
 // NewTimedSupervisor returns a supervisor that commits automatically.
@@ -241,8 +242,8 @@ func (s *timedSupervisor) Start() error {
 		return ErrAlreadyRunning
 	}
 
+	s.mutex.Lock()
 	s.t = time.NewTicker(s.d)
-
 	go func() {
 		for range s.t.C {
 			// If there was a commit triggered "manually" by a Committer, skip a single timed commit.
@@ -257,6 +258,7 @@ func (s *timedSupervisor) Start() error {
 			}
 		}
 	}()
+	s.mutex.Unlock()
 
 	return s.inner.Start()
 }
@@ -267,6 +269,8 @@ func (s *timedSupervisor) Close() error {
 		return ErrNotRunning
 	}
 
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	s.t.Stop()
 
 	return s.inner.Close()
