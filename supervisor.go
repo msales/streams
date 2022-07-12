@@ -244,6 +244,8 @@ func (s *timedSupervisor) Start() error {
 
 	s.mutex.Lock()
 	s.t = time.NewTicker(s.d)
+	s.mutex.Unlock()
+
 	go func() {
 		for range s.t.C {
 			// If there was a commit triggered "manually" by a Committer, skip a single timed commit.
@@ -258,7 +260,6 @@ func (s *timedSupervisor) Start() error {
 			}
 		}
 	}()
-	s.mutex.Unlock()
 
 	return s.inner.Start()
 }
