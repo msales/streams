@@ -314,7 +314,6 @@ func (s *Source) ConsumeClaim(_ sarama.ConsumerGroupSession, claim sarama.Consum
 		// - s.buf is full (but not draining, since pumps are off)
 		// - we have consumed a message and are attempting to send it to s.buf
 		case <-s.done:
-			break
 		}
 	}
 

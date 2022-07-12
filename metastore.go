@@ -90,7 +90,7 @@ func (s *metastore) PullAll() (map[Processor]Metaitems, error) {
 
 	// Make sure no marks are happening on the old metadata
 	s.procMu.Lock()
-	s.procMu.Unlock()
+	s.procMu.Unlock() //lint:ignore SA2001 syncpoint
 
 	return oldMeta, nil
 }

@@ -170,9 +170,7 @@ func nodesConnected(roots []Node) bool {
 	var visit []Node
 	connections := 0
 
-	for _, node := range roots {
-		visit = append(visit, node)
-	}
+	visit = append(visit, roots...)
 
 	for len(visit) > 0 {
 		var n Node
