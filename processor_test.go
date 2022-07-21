@@ -4,9 +4,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/msales/streams/v6"
 	"github.com/msales/streams/v6/mocks"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestBranchProcessor_Process(t *testing.T) {
@@ -57,6 +58,39 @@ func TestBranchProcessor_ProcessWithForwardError(t *testing.T) {
 
 func TestBranchProcessor_Close(t *testing.T) {
 	p := streams.NewBranchProcessor([]streams.Predicate{})
+
+	err := p.Close()
+
+	assert.NoError(t, err)
+}
+
+func TestFanOutProcessor_Process(t *testing.T) {
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForwardToChild("test", "test", 0)
+	pipe.ExpectForwardToChild("test", "test", 1)
+	p := streams.NewFanOutProcessor(2)
+	p.WithPipe(pipe)
+
+	err := p.Process(streams.NewMessage("test", "test"))
+
+	assert.NoError(t, err)
+	pipe.AssertExpectations()
+}
+
+func TestFanOutProcessor_ProcessWithForwardError(t *testing.T) {
+	pipe := mocks.NewPipe(t)
+	pipe.ExpectForwardToChild("test", "test", 0)
+	pipe.ShouldError()
+	p := streams.NewFanOutProcessor(2)
+	p.WithPipe(pipe)
+
+	err := p.Process(streams.NewMessage("test", "test"))
+
+	assert.Error(t, err)
+}
+
+func TestFanOutProcessor_Close(t *testing.T) {
+	p := streams.NewFanOutProcessor(2)
 
 	err := p.Close()
 

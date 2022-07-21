@@ -9,7 +9,7 @@ import (
 type Committer interface {
 	Processor
 
-	//Commit commits a processors batch.
+	// Commit commits a processors batch.
 	Commit(ctx context.Context) error
 }
 
@@ -112,6 +112,40 @@ func (p *BranchProcessor) Process(msg Message) error {
 
 // Close closes the processor.
 func (p *BranchProcessor) Close() error {
+	return nil
+}
+
+// FanOutProcessor is a processor that passes the message to multiple children.
+type FanOutProcessor struct {
+	streams int
+	pipe    Pipe
+}
+
+// NewFanOutProcessor creates a new FanOutProcessor instance.
+func NewFanOutProcessor(streams int) Processor {
+	return &FanOutProcessor{
+		streams: streams,
+	}
+}
+
+// WithPipe sets the pipe on the Processor.
+func (p *FanOutProcessor) WithPipe(pipe Pipe) {
+	p.pipe = pipe
+}
+
+// Process processes the stream nodeMessage.
+func (p *FanOutProcessor) Process(msg Message) error {
+	for i := 0; i < p.streams; i++ {
+		if err := p.pipe.ForwardToChild(msg, i); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Close closes the processor.
+func (p *FanOutProcessor) Close() error {
 	return nil
 }
 

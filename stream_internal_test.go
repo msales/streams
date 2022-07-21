@@ -211,6 +211,23 @@ func TestStream_Process(t *testing.T) {
 	assert.Equal(t, stream.parents[0].(*ProcessorNode).processor, proc)
 }
 
+func TestStream_FanOut(t *testing.T) {
+	source := &streamSource{}
+	builder := NewStreamBuilder()
+
+	streams := builder.Source("source", source).FanOut("test", 2)
+
+	assert.Len(t, streams, 2)
+	assert.Len(t, streams[0].parents, 1)
+	assert.IsType(t, &ProcessorNode{}, streams[0].parents[0])
+	assert.Equal(t, streams[0].parents[0].(*ProcessorNode).name, "test")
+	assert.IsType(t, &FanOutProcessor{}, streams[0].parents[0].(*ProcessorNode).processor)
+	assert.Len(t, streams[1].parents, 1)
+	assert.IsType(t, &ProcessorNode{}, streams[1].parents[0])
+	assert.Equal(t, streams[1].parents[0].(*ProcessorNode).name, "test")
+	assert.IsType(t, &FanOutProcessor{}, streams[1].parents[0].(*ProcessorNode).processor)
+}
+
 type streamSource struct{}
 
 func (s streamSource) Consume() (Message, error) {

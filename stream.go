@@ -62,6 +62,19 @@ func (s *Stream) Branch(name string, preds ...Predicate) []*Stream {
 	return streams
 }
 
+// FanOut creates multiple streams based on the number of streams necessary.
+// It should be used when the same message is supposed to be processed by multiple sinks.
+func (s *Stream) FanOut(name string, number int) []*Stream {
+	p := NewFanOutProcessor(number)
+	n := s.tp.AddProcessor(name, p, s.parents)
+
+	streams := make([]*Stream, 0, number)
+	for i := 0; i < number; i++ {
+		streams = append(streams, newStream(s.tp, []Node{n}))
+	}
+	return streams
+}
+
 // BranchFunc branches a stream based on the given predicates.
 func (s *Stream) BranchFunc(name string, preds ...PredicateFunc) []*Stream {
 	ps := make([]Predicate, len(preds))
