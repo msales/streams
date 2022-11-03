@@ -23,19 +23,16 @@ jobs:
         run: go version
 
       - name: Install golint
-        run: go get -u golang.org/x/lint/golint
+        run: GO111MODULE=off go get -u golang.org/x/lint/golint
 
       - name: Install cover
-        run: go get -u golang.org/x/tools/cmd/cover
-
-      - name: Install vet
-        run: go get -u github.com/mattn/goveralls
+        run: GO111MODULE=off go get -u golang.org/x/tools/cmd/cover
 
       - name: Install goveralls
-        run: go get -u github.com/mattn/goveralls
+        run: GO111MODULE=off go get -u github.com/mattn/goveralls
 
-      - name: Go get
-        run: go get
+      - name: Build
+        run: go build -v ./...
 
       - name: Golint
         run: golint ./...
@@ -71,19 +68,16 @@ jobs:
         run: go version
 
       - name: Install staticcheck
-        run: go install honnef.co/go/tools/cmd/staticcheck@latest
+        run: GO111MODULE=off go install honnef.co/go/tools/cmd/staticcheck@latest
 
       - name: Install cover
-        run: go get -u golang.org/x/tools/cmd/cover
-
-      - name: Install vet
-        run: go get -u github.com/mattn/goveralls
+        run: GO111MODULE=off go get -u golang.org/x/tools/cmd/cover
 
       - name: Install goveralls
-        run: go get -u github.com/mattn/goveralls
+        run: GO111MODULE=off go get -u github.com/mattn/goveralls
 
-      - name: Go get
-        run: go get
+      - name: Build
+        run: go build -v ./...
 
       - name: Staticcheck
         run: staticcheck -checks="all,-ST1000" ./...
