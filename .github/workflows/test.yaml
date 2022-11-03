@@ -6,12 +6,12 @@ env:
   GO111MODULE: on
 
 jobs:
-  build:
-    name: Test
-    runs-on: ubuntu-latest
+  test_old_go:
+    name: Test Go <= 1.17
+    runs-on: self-hosted
     strategy:
       matrix:
-        go-version: [ '1.13', '1.14', '1.15', '1.16', '1.17', '1.18', '1.19.x' ]
+        go-version: [ '1.13', '1.14', '1.15', '1.16', '1.17']
 
     steps:
       - name: Checkout the repository
@@ -27,11 +27,6 @@ jobs:
 
       - name: Install golint
         run: go get -u golang.org/x/lint/golint
-        if: ${{ (matrix.go-version == '1.13') || (matrix.go-version == '1.14') || (matrix.go-version == '1.15') || (matrix.go-version == '1.16') || (matrix.go-version == '1.17') }}
-
-      - name: Install staticcheck
-        run: go install honnef.co/go/tools/cmd/staticcheck@latest
-        if: ${{ (matrix.go-version == '1.17') || (matrix.go-version == '1.18') || (matrix.go-version == '1.19.x') }}
 
       - name: Install cover
         run: go get -u golang.org/x/tools/cmd/cover
@@ -42,16 +37,59 @@ jobs:
       - name: Install goveralls
         run: go get -u github.com/mattn/goveralls
 
+      - name: Go get
+        run: go get
+
       - name: Golint
         run: golint ./...
-        if: ${{ (matrix.go-version == '1.12') || (matrix.go-version == '1.13') || (matrix.go-version == '1.14') || (matrix.go-version == '1.15') || (matrix.go-version == '1.16') || (matrix.go-version == '1.17') }}
 
-      - name: Staticcheck
-        run: staticcheck -checks="all,-ST1000" ./...
-        if: ${{ (matrix.go-version == '1.17') || (matrix.go-version == '1.18') || (matrix.go-version == '1.19.x') }}
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -covermode=count -coverprofile=profile_full.cov -coverpkg=./... ./...
+
+      - name: Goveralls
+        run: |
+          cat profile_full.cov | grep -v .pb.go | grep -v mock | grep -v test > profile.cov;
+          goveralls -coverprofile=profile.cov -service=github || true;
+
+  test_new_go:
+    name: Test Go > 1.17
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        go-version: [ '1.18', '1.19.x' ]
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Display Go version
+        run: go version
+
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@latest
+
+      - name: Install cover
+        run: go get -u golang.org/x/tools/cmd/cover
+
+      - name: Install vet
+        run: go get -u github.com/mattn/goveralls
+
+      - name: Install goveralls
+        run: go get -u github.com/mattn/goveralls
 
       - name: Go get
         run: go get
+
+      - name: Staticcheck
+        run: staticcheck -checks="all,-ST1000" ./...
 
       - name: Vet
         run: go vet ./...
