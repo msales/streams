@@ -7,7 +7,7 @@ env:
 
 jobs:
   test_old_go:
-    name: Go
+    name: Go version <= 1.17
     runs-on: self-hosted
     strategy:
       matrix:
@@ -55,7 +55,7 @@ jobs:
           goveralls -coverprofile=profile.cov -service=github || true;
 
   test_new_go:
-    name: Go
+    name: Go version > 1.17
     runs-on: self-hosted
     strategy:
       matrix:
