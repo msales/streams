@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xdg/scram"
 	"golang.org/x/xerrors"
 
 	"github.com/Shopify/sarama"
@@ -90,6 +91,45 @@ func (c *SourceConfig) ModifyConfig() {
 	if c.CommitStrategy == CommitManual {
 		c.Config.Consumer.Offsets.AutoCommit.Enable = false
 	}
+}
+
+// Compile-time check.
+var _ sarama.SCRAMClient = (*SCRAMClient)(nil)
+
+// SCRAMClient represents a SASL/SCRAM client.
+type SCRAMClient struct {
+	*scram.Client
+	*scram.ClientConversation
+
+	hashGenerator scram.HashGeneratorFcn
+}
+
+// NewSCRAMClientGeneratorFn is a SCRAM client generator function for sarama.Config.
+func NewSCRAMClientGeneratorFn(hashFn scram.HashGeneratorFcn) func() sarama.SCRAMClient {
+	return func() sarama.SCRAMClient {
+		return &SCRAMClient{hashGenerator: hashFn}
+	}
+}
+
+func (x *SCRAMClient) Begin(userName, password, authzID string) (err error) {
+	x.Client, err = x.hashGenerator.NewClient(userName, password, authzID)
+	if err != nil {
+		return err
+	}
+
+	x.ClientConversation = x.Client.NewConversation()
+
+	return nil
+}
+
+func (x *SCRAMClient) Step(challenge string) (response string, err error) {
+	response, err = x.ClientConversation.Step(challenge)
+
+	return
+}
+
+func (x *SCRAMClient) Done() bool {
+	return x.ClientConversation.Done()
 }
 
 // Metadata represents an the kafka topic metadata.

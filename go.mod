@@ -7,6 +7,7 @@ require (
 	github.com/Shopify/sarama v1.30.0
 	github.com/msales/pkg/v4 v4.4.0
 	github.com/stretchr/testify v1.7.0
+	github.com/xdg/scram v1.0.5
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 )
 
@@ -29,7 +30,9 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
+	github.com/xdg/stringprep v1.0.3 // indirect
 	golang.org/x/crypto v0.0.0-20210920023735-84f357641f63 // indirect
 	golang.org/x/net v0.0.0-20210917221730-978cfadd31cf // indirect
+	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
