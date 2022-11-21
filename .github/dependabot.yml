@@ -1,0 +1,17 @@
+version: 2
+registries:
+  git-github-com:
+    type: git
+    url: https://github.com
+    username: rafalmnich
+    password: "${{secrets.GIT_GITHUB_COM_PASSWORD}}"
+
+updates:
+- package-ecosystem: gomod
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "04:00"
+  open-pull-requests-limit: 10
+  registries:
+  - git-github-com
