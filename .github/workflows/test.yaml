@@ -3,26 +3,93 @@ name: Test
 on: push
 
 jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
+  test_old_go:
+    name: Older Go versions
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        go-version: [ '1.16', '1.17']
+
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Checkout actions repository
-        uses: actions/checkout@v2
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v3
         with:
-          repository: msales/github-actions
-          ref: master
-          token: ${{ secrets.GH_TOKEN }}
-          path: .github/actions/external
+          go-version: ${{ matrix.go-version }}
 
-      - name: Run the tests
-        id: test
-        uses: ./.github/actions/external/go-test
+      - name: Display Go version
+        run: go version
+
+      - name: Install golint
+        run: GO111MODULE=off go get -u golang.org/x/lint/golint
+
+      - name: Install cover
+        run: GO111MODULE=off go get -u golang.org/x/tools/cmd/cover
+
+      - name: Install goveralls
+        run: GO111MODULE=off go get -u github.com/mattn/goveralls
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Golint
+        run: golint ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -covermode=count -coverprofile=profile_full.cov -coverpkg=./... ./...
+
+      - name: Goveralls
+        run: |
+          cat profile_full.cov | grep -v .pb.go | grep -v mock | grep -v test > profile.cov;
+          goveralls -coverprofile=profile.cov -service=github || true;
+
+  test_new_go:
+    name: Newer Go versions
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        go-version: [ '1.18', '1.19.x' ]
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v3
         with:
-          org_token: ${{ secrets.GH_TOKEN }}
-          test: true
-          vet: true
-          race: false
+          go-version: ${{ matrix.go-version }}
+
+      - name: Display Go version
+        run: go version
+
+      - name: Install staticcheck
+        run: GO111MODULE=off go install honnef.co/go/tools/cmd/staticcheck@latest
+
+      - name: Install cover
+        run: GO111MODULE=off go get -u golang.org/x/tools/cmd/cover
+
+      - name: Install goveralls
+        run: GO111MODULE=off go get -u github.com/mattn/goveralls
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Staticcheck
+        run: staticcheck -checks="all,-ST1000" ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -covermode=count -coverprofile=profile_full.cov -coverpkg=./... ./...
+
+      - name: Goveralls
+        run: |
+          cat profile_full.cov | grep -v .pb.go | grep -v mock | grep -v test > profile.cov;
+          goveralls -coverprofile=profile.cov -service=github || true;
+    
