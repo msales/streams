@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/msales/streams/v6"
@@ -185,7 +185,7 @@ func TestSink_Commit(t *testing.T) {
 			SetBroker(broker0.Addr(), broker0.BrokerID()).
 			SetLeader("test_topic", 0, broker0.BrokerID()),
 		"ProduceRequest": sarama.NewMockProduceResponse(t).
-			SetVersion(2),
+			SetError("test_topic", 0, sarama.ErrNoError),
 	})
 
 	c := kafka.NewSinkConfig()

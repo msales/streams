@@ -9,7 +9,7 @@ import (
 	"github.com/xdg/scram"
 	"golang.org/x/xerrors"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 
 	"github.com/msales/streams/v6"
 )
