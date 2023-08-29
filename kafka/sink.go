@@ -3,7 +3,7 @@ package kafka
 import (
 	"context"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/msales/streams/v6"
 )
 
@@ -131,7 +131,7 @@ func (p *Sink) Process(msg streams.Message) error {
 	return p.pipe.Mark(msg)
 }
 
-//Commit commits a processors batch.
+// Commit commits a processors batch.
 func (p *Sink) Commit(ctx context.Context) error {
 	if err := p.producer.SendMessages(p.buf); err != nil {
 		return err
