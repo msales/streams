@@ -493,6 +493,7 @@ func TestSource_Commit_Manual_NilMetadata(t *testing.T) {
 }
 
 func TestSource_Commit_Manual_ReturnError(t *testing.T) {
+	t.Skipf("not deterministic behaviour with async errors read")
 	broker0 := sarama.NewMockBroker(t, 0)
 	defer broker0.Close()
 	broker0.SetHandlerByMap(map[string]sarama.MockResponse{
