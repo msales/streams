@@ -545,8 +545,6 @@ func TestSource_Commit_Manual_ReturnError(t *testing.T) {
 	_, err = s.Consume()
 	require.NoError(t, err)
 
-	time.Sleep(100 * time.Millisecond)
-
 	err = s.Commit(meta)
 
 	assert.Error(t, err)

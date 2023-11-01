@@ -302,7 +302,7 @@ func (s *Source) Commit(v interface{}) error {
 	// If commit strategy is not CommitAuto, session should perform global, synchronous commit of current marked offsets.
 	if s.commitStrategy != CommitAuto {
 		s.session.Commit()
-		runtime.Gosched() // If any error from consumer side happens after Commiting, it will be read and s.lastErr will be set.
+		runtime.Gosched() // If any error from consumer side happens after Committing, it will be read and sent to errors channel.
 	}
 
 	select {
@@ -388,7 +388,7 @@ func (s *Source) runConsumerGroup(ctx context.Context, topic string) {
 
 	for {
 		err := s.consumer.Consume(ctx, []string{topic}, s)
-		if ctx.Err() == context.Canceled { // This is the proper way to end the consumption.
+		if errors.Is(ctx.Err(), context.Canceled) { // This is the proper way to end the consumption.
 			return
 		}
 		if err == nil {
