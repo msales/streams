@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 
-	"github.com/msales/streams/v6"
-	"github.com/msales/streams/v6/kafka"
+	"github.com/msales/streams/v7"
+	"github.com/msales/streams/v7/kafka"
 )
 
 // BatchSize is the size of commit batches.
@@ -68,8 +68,9 @@ func producerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
 
 	tp, _ := builder.Build()
 	task := streams.NewTask(tp, streams.WithMode(Mode))
-	task.OnError(func(err error) {
+	task.OnError(func(err error) error {
 		log.Fatal(err.Error())
+		return err
 	})
 
 	return task, nil
@@ -97,8 +98,9 @@ func consumerTask(brokers []string, c *sarama.Config) (streams.Task, error) {
 
 	tp, _ := builder.Build()
 	task := streams.NewTask(tp, streams.WithMode(Mode))
-	task.OnError(func(err error) {
+	task.OnError(func(err error) error {
 		log.Fatal(err.Error())
+		return err
 	})
 
 	return task, nil

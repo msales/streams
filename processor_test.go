@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/msales/streams/v6"
-	"github.com/msales/streams/v6/mocks"
+	"github.com/msales/streams/v7"
+	"github.com/msales/streams/v7/mocks"
 )
 
 func TestBranchProcessor_Process(t *testing.T) {

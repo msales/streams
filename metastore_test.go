@@ -3,21 +3,21 @@ package streams_test
 import (
 	"testing"
 
-	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestMetaitems_MergeDupless(t *testing.T) {
-	src1 := new(MockSource)
-	src2 := new(MockSource)
-	src3 := new(MockSource)
+	src1 := new(streams.MockSource)
+	src2 := new(streams.MockSource)
+	src3 := new(streams.MockSource)
 
-	meta1 := new(MockMetadata)
-	meta2 := new(MockMetadata)
-	meta3 := new(MockMetadata)
-	meta4 := new(MockMetadata)
-	meta5 := new(MockMetadata) // == meta2.Update(meta4)
+	meta1 := new(streams.MockMetadata)
+	meta2 := new(streams.MockMetadata)
+	meta3 := new(streams.MockMetadata)
+	meta4 := new(streams.MockMetadata)
+	meta5 := new(streams.MockMetadata) // == meta2.Update(meta4)
 
 	item1 := &streams.Metaitem{Source: src1, Metadata: meta1}
 	item2 := &streams.Metaitem{Source: src2, Metadata: meta2}
@@ -40,15 +40,15 @@ func TestMetaitems_MergeDupless(t *testing.T) {
 }
 
 func TestMetaitems_MergeLossless(t *testing.T) {
-	src1 := new(MockSource)
-	src2 := new(MockSource)
-	src3 := new(MockSource)
+	src1 := new(streams.MockSource)
+	src2 := new(streams.MockSource)
+	src3 := new(streams.MockSource)
 
-	meta1 := new(MockMetadata)
-	meta2 := new(MockMetadata)
-	meta3 := new(MockMetadata)
-	meta4 := new(MockMetadata)
-	meta5 := new(MockMetadata) // == meta2.Update(meta4)
+	meta1 := new(streams.MockMetadata)
+	meta2 := new(streams.MockMetadata)
+	meta3 := new(streams.MockMetadata)
+	meta4 := new(streams.MockMetadata)
+	meta5 := new(streams.MockMetadata) // == meta2.Update(meta4)
 
 	item1 := &streams.Metaitem{Source: src1, Metadata: meta1}
 	item2 := &streams.Metaitem{Source: src2, Metadata: meta2}
@@ -100,9 +100,9 @@ func BenchmarkMetaitems_Merge(b *testing.B) {
 }
 
 func TestMetastore_PullAll(t *testing.T) {
-	p := new(MockProcessor)
-	src := new(MockSource)
-	meta := new(MockMetadata)
+	p := new(streams.MockProcessor)
+	src := new(streams.MockSource)
+	meta := new(streams.MockMetadata)
 	meta.On("WithOrigin", streams.ProcessorOrigin)
 	s := streams.NewMetastore()
 	_ = s.Mark(p, src, meta)
@@ -114,9 +114,9 @@ func TestMetastore_PullAll(t *testing.T) {
 }
 
 func TestMetastore_PullAllClearsMetastore(t *testing.T) {
-	p := new(MockProcessor)
-	src := new(MockSource)
-	meta := new(MockMetadata)
+	p := new(streams.MockProcessor)
+	src := new(streams.MockSource)
+	meta := new(streams.MockMetadata)
 	meta.On("WithOrigin", streams.ProcessorOrigin)
 	s := streams.NewMetastore()
 	_ = s.Mark(p, src, meta)
@@ -129,12 +129,12 @@ func TestMetastore_PullAllClearsMetastore(t *testing.T) {
 }
 
 func TestMetastore_MarkProcessor(t *testing.T) {
-	p := new(MockProcessor)
-	src := new(MockSource)
-	meta1 := new(MockMetadata)
+	p := new(streams.MockProcessor)
+	src := new(streams.MockSource)
+	meta1 := new(streams.MockMetadata)
 	meta1.On("WithOrigin", streams.ProcessorOrigin)
-	newMeta := new(MockMetadata)
-	meta2 := new(MockMetadata)
+	newMeta := new(streams.MockMetadata)
+	meta2 := new(streams.MockMetadata)
 	meta2.On("WithOrigin", streams.ProcessorOrigin)
 	meta2.On("Merge", meta1, streams.Dupless).Return(newMeta)
 	s := streams.NewMetastore()
@@ -150,12 +150,12 @@ func TestMetastore_MarkProcessor(t *testing.T) {
 }
 
 func TestMetastore_MarkCommitter(t *testing.T) {
-	p := new(MockCommitter)
-	src := new(MockSource)
-	meta1 := new(MockMetadata)
+	p := new(streams.MockCommitter)
+	src := new(streams.MockSource)
+	meta1 := new(streams.MockMetadata)
 	meta1.On("WithOrigin", streams.CommitterOrigin)
-	newMeta := new(MockMetadata)
-	meta2 := new(MockMetadata)
+	newMeta := new(streams.MockMetadata)
+	meta2 := new(streams.MockMetadata)
 	meta2.On("WithOrigin", streams.CommitterOrigin)
 	meta2.On("Merge", meta1, streams.Dupless).Return(newMeta)
 	s := streams.NewMetastore()
@@ -171,8 +171,8 @@ func TestMetastore_MarkCommitter(t *testing.T) {
 }
 
 func TestMetastore_MarkNilProcessor(t *testing.T) {
-	src := new(MockSource)
-	meta := new(MockMetadata)
+	src := new(streams.MockSource)
+	meta := new(streams.MockMetadata)
 	s := streams.NewMetastore()
 
 	err := s.Mark(nil, src, meta)
@@ -186,8 +186,8 @@ func TestMetastore_MarkNilProcessor(t *testing.T) {
 }
 
 func TestMetastore_MarkNilSource(t *testing.T) {
-	p := new(MockProcessor)
-	meta := new(MockMetadata)
+	p := new(streams.MockProcessor)
+	meta := new(streams.MockMetadata)
 	meta.On("WithOrigin", streams.ProcessorOrigin)
 	s := streams.NewMetastore()
 
@@ -202,8 +202,8 @@ func TestMetastore_MarkNilSource(t *testing.T) {
 }
 
 func TestMetastore_MarkNilMetadata(t *testing.T) {
-	p := new(MockProcessor)
-	src := new(MockSource)
+	p := new(streams.MockProcessor)
+	src := new(streams.MockSource)
 	s := streams.NewMetastore()
 
 	err := s.Mark(p, src, nil)
@@ -217,10 +217,10 @@ func TestMetastore_MarkNilMetadata(t *testing.T) {
 }
 
 func TestMetastore_MarkMultipleSources(t *testing.T) {
-	p := new(MockProcessor)
-	src1 := new(MockSource)
-	src2 := new(MockSource)
-	meta := new(MockMetadata)
+	p := new(streams.MockProcessor)
+	src1 := new(streams.MockSource)
+	src2 := new(streams.MockSource)
+	meta := new(streams.MockMetadata)
 	meta.On("WithOrigin", streams.ProcessorOrigin)
 	s := streams.NewMetastore()
 
@@ -235,9 +235,9 @@ func TestMetastore_MarkMultipleSources(t *testing.T) {
 }
 
 func TestMetastore_Pull(t *testing.T) {
-	p := new(MockProcessor)
-	src := new(MockSource)
-	meta := new(MockMetadata)
+	p := new(streams.MockProcessor)
+	src := new(streams.MockSource)
+	meta := new(streams.MockMetadata)
 	meta.On("WithOrigin", streams.ProcessorOrigin)
 	s := streams.NewMetastore()
 	_ = s.Mark(p, src, meta)
@@ -249,9 +249,9 @@ func TestMetastore_Pull(t *testing.T) {
 }
 
 func TestMetastore_PullClearsProcessor(t *testing.T) {
-	p := new(MockProcessor)
-	src := new(MockSource)
-	meta := new(MockMetadata)
+	p := new(streams.MockProcessor)
+	src := new(streams.MockSource)
+	meta := new(streams.MockMetadata)
 	meta.On("WithOrigin", streams.ProcessorOrigin)
 	s := streams.NewMetastore()
 	_ = s.Mark(p, src, meta)
@@ -264,7 +264,7 @@ func TestMetastore_PullClearsProcessor(t *testing.T) {
 }
 
 func TestMetastore_PullReturnsNilIfDoesntExist(t *testing.T) {
-	p := new(MockProcessor)
+	p := new(streams.MockProcessor)
 	s := streams.NewMetastore()
 
 	pulled, err := s.Pull(p)
@@ -274,8 +274,8 @@ func TestMetastore_PullReturnsNilIfDoesntExist(t *testing.T) {
 }
 
 func BenchmarkMetastore_Mark(b *testing.B) {
-	p := new(MockProcessor)
-	src := new(MockSource)
+	p := new(streams.MockProcessor)
+	src := new(streams.MockSource)
 	meta := &fakeMetadata{}
 	s := streams.NewMetastore()
 

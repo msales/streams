@@ -4,17 +4,17 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v7"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestProcessorPipe_Duration(t *testing.T) {
-	store := new(MockMetastore)
-	supervisor := new(MockSupervisor)
+	store := new(streams.MockMetastore)
+	supervisor := new(streams.MockSupervisor)
 	msg := streams.NewMessage("test", "test")
-	child1 := new(MockPump)
+	child1 := new(streams.MockPump)
 	child1.On("Accept", msg).Return(nil)
-	child2 := new(MockPump)
+	child2 := new(streams.MockPump)
 	child2.On("Accept", msg).Return(nil)
 	pipe := streams.NewPipe(store, supervisor, nil, []streams.Pump{child1, child2})
 	tPipe := pipe.(streams.TimedPipe)
@@ -30,12 +30,12 @@ func TestProcessorPipe_Duration(t *testing.T) {
 }
 
 func TestProcessorPipe_Reset(t *testing.T) {
-	store := new(MockMetastore)
-	supervisor := new(MockSupervisor)
+	store := new(streams.MockMetastore)
+	supervisor := new(streams.MockSupervisor)
 	msg := streams.NewMessage("test", "test")
-	child1 := new(MockPump)
+	child1 := new(streams.MockPump)
 	child1.On("Accept", msg).Return(nil)
-	child2 := new(MockPump)
+	child2 := new(streams.MockPump)
 	child2.On("Accept", msg).Return(nil)
 	pipe := streams.NewPipe(store, supervisor, nil, []streams.Pump{child1, child2})
 	tPipe := pipe.(streams.TimedPipe)
@@ -52,11 +52,11 @@ func TestProcessorPipe_Reset(t *testing.T) {
 }
 
 func TestProcessorPipe_Mark(t *testing.T) {
-	proc := new(MockProcessor)
-	src := new(MockSource)
-	store := new(MockMetastore)
-	supervisor := new(MockSupervisor)
-	meta := new(MockMetadata)
+	proc := new(streams.MockProcessor)
+	src := new(streams.MockSource)
+	store := new(streams.MockMetastore)
+	supervisor := new(streams.MockSupervisor)
+	meta := new(streams.MockMetadata)
 	store.On("Mark", proc, src, meta).Return(errors.New("test"))
 	msg := streams.NewMessage("test", "test").WithMetadata(src, meta)
 	pipe := streams.NewPipe(store, supervisor, proc, []streams.Pump{})
@@ -68,12 +68,12 @@ func TestProcessorPipe_Mark(t *testing.T) {
 }
 
 func TestProcessorPipe_Forward(t *testing.T) {
-	store := new(MockMetastore)
-	supervisor := new(MockSupervisor)
+	store := new(streams.MockMetastore)
+	supervisor := new(streams.MockSupervisor)
 	msg := streams.NewMessage("test", "test")
-	child1 := new(MockPump)
+	child1 := new(streams.MockPump)
 	child1.On("Accept", msg).Return(nil)
-	child2 := new(MockPump)
+	child2 := new(streams.MockPump)
 	child2.On("Accept", msg).Return(nil)
 	pipe := streams.NewPipe(store, supervisor, nil, []streams.Pump{child1, child2})
 
@@ -85,10 +85,10 @@ func TestProcessorPipe_Forward(t *testing.T) {
 }
 
 func TestProcessorPipe_ForwardError(t *testing.T) {
-	store := new(MockMetastore)
-	supervisor := new(MockSupervisor)
+	store := new(streams.MockMetastore)
+	supervisor := new(streams.MockSupervisor)
 	msg := streams.NewMessage("test", "test")
-	child1 := new(MockPump)
+	child1 := new(streams.MockPump)
 	child1.On("Accept", msg).Return(errors.New("test"))
 	pipe := streams.NewPipe(store, supervisor, nil, []streams.Pump{child1})
 
@@ -99,11 +99,11 @@ func TestProcessorPipe_ForwardError(t *testing.T) {
 }
 
 func TestProcessorPipe_ForwardToChild(t *testing.T) {
-	store := new(MockMetastore)
-	supervisor := new(MockSupervisor)
+	store := new(streams.MockMetastore)
+	supervisor := new(streams.MockSupervisor)
 	msg := streams.NewMessage("test", "test")
-	child1 := new(MockPump)
-	child2 := new(MockPump)
+	child1 := new(streams.MockPump)
+	child2 := new(streams.MockPump)
 	child2.On("Accept", msg).Return(nil)
 	pipe := streams.NewPipe(store, supervisor, nil, []streams.Pump{child1, child2})
 
@@ -114,10 +114,10 @@ func TestProcessorPipe_ForwardToChild(t *testing.T) {
 }
 
 func TestProcessorPipe_ForwardToChildIndexError(t *testing.T) {
-	store := new(MockMetastore)
-	supervisor := new(MockSupervisor)
+	store := new(streams.MockMetastore)
+	supervisor := new(streams.MockSupervisor)
 	msg := streams.NewMessage("test", "test")
-	child1 := new(MockPump)
+	child1 := new(streams.MockPump)
 	child1.On("Accept", msg).Return(errors.New("test"))
 	pipe := streams.NewPipe(store, supervisor, nil, []streams.Pump{child1})
 
@@ -127,8 +127,8 @@ func TestProcessorPipe_ForwardToChildIndexError(t *testing.T) {
 }
 
 func TestProcessorPipe_ForwardToChildError(t *testing.T) {
-	store := new(MockMetastore)
-	supervisor := new(MockSupervisor)
+	store := new(streams.MockMetastore)
+	supervisor := new(streams.MockSupervisor)
 	msg := streams.NewMessage("test", "test")
 	pipe := streams.NewPipe(store, supervisor, nil, []streams.Pump{})
 
@@ -138,11 +138,11 @@ func TestProcessorPipe_ForwardToChildError(t *testing.T) {
 }
 
 func TestProcessorPipe_Commit(t *testing.T) {
-	src := new(MockSource)
-	store := new(MockMetastore)
-	supervisor := new(MockSupervisor)
-	meta := new(MockMetadata)
-	proc := new(MockProcessor)
+	src := new(streams.MockSource)
+	store := new(streams.MockMetastore)
+	supervisor := new(streams.MockSupervisor)
+	meta := new(streams.MockMetadata)
+	proc := new(streams.MockProcessor)
 	store.On("Mark", proc, src, meta).Return(nil)
 	supervisor.On("Commit", proc).Return(nil)
 	msg := streams.NewMessage(nil, nil).WithMetadata(src, meta)
@@ -155,11 +155,11 @@ func TestProcessorPipe_Commit(t *testing.T) {
 }
 
 func TestProcessorPipe_CommitMarkError(t *testing.T) {
-	src := new(MockSource)
-	store := new(MockMetastore)
-	supervisor := new(MockSupervisor)
-	meta := new(MockMetadata)
-	proc := new(MockProcessor)
+	src := new(streams.MockSource)
+	store := new(streams.MockMetastore)
+	supervisor := new(streams.MockSupervisor)
+	meta := new(streams.MockMetadata)
+	proc := new(streams.MockProcessor)
 	store.On("Mark", proc, src, meta).Return(errors.New("test"))
 	msg := streams.NewMessage(nil, nil).WithMetadata(src, meta)
 	pipe := streams.NewPipe(store, supervisor, proc, []streams.Pump{})
@@ -171,11 +171,11 @@ func TestProcessorPipe_CommitMarkError(t *testing.T) {
 }
 
 func TestProcessorPipe_CommitSupervisorError(t *testing.T) {
-	src := new(MockSource)
-	store := new(MockMetastore)
-	supervisor := new(MockSupervisor)
-	meta := new(MockMetadata)
-	proc := new(MockProcessor)
+	src := new(streams.MockSource)
+	store := new(streams.MockMetastore)
+	supervisor := new(streams.MockSupervisor)
+	meta := new(streams.MockMetadata)
+	proc := new(streams.MockProcessor)
 	store.On("Mark", proc, src, meta).Return(nil)
 	supervisor.On("Commit", proc).Return(errors.New("test"))
 	msg := streams.NewMessage(nil, nil).WithMetadata(src, meta)

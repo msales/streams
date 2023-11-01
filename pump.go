@@ -24,17 +24,19 @@ type syncPump struct {
 	name      string
 	processor Processor
 	pipe      TimedPipe
+	errFn     ErrorFunc
 
 	mon Monitor
 }
 
 // NewSyncPump creates a new synchronous Pump instance.
-func NewSyncPump(mon Monitor, node Node, pipe TimedPipe) Pump {
+func NewSyncPump(mon Monitor, node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
 	p := &syncPump{
 		name:      node.Name(),
 		processor: node.Processor(),
 		pipe:      pipe,
 		mon:       mon,
+		errFn:     errFn,
 	}
 
 	return p
@@ -47,7 +49,7 @@ func (p *syncPump) Accept(msg Message) error {
 	start := nanotime()
 	err := p.processor.Process(msg)
 	if err != nil {
-		return err
+		return p.errFn(err)
 	}
 	latency := time.Duration(nanotime()-start) - p.pipe.Duration()
 
@@ -108,10 +110,10 @@ func (p *asyncPump) run() {
 		start := nanotime()
 		err := p.processor.Process(msg)
 		if err != nil {
-			p.Unlock()
-			p.errFn(err)
-
-			return
+			if err = p.errFn(err); err != nil {
+				p.Unlock()
+				return
+			}
 		}
 		latency := time.Duration(nanotime()-start) - p.pipe.Duration()
 
@@ -179,8 +181,9 @@ type sourcePump struct {
 
 	mon Monitor
 
-	quit chan struct{}
-	wg   sync.WaitGroup
+	stopCh chan struct{}
+	quitCh chan struct{}
+	wg     sync.WaitGroup
 }
 
 // NewSourcePump creates a new SourcePump.
@@ -191,7 +194,8 @@ func NewSourcePump(mon Monitor, name string, source Source, pumps []Pump, errFn 
 		pumps:  pumps,
 		errFn:  errFn,
 		mon:    mon,
-		quit:   make(chan struct{}, 2),
+		stopCh: make(chan struct{}, 2),
+		quitCh: make(chan struct{}, 2),
 	}
 
 	p.wg.Add(1)
@@ -205,15 +209,18 @@ func (p *sourcePump) run() {
 
 	for {
 		select {
-		case <-p.quit:
+		case <-p.quitCh:
+			return
+		case <-p.stopCh:
 			return
 		default:
 			start := nanotime()
 
 			msg, err := p.source.Consume()
 			if err != nil {
-				go p.errFn(err)
-				return
+				if err = p.errFn(err); err != nil {
+					return
+				}
 			}
 
 			if msg.Empty() {
@@ -226,8 +233,9 @@ func (p *sourcePump) run() {
 			for _, pump := range p.pumps {
 				err = pump.Accept(msg)
 				if err != nil {
-					go p.errFn(err)
-					return
+					if err = p.errFn(err); err != nil {
+						return
+					}
 				}
 			}
 		}
@@ -236,14 +244,14 @@ func (p *sourcePump) run() {
 
 // Stop stops the source pump from running.
 func (p *sourcePump) Stop() {
-	p.quit <- struct{}{}
+	close(p.stopCh)
 
 	p.wg.Wait()
 }
 
 // Close closes the source pump.
 func (p *sourcePump) Close() error {
-	close(p.quit)
+	close(p.quitCh)
 
 	return p.source.Close()
 }

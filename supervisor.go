@@ -3,12 +3,11 @@ package streams
 import (
 	"context"
 	"errors"
+	"github.com/msales/streams/v7/syncx"
 	"io"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/msales/pkg/v4/syncx"
 )
 
 const (
@@ -256,7 +255,10 @@ func (s *timedSupervisor) Start() error {
 
 			err := s.inner.Commit(nil)
 			if err != nil {
-				s.errFn(err)
+				err = s.errFn(err)
+				if err != nil {
+					return
+				}
 			}
 		}
 	}()

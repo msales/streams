@@ -1,29 +1,28 @@
-package streams_test
+package streams
 
 import (
 	"context"
 	"time"
 
-	"github.com/msales/streams/v6"
 	"github.com/stretchr/testify/mock"
 )
 
-var _ = (streams.Metadata)(&MockMetadata{})
+var _ = (Metadata)(&MockMetadata{})
 
 type MockMetadata struct {
 	mock.Mock
 }
 
-func (m *MockMetadata) WithOrigin(o streams.MetadataOrigin) {
+func (m *MockMetadata) WithOrigin(o MetadataOrigin) {
 	m.Called(o)
 }
 
-func (m *MockMetadata) Merge(v streams.Metadata, s streams.MetadataStrategy) streams.Metadata {
+func (m *MockMetadata) Merge(v Metadata, s MetadataStrategy) Metadata {
 	args := m.Called(v, s)
-	return args.Get(0).(streams.Metadata)
+	return args.Get(0).(Metadata)
 }
 
-var _ = (streams.Node)(&MockNode{})
+var _ = (Node)(&MockNode{})
 
 type MockNode struct {
 	mock.Mock
@@ -34,21 +33,21 @@ func (mn *MockNode) Name() string {
 	return args.String(0)
 }
 
-func (mn *MockNode) AddChild(n streams.Node) {
+func (mn *MockNode) AddChild(n Node) {
 	mn.Called(n)
 }
 
-func (mn *MockNode) Children() []streams.Node {
+func (mn *MockNode) Children() []Node {
 	args := mn.Called()
-	return args.Get(0).([]streams.Node)
+	return args.Get(0).([]Node)
 }
 
-func (mn *MockNode) Processor() streams.Processor {
+func (mn *MockNode) Processor() Processor {
 	args := mn.Called()
-	return args.Get(0).(streams.Processor)
+	return args.Get(0).(Processor)
 }
 
-var _ = (streams.Monitor)(&MockMonitor{})
+var _ = (Monitor)(&MockMonitor{})
 
 type MockMonitor struct {
 	mock.Mock
@@ -68,33 +67,33 @@ func (m *MockMonitor) Close() error {
 	return args.Error(0)
 }
 
-var _ = (streams.Metastore)(&MockMetastore{})
+var _ = (Metastore)(&MockMetastore{})
 
 type MockMetastore struct {
 	mock.Mock
 }
 
-func (s *MockMetastore) Pull(p streams.Processor) (streams.Metaitems, error) {
+func (s *MockMetastore) Pull(p Processor) (Metaitems, error) {
 	args := s.Called(p)
 
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 
-	return args.Get(0).(streams.Metaitems), args.Error(1)
+	return args.Get(0).(Metaitems), args.Error(1)
 }
 
-func (s *MockMetastore) PullAll() (map[streams.Processor]streams.Metaitems, error) {
+func (s *MockMetastore) PullAll() (map[Processor]Metaitems, error) {
 	args := s.Called()
 
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 
-	return args.Get(0).(map[streams.Processor]streams.Metaitems), args.Error(1)
+	return args.Get(0).(map[Processor]Metaitems), args.Error(1)
 }
 
-func (s *MockMetastore) Mark(p streams.Processor, src streams.Source, meta streams.Metadata) error {
+func (s *MockMetastore) Mark(p Processor, src Source, meta Metadata) error {
 	args := s.Called(p, src, meta)
 	return args.Error(0)
 }
@@ -117,20 +116,20 @@ func (s *MockSupervisor) WithContext(ctx context.Context) {
 	s.Called(ctx)
 }
 
-func (s *MockSupervisor) WithMonitor(mon streams.Monitor) {
+func (s *MockSupervisor) WithMonitor(mon Monitor) {
 	s.Called(mon)
 }
 
-func (s *MockSupervisor) WithPumps(pumps map[streams.Node]streams.Pump) {
+func (s *MockSupervisor) WithPumps(pumps map[Node]Pump) {
 	s.Called(pumps)
 }
 
-func (s *MockSupervisor) Commit(p streams.Processor) error {
+func (s *MockSupervisor) Commit(p Processor) error {
 	args := s.Called(p)
 	return args.Error(0)
 }
 
-var _ = (streams.TimedPipe)(&MockTimedPipe{})
+var _ = (TimedPipe)(&MockTimedPipe{})
 
 type MockTimedPipe struct {
 	mock.Mock
@@ -145,7 +144,7 @@ func (p *MockTimedPipe) Duration() time.Duration {
 	return args.Get(0).(time.Duration)
 }
 
-var _ = (streams.Pump)(&MockPump{})
+var _ = (Pump)(&MockPump{})
 
 type MockPump struct {
 	mock.Mock
@@ -159,7 +158,7 @@ func (p *MockPump) Unlock() {
 	p.Called()
 }
 
-func (p *MockPump) Accept(msg streams.Message) error {
+func (p *MockPump) Accept(msg Message) error {
 	args := p.Called(msg)
 	return args.Error(0)
 }
@@ -178,17 +177,17 @@ func (p *MockPump) WithLock(func() error) error {
 	return args.Error(0)
 }
 
-var _ = (streams.Processor)(&MockProcessor{})
+var _ = (Processor)(&MockProcessor{})
 
 type MockProcessor struct {
 	mock.Mock
 }
 
-func (p *MockProcessor) WithPipe(pipe streams.Pipe) {
+func (p *MockProcessor) WithPipe(pipe Pipe) {
 	p.Called(pipe)
 }
 
-func (p *MockProcessor) Process(msg streams.Message) error {
+func (p *MockProcessor) Process(msg Message) error {
 	args := p.Called(msg)
 	return args.Error(0)
 }
@@ -198,18 +197,18 @@ func (p *MockProcessor) Close() error {
 	return args.Error(0)
 }
 
-var _ = (streams.Processor)(&MockCommitter{})
-var _ = (streams.Committer)(&MockCommitter{})
+var _ = (Processor)(&MockCommitter{})
+var _ = (Committer)(&MockCommitter{})
 
 type MockCommitter struct {
 	mock.Mock
 }
 
-func (p *MockCommitter) WithPipe(pipe streams.Pipe) {
+func (p *MockCommitter) WithPipe(pipe Pipe) {
 	p.Called(pipe)
 }
 
-func (p *MockCommitter) Process(msg streams.Message) error {
+func (p *MockCommitter) Process(msg Message) error {
 	args := p.Called(msg)
 	return args.Error(0)
 }
@@ -224,15 +223,15 @@ func (p *MockCommitter) Close() error {
 	return args.Error(0)
 }
 
-var _ = (streams.Source)(&MockSource{})
+var _ = (Source)(&MockSource{})
 
 type MockSource struct {
 	mock.Mock
 }
 
-func (s *MockSource) Consume() (streams.Message, error) {
+func (s *MockSource) Consume() (Message, error) {
 	args := s.Called()
-	return args.Get(0).(streams.Message), args.Error(1)
+	return args.Get(0).(Message), args.Error(1)
 }
 
 func (s *MockSource) Commit(v interface{}) error {
@@ -248,24 +247,53 @@ func (s *MockSource) Close() error {
 type MockTask struct {
 	mock.Mock
 
-	startCalled   time.Time
-	onErrorCalled time.Time
-	closeCalled   time.Time
+	StartCalled   time.Time
+	OnErrorCalled time.Time
+	CloseCalled   time.Time
 }
 
 func (t *MockTask) Start(ctx context.Context) error {
-	t.startCalled = time.Now()
+	t.StartCalled = time.Now()
 
 	return t.Called(ctx).Error(0)
 }
 
-func (t *MockTask) OnError(fn streams.ErrorFunc) {
-	t.onErrorCalled = time.Now()
+func (t *MockTask) OnError(fn ErrorFunc) {
+	t.OnErrorCalled = time.Now()
 	t.Called(fn)
 }
 
 func (t *MockTask) Close() error {
-	t.closeCalled = time.Now()
+	t.CloseCalled = time.Now()
 
 	return t.Called().Error(0)
+}
+
+func (t *MockTask) IsRunning() bool {
+	return true
+}
+
+type ChanSource struct {
+	Msgs chan Message
+}
+
+func (s *ChanSource) Consume() (Message, error) {
+	select {
+
+	case msg := <-s.Msgs:
+		return msg, nil
+
+	case <-time.After(time.Millisecond):
+		return NewMessage(nil, nil), nil
+	}
+}
+
+func (s *ChanSource) Commit(v interface{}) error {
+	return nil
+}
+
+func (s *ChanSource) Close() error {
+	close(s.Msgs)
+
+	return nil
 }

@@ -1,16 +1,15 @@
 package kafka_test
 
 import (
+	"github.com/msales/streams/v7"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
+	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
-	"github.com/Shopify/sarama"
-
-	"github.com/msales/streams/v6"
-	"github.com/msales/streams/v6/kafka"
+	"github.com/msales/streams/v7/kafka"
 )
 
 func TestNewSourceConfig(t *testing.T) {
@@ -181,26 +180,20 @@ func TestNewSource(t *testing.T) {
 			SetLeader("test_topic", 0, broker0.BrokerID()),
 		"FindCoordinatorRequest": sarama.NewMockFindCoordinatorResponse(t).
 			SetCoordinator(sarama.CoordinatorGroup, "test_group", broker0),
-		"JoinGroupRequest": sarama.NewMockWrapper(&sarama.JoinGroupResponse{
-			Version:       1,
-			Err:           sarama.ErrNoError,
-			GroupProtocol: "protocol",
-		}),
-		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
-			Err: sarama.ErrNoError,
-			MemberAssignment: []byte{
-				0, 1, // Version
-				0, 0, 0, 1, // Topic array length
-				0, 10, 't', 'e', 's', 't', '_', 't', 'o', 'p', 'i', 'c', // Topic one
-				0, 0, 0, 1, // Topic one, partition array length
-				0, 0, 0, 0, // 0
-				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
-			},
-		}),
+		"JoinGroupRequest": sarama.NewMockJoinGroupResponse(t).
+			SetGroupProtocol(sarama.RangeBalanceStrategyName).
+			SetError(sarama.ErrNoError),
+		"SyncGroupRequest": sarama.NewMockSyncGroupResponse(t).
+			SetError(sarama.ErrNoError).
+			SetMemberAssignment(&sarama.ConsumerGroupMemberAssignment{
+				Version: 1,
+				Topics: map[string][]int32{
+					"test_topic": {0},
+				},
+			}),
+		"HeartbeatRequest":   sarama.NewMockHeartbeatResponse(t),
 		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t),
-		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{
-			Err: sarama.ErrNoError,
-		}),
+		"LeaveGroupRequest":  sarama.NewMockLeaveGroupResponse(t).SetError(sarama.ErrNoError),
 	})
 	c := kafka.NewSourceConfig()
 	c.Brokers = []string{broker0.Addr()}
@@ -250,37 +243,28 @@ func TestSource_Consume(t *testing.T) {
 			SetLeader("test_topic", 0, broker0.BrokerID()),
 		"FindCoordinatorRequest": sarama.NewMockFindCoordinatorResponse(t).
 			SetCoordinator(sarama.CoordinatorGroup, "test_group", broker0),
-		"JoinGroupRequest": sarama.NewMockWrapper(&sarama.JoinGroupResponse{
-			Version:       1,
-			Err:           sarama.ErrNoError,
-			GroupProtocol: "protocol",
-		}),
-		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
-			Err: sarama.ErrNoError,
-			MemberAssignment: []byte{
-				0, 1, // Version
-				0, 0, 0, 1, // Topic array length
-				0, 10, 't', 'e', 's', 't', '_', 't', 'o', 'p', 'i', 'c', // Topic one
-				0, 0, 0, 1, // Topic one, partition array length
-				0, 0, 0, 0, // 0
-				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
-			},
-		}),
-		"HeartbeatRequest": sarama.NewMockHeartbeatResponse(t).
+		"JoinGroupRequest": sarama.NewMockJoinGroupResponse(t).
+			SetGroupProtocol(sarama.RangeBalanceStrategyName).
 			SetError(sarama.ErrNoError),
+		"SyncGroupRequest": sarama.NewMockSyncGroupResponse(t).
+			SetError(sarama.ErrNoError).
+			SetMemberAssignment(&sarama.ConsumerGroupMemberAssignment{
+				Version: 1,
+				Topics: map[string][]int32{
+					"test_topic": {0},
+				},
+			}),
+		"HeartbeatRequest": sarama.NewMockHeartbeatResponse(t),
 		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t).
-			SetOffset("test_group", "test_topic", 0, 10, "", sarama.ErrNoError),
+			SetOffset("test_group", "test_topic", 0, 10, "", sarama.ErrNoError).
+			SetError(sarama.ErrNoError),
 		"OffsetRequest": sarama.NewMockOffsetResponse(t).
 			SetOffset("test_topic", 0, sarama.OffsetNewest, 10).
-			SetOffset("test_topic", 0, sarama.OffsetOldest, 7).
-			SetVersion(1),
+			SetOffset("test_topic", 0, sarama.OffsetOldest, 7),
 		"FetchRequest": sarama.NewMockFetchResponse(t, 1).
-			SetVersion(11).
 			SetMessage("test_topic", 0, 10, sarama.StringEncoder("foo")).
 			SetHighWaterMark("test_topic", 0, 14),
-		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{
-			Err: sarama.ErrNoError,
-		}),
+		"LeaveGroupRequest": sarama.NewMockLeaveGroupResponse(t).SetError(sarama.ErrNoError),
 	})
 	c := kafka.NewSourceConfig()
 	c.Brokers = []string{broker0.Addr()}
@@ -312,18 +296,12 @@ func TestSource_ConsumeError(t *testing.T) {
 			SetLeader("test_topic", 0, broker0.BrokerID()),
 		"FindCoordinatorRequest": sarama.NewMockFindCoordinatorResponse(t).
 			SetCoordinator(sarama.CoordinatorGroup, "test_group", broker0),
-		"JoinGroupRequest": sarama.NewMockWrapper(&sarama.JoinGroupResponse{
-			Version:       1,
-			Err:           sarama.ErrNoError,
-			GroupProtocol: "protocol",
-		}),
-		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
-			Err:              sarama.ErrBrokerNotAvailable,
-			MemberAssignment: []byte{},
-		}),
-		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{
-			Err: sarama.ErrNoError,
-		}),
+		"JoinGroupRequest": sarama.NewMockJoinGroupResponse(t).
+			SetGroupProtocol(sarama.RangeBalanceStrategyName).
+			SetError(sarama.ErrNoError),
+		"SyncGroupRequest": sarama.NewMockSyncGroupResponse(t).
+			SetError(sarama.ErrBrokerNotAvailable),
+		"LeaveGroupRequest": sarama.NewMockLeaveGroupResponse(t).SetError(sarama.ErrNoError),
 	})
 	c := kafka.NewSourceConfig()
 	c.Brokers = []string{broker0.Addr()}
@@ -353,39 +331,30 @@ func TestSource_Commit_Auto(t *testing.T) {
 			SetLeader("test_topic", 0, broker0.BrokerID()),
 		"FindCoordinatorRequest": sarama.NewMockFindCoordinatorResponse(t).
 			SetCoordinator(sarama.CoordinatorGroup, "test_group", broker0),
-		"JoinGroupRequest": sarama.NewMockWrapper(&sarama.JoinGroupResponse{
-			Version:       1,
-			Err:           sarama.ErrNoError,
-			GroupProtocol: "protocol",
-		}),
-		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
-			Err: sarama.ErrNoError,
-			MemberAssignment: []byte{
-				0, 2, // Version
-				0, 0, 0, 1, // Topic array length
-				0, 10, 't', 'e', 's', 't', '_', 't', 'o', 'p', 'i', 'c', // Topic one
-				0, 0, 0, 1, // Topic one, partition array length
-				0, 0, 0, 0, // 0
-				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
-			},
-		}),
-		"HeartbeatRequest": sarama.NewMockHeartbeatResponse(t).
+		"JoinGroupRequest": sarama.NewMockJoinGroupResponse(t).
+			SetGroupProtocol(sarama.RangeBalanceStrategyName).
 			SetError(sarama.ErrNoError),
+		"SyncGroupRequest": sarama.NewMockSyncGroupResponse(t).
+			SetError(sarama.ErrNoError).
+			SetMemberAssignment(&sarama.ConsumerGroupMemberAssignment{
+				Version: 1,
+				Topics: map[string][]int32{
+					"test_topic": {0},
+				},
+			}),
+		"HeartbeatRequest": sarama.NewMockHeartbeatResponse(t),
 		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t).
-			SetOffset("test_group", "test_topic", 0, 10, "", sarama.ErrNoError),
+			SetOffset("test_group", "test_topic", 0, 10, "", sarama.ErrNoError).
+			SetError(sarama.ErrNoError),
 		"OffsetRequest": sarama.NewMockOffsetResponse(t).
 			SetOffset("test_topic", 0, sarama.OffsetNewest, 10).
-			SetOffset("test_topic", 0, sarama.OffsetOldest, 7).
-			SetVersion(1),
+			SetOffset("test_topic", 0, sarama.OffsetOldest, 7),
 		"FetchRequest": sarama.NewMockFetchResponse(t, 1).
-			SetVersion(11).
 			SetMessage("test_topic", 0, 10, sarama.StringEncoder("foo")).
 			SetHighWaterMark("test_topic", 0, 14),
 		"OffsetCommitRequest": sarama.NewMockOffsetCommitResponse(t).
 			SetError("test_group", "test_topic", 0, sarama.ErrNoError),
-		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{
-			Err: sarama.ErrNoError,
-		}),
+		"LeaveGroupRequest": sarama.NewMockLeaveGroupResponse(t).SetError(sarama.ErrNoError),
 	})
 	c := kafka.NewSourceConfig()
 	c.Brokers = []string{broker0.Addr()}
@@ -419,39 +388,30 @@ func TestSource_Commit_Manual(t *testing.T) {
 			SetLeader("test_topic", 0, broker0.BrokerID()),
 		"FindCoordinatorRequest": sarama.NewMockFindCoordinatorResponse(t).
 			SetCoordinator(sarama.CoordinatorGroup, "test_group", broker0),
-		"JoinGroupRequest": sarama.NewMockWrapper(&sarama.JoinGroupResponse{
-			Version:       1,
-			Err:           sarama.ErrNoError,
-			GroupProtocol: "protocol",
-		}),
-		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
-			Err: sarama.ErrNoError,
-			MemberAssignment: []byte{
-				0, 2, // Version
-				0, 0, 0, 1, // Topic array length
-				0, 10, 't', 'e', 's', 't', '_', 't', 'o', 'p', 'i', 'c', // Topic one
-				0, 0, 0, 1, // Topic one, partition array length
-				0, 0, 0, 0, // 0
-				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
-			},
-		}),
-		"HeartbeatRequest": sarama.NewMockHeartbeatResponse(t).
+		"JoinGroupRequest": sarama.NewMockJoinGroupResponse(t).
+			SetGroupProtocol(sarama.RangeBalanceStrategyName).
 			SetError(sarama.ErrNoError),
+		"SyncGroupRequest": sarama.NewMockSyncGroupResponse(t).
+			SetError(sarama.ErrNoError).
+			SetMemberAssignment(&sarama.ConsumerGroupMemberAssignment{
+				Version: 1,
+				Topics: map[string][]int32{
+					"test_topic": {0},
+				},
+			}),
+		"HeartbeatRequest": sarama.NewMockHeartbeatResponse(t),
 		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t).
-			SetOffset("test_group", "test_topic", 0, 10, "", sarama.ErrNoError),
+			SetOffset("test_group", "test_topic", 0, 10, "", sarama.ErrNoError).
+			SetError(sarama.ErrNoError),
 		"OffsetRequest": sarama.NewMockOffsetResponse(t).
 			SetOffset("test_topic", 0, sarama.OffsetNewest, 10).
-			SetOffset("test_topic", 0, sarama.OffsetOldest, 7).
-			SetVersion(1),
+			SetOffset("test_topic", 0, sarama.OffsetOldest, 7),
 		"FetchRequest": sarama.NewMockFetchResponse(t, 1).
-			SetVersion(11).
 			SetMessage("test_topic", 0, 10, sarama.StringEncoder("foo")).
 			SetHighWaterMark("test_topic", 0, 14),
 		"OffsetCommitRequest": sarama.NewMockOffsetCommitResponse(t).
 			SetError("test_group", "test_topic", 0, sarama.ErrNoError),
-		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{
-			Err: sarama.ErrNoError,
-		}),
+		"LeaveGroupRequest": sarama.NewMockLeaveGroupResponse(t).SetError(sarama.ErrNoError),
 	})
 	c := kafka.NewSourceConfig()
 	c.Brokers = []string{broker0.Addr()}
@@ -486,37 +446,28 @@ func TestSource_Commit_Manual_NilMetadata(t *testing.T) {
 			SetLeader("test_topic", 0, broker0.BrokerID()),
 		"FindCoordinatorRequest": sarama.NewMockFindCoordinatorResponse(t).
 			SetCoordinator(sarama.CoordinatorGroup, "test_group", broker0),
-		"JoinGroupRequest": sarama.NewMockWrapper(&sarama.JoinGroupResponse{
-			Version:       1,
-			Err:           sarama.ErrNoError,
-			GroupProtocol: "protocol",
-		}),
-		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
-			Err: sarama.ErrNoError,
-			MemberAssignment: []byte{
-				0, 2, // Version
-				0, 0, 0, 1, // Topic array length
-				0, 10, 't', 'e', 's', 't', '_', 't', 'o', 'p', 'i', 'c', // Topic one
-				0, 0, 0, 1, // Topic one, partition array length
-				0, 0, 0, 0, // 0
-				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
-			},
-		}),
-		"HeartbeatRequest": sarama.NewMockHeartbeatResponse(t).
+		"JoinGroupRequest": sarama.NewMockJoinGroupResponse(t).
+			SetGroupProtocol(sarama.RangeBalanceStrategyName).
 			SetError(sarama.ErrNoError),
+		"SyncGroupRequest": sarama.NewMockSyncGroupResponse(t).
+			SetError(sarama.ErrNoError).
+			SetMemberAssignment(&sarama.ConsumerGroupMemberAssignment{
+				Version: 1,
+				Topics: map[string][]int32{
+					"test_topic": {0},
+				},
+			}),
+		"HeartbeatRequest": sarama.NewMockHeartbeatResponse(t),
 		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t).
-			SetOffset("test_group", "test_topic", 0, 10, "", sarama.ErrNoError),
+			SetOffset("test_group", "test_topic", 0, 10, "", sarama.ErrNoError).
+			SetError(sarama.ErrNoError),
 		"OffsetRequest": sarama.NewMockOffsetResponse(t).
 			SetOffset("test_topic", 0, sarama.OffsetNewest, 10).
-			SetOffset("test_topic", 0, sarama.OffsetOldest, 7).
-			SetVersion(1),
+			SetOffset("test_topic", 0, sarama.OffsetOldest, 7),
 		"FetchRequest": sarama.NewMockFetchResponse(t, 1).
-			SetVersion(11).
 			SetMessage("test_topic", 0, 10, sarama.StringEncoder("foo")).
 			SetHighWaterMark("test_topic", 0, 14),
-		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{
-			Err: sarama.ErrNoError,
-		}),
+		"LeaveGroupRequest": sarama.NewMockLeaveGroupResponse(t).SetError(sarama.ErrNoError),
 	})
 	c := kafka.NewSourceConfig()
 	c.Brokers = []string{broker0.Addr()}
@@ -550,39 +501,30 @@ func TestSource_Commit_Manual_ReturnError(t *testing.T) {
 			SetLeader("test_topic", 0, broker0.BrokerID()),
 		"FindCoordinatorRequest": sarama.NewMockFindCoordinatorResponse(t).
 			SetCoordinator(sarama.CoordinatorGroup, "test_group", broker0),
-		"JoinGroupRequest": sarama.NewMockWrapper(&sarama.JoinGroupResponse{
-			Version:       1,
-			Err:           sarama.ErrNoError,
-			GroupProtocol: "protocol",
-		}),
-		"SyncGroupRequest": sarama.NewMockWrapper(&sarama.SyncGroupResponse{
-			Err: sarama.ErrNoError,
-			MemberAssignment: []byte{
-				0, 1, // Version
-				0, 0, 0, 1, // Topic array length
-				0, 10, 't', 'e', 's', 't', '_', 't', 'o', 'p', 'i', 'c', // Topic one
-				0, 0, 0, 1, // Topic one, partition array length
-				0, 0, 0, 0, // 0
-				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
-			},
-		}),
-		"HeartbeatRequest": sarama.NewMockHeartbeatResponse(t).
+		"JoinGroupRequest": sarama.NewMockJoinGroupResponse(t).
+			SetGroupProtocol(sarama.RangeBalanceStrategyName).
 			SetError(sarama.ErrNoError),
+		"SyncGroupRequest": sarama.NewMockSyncGroupResponse(t).
+			SetError(sarama.ErrNoError).
+			SetMemberAssignment(&sarama.ConsumerGroupMemberAssignment{
+				Version: 1,
+				Topics: map[string][]int32{
+					"test_topic": {0},
+				},
+			}),
+		"HeartbeatRequest": sarama.NewMockHeartbeatResponse(t),
 		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t).
-			SetOffset("test_group", "test_topic", 0, 10, "", sarama.ErrNoError),
+			SetOffset("test_group", "test_topic", 0, 10, "", sarama.ErrNoError).
+			SetError(sarama.ErrNoError),
 		"OffsetRequest": sarama.NewMockOffsetResponse(t).
 			SetOffset("test_topic", 0, sarama.OffsetNewest, 10).
-			SetOffset("test_topic", 0, sarama.OffsetOldest, 7).
-			SetVersion(1),
+			SetOffset("test_topic", 0, sarama.OffsetOldest, 7),
 		"FetchRequest": sarama.NewMockFetchResponse(t, 1).
-			SetVersion(11).
 			SetMessage("test_topic", 0, 10, sarama.StringEncoder("foo")).
 			SetHighWaterMark("test_topic", 0, 14),
 		"OffsetCommitRequest": sarama.NewMockOffsetCommitResponse(t).
 			SetError("test_group", "test_topic", 0, sarama.ErrBrokerNotAvailable),
-		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{
-			Err: sarama.ErrNoError,
-		}),
+		"LeaveGroupRequest": sarama.NewMockLeaveGroupResponse(t).SetError(sarama.ErrNoError),
 	})
 	c := kafka.NewSourceConfig()
 	c.Brokers = []string{broker0.Addr()}
@@ -602,6 +544,8 @@ func TestSource_Commit_Manual_ReturnError(t *testing.T) {
 
 	_, err = s.Consume()
 	require.NoError(t, err)
+
+	time.Sleep(100 * time.Millisecond)
 
 	err = s.Commit(meta)
 

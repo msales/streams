@@ -2,16 +2,14 @@ package kafka
 
 import (
 	"context"
+	"errors"
+	"github.com/IBM/sarama"
+	"github.com/xdg/scram"
 	"runtime"
 	"sync"
 	"time"
 
-	"github.com/xdg/scram"
-	"golang.org/x/xerrors"
-
-	"github.com/Shopify/sarama"
-
-	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v7"
 )
 
 // CommitStrategy represents commit strategy for source commiting.
@@ -203,17 +201,17 @@ type Source struct {
 	keyDecoder   Decoder
 	valueDecoder Decoder
 
-	buf     chan *sarama.ConsumerMessage
-	errs    chan error
-	lastErr error
+	buf  chan *sarama.ConsumerMessage
+	errs chan error
 
 	session   sarama.ConsumerGroupSession
 	cancelCtx func()
 
-	consumerWG  sync.WaitGroup
-	sessionWG   sync.WaitGroup
-	sessionLock sync.Mutex
-	done        chan struct{}
+	consumerWG    sync.WaitGroup
+	sessionWG     sync.WaitGroup
+	sessionLock   sync.Mutex
+	doneReadErrCh chan struct{}
+	doneConsumeCh chan struct{}
 }
 
 // NewSource creates a new Kafka stream source.
@@ -239,7 +237,8 @@ func NewSource(c *SourceConfig) (*Source, error) {
 		buf:            make(chan *sarama.ConsumerMessage, c.BufferSize),
 		errs:           make(chan error, c.ErrorsBufferSize),
 		cancelCtx:      cancel,
-		done:           make(chan struct{}),
+		doneReadErrCh:  make(chan struct{}),
+		doneConsumeCh:  make(chan struct{}),
 		commitStrategy: c.CommitStrategy,
 	}
 	s.sessionWG.Add(1)
@@ -252,11 +251,9 @@ func NewSource(c *SourceConfig) (*Source, error) {
 
 // Consume gets the next record from the Source.
 func (s *Source) Consume() (streams.Message, error) {
-	if s.lastErr != nil {
-		return streams.EmptyMessage, s.lastErr
-	}
-
 	select {
+	case err := <-s.errs:
+		return streams.EmptyMessage, err
 	case msg := <-s.buf:
 		k, err := s.keyDecoder.Decode(msg.Key)
 		if err != nil {
@@ -288,7 +285,7 @@ func (s *Source) Commit(v interface{}) error {
 	defer s.sessionLock.Unlock()
 
 	if s.session == nil { // May still happen, although it's a very slim chance.
-		return xerrors.New("kafka: consumer session was closed or doesn't exist")
+		return errors.New("kafka: consumer session was closed or doesn't exist")
 	}
 
 	state := v.(Metadata)
@@ -308,14 +305,20 @@ func (s *Source) Commit(v interface{}) error {
 		runtime.Gosched() // If any error from consumer side happens after Commiting, it will be read and s.lastErr will be set.
 	}
 
-	return s.lastErr
+	select {
+	case err := <-s.errs:
+		return err
+	default:
+		return nil
+	}
 }
 
 // Close closes the Source.
 func (s *Source) Close() error {
-	close(s.done)       // Stop claiming messages and consuming errors.
-	s.cancelCtx()       // Stop consuming (close the session).
-	s.consumerWG.Wait() // Wait for the consumer group to stop consuming.
+	close(s.doneConsumeCh) // Stop claiming messages and consuming errors.
+	close(s.doneReadErrCh) // Stop claiming messages and consuming errors.
+	s.cancelCtx()          // Stop consuming (close the session).
+	s.consumerWG.Wait()    // Wait for the consumer group to stop consuming.
 
 	return s.consumer.Close() // Close the consumer group.
 }
@@ -353,7 +356,7 @@ func (s *Source) ConsumeClaim(_ sarama.ConsumerGroupSession, claim sarama.Consum
 		// - the pumps are not running anymore
 		// - s.buf is full (but not draining, since pumps are off)
 		// - we have consumed a message and are attempting to send it to s.buf
-		case <-s.done:
+		case <-s.doneConsumeCh:
 		}
 	}
 
@@ -371,12 +374,10 @@ func (s *Source) createMetadata(msg *sarama.ConsumerMessage) Metadata {
 func (s *Source) readErrors() {
 	for {
 		select {
-		case <-s.done:
+		case <-s.doneReadErrCh:
 			return
-		case err := <-s.errs:
-			s.lastErr = err
 		case err := <-s.consumer.Errors():
-			s.lastErr = err
+			s.errs <- err
 		}
 	}
 }

@@ -3,10 +3,11 @@ package streams_test
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -22,7 +23,7 @@ func TestSupervisor_Commit(t *testing.T) {
 	src2 := source(nil)
 
 	comm := committer(nil)
-	proc := new(MockProcessor)
+	proc := new(streams.MockProcessor)
 
 	pump1 := pump()
 	pump2 := pump()
@@ -37,7 +38,7 @@ func TestSupervisor_Commit(t *testing.T) {
 		},
 	}
 
-	store := new(MockMetastore)
+	store := new(streams.MockMetastore)
 	store.On("PullAll").Return(meta, nil)
 	store.On("Pull", comm).Return(streams.Metaitems{{Source: src1, Metadata: metadata()}}, nil)
 
@@ -70,7 +71,7 @@ func TestSupervisor_Commit_WithCaller(t *testing.T) {
 		comm: {{Source: src, Metadata: metadata()}},
 	}
 
-	store := new(MockMetastore)
+	store := new(streams.MockMetastore)
 	store.On("PullAll").Return(meta, nil)
 	store.On("Pull", comm).Return(nil, nil)
 
@@ -94,7 +95,7 @@ func TestSupervisor_Commit_NullSource(t *testing.T) {
 	meta := map[streams.Processor]streams.Metaitems{
 		comm: {{Source: nil, Metadata: nil}},
 	}
-	store := new(MockMetastore)
+	store := new(streams.MockMetastore)
 	store.On("PullAll").Return(meta, nil)
 	store.On("Pull", comm).Return(nil, nil)
 
@@ -111,7 +112,7 @@ func TestSupervisor_Commit_NullSource(t *testing.T) {
 }
 
 func TestSupervisor_Commit_PullAllError(t *testing.T) {
-	store := new(MockMetastore)
+	store := new(streams.MockMetastore)
 	store.On("PullAll").Return(nil, errors.New("error"))
 
 	supervisor := streams.NewSupervisor(store, streams.Lossless)
@@ -130,7 +131,7 @@ func TestSupervisor_Commit_PullError(t *testing.T) {
 		comm: {{Source: src, Metadata: metadata()}},
 	}
 
-	store := new(MockMetastore)
+	store := new(streams.MockMetastore)
 	store.On("PullAll").Return(meta, nil)
 	store.On("Pull", comm).Return(nil, errors.New("error"))
 
@@ -156,7 +157,7 @@ func TestSupervisor_Commit_UnknownPump(t *testing.T) {
 		comm: {{Source: src, Metadata: metadata()}},
 	}
 
-	store := new(MockMetastore)
+	store := new(streams.MockMetastore)
 	store.On("PullAll").Return(meta, nil)
 
 	supervisor := streams.NewSupervisor(store, streams.Lossless)
@@ -177,7 +178,7 @@ func TestSupervisor_Commit_CommitterError(t *testing.T) {
 		comm: {{Source: src, Metadata: metadata()}},
 	}
 
-	store := new(MockMetastore)
+	store := new(streams.MockMetastore)
 	store.On("PullAll").Return(meta, nil)
 
 	pumps := map[streams.Node]streams.Pump{node(comm): pump}
@@ -201,7 +202,7 @@ func TestSupervisor_Commit_SourceError(t *testing.T) {
 	meta := map[streams.Processor]streams.Metaitems{
 		comm: {{Source: src, Metadata: metadata()}},
 	}
-	store := new(MockMetastore)
+	store := new(streams.MockMetastore)
 	store.On("PullAll").Return(meta, nil)
 	store.On("Pull", comm).Return(nil, nil)
 
@@ -259,7 +260,7 @@ func TestNewTimedSupervisor(t *testing.T) {
 
 func TestTimedSupervisor_WithContext(t *testing.T) {
 	ctx := context.Background()
-	inner := new(MockSupervisor)
+	inner := new(streams.MockSupervisor)
 	inner.On("WithContext", ctx).Return()
 
 	supervisor := streams.NewTimedSupervisor(inner, 0, nil)
@@ -270,8 +271,8 @@ func TestTimedSupervisor_WithContext(t *testing.T) {
 }
 
 func TestTimedSupervisor_WithMonitor(t *testing.T) {
-	mon := new(MockMonitor)
-	inner := new(MockSupervisor)
+	mon := new(streams.MockMonitor)
+	inner := new(streams.MockSupervisor)
 	inner.On("WithMonitor", mon).Return()
 
 	supervisor := streams.NewTimedSupervisor(inner, 0, nil)
@@ -283,7 +284,7 @@ func TestTimedSupervisor_WithMonitor(t *testing.T) {
 
 func TestTimedSupervisor_WithPumps(t *testing.T) {
 	pumps := map[streams.Node]streams.Pump{}
-	inner := new(MockSupervisor)
+	inner := new(streams.MockSupervisor)
 	inner.On("WithPumps", pumps).Return()
 
 	supervisor := streams.NewTimedSupervisor(inner, 0, nil)
@@ -295,7 +296,7 @@ func TestTimedSupervisor_WithPumps(t *testing.T) {
 
 func TestTimedSupervisor_Start(t *testing.T) {
 	wantErr := errors.New("error")
-	inner := new(MockSupervisor)
+	inner := new(streams.MockSupervisor)
 	inner.On("Commit", nil).Return(nil)
 	inner.On("Start").Return(wantErr)
 
@@ -307,15 +308,16 @@ func TestTimedSupervisor_Start(t *testing.T) {
 }
 
 func TestTimedSupervisor_GlobalCommitSourceError(t *testing.T) {
-	inner := new(MockSupervisor)
+	inner := new(streams.MockSupervisor)
 	inner.On("Start").Return(nil)
 	inner.On("Commit", nil).Return(errors.New("error"))
 	inner.On("Close").Return(nil)
 
-	called := false
-	supervisor := streams.NewTimedSupervisor(inner, time.Millisecond, func(err error) {
+	var called int32
+	supervisor := streams.NewTimedSupervisor(inner, time.Millisecond, func(err error) error {
 		assert.Equal(t, "error", err.Error())
-		called = true
+		atomic.StoreInt32(&called, 1)
+		return err
 	})
 	_ = supervisor.Start()
 	defer supervisor.Close()
@@ -323,11 +325,32 @@ func TestTimedSupervisor_GlobalCommitSourceError(t *testing.T) {
 	time.Sleep(8 * time.Millisecond)
 
 	inner.AssertCalled(t, "Commit", nil)
-	assert.True(t, called, "Expected error function to be called")
+	assert.True(t, atomic.LoadInt32(&called) == 1, "Expected error function to be called")
+}
+
+func TestTimedSupervisor_GlobalCommitSourceError_ErrorIsNotReturned(t *testing.T) {
+	inner := new(streams.MockSupervisor)
+	inner.On("Start").Return(nil)
+	inner.On("Commit", nil).Return(errors.New("error"))
+	inner.On("Close").Return(nil)
+
+	var called int32
+	supervisor := streams.NewTimedSupervisor(inner, time.Millisecond, func(err error) error {
+		assert.Equal(t, "error", err.Error())
+		atomic.StoreInt32(&called, 1)
+		return nil
+	})
+	_ = supervisor.Start()
+	defer supervisor.Close()
+
+	time.Sleep(8 * time.Millisecond)
+
+	inner.AssertCalled(t, "Commit", nil)
+	assert.True(t, atomic.LoadInt32(&called) == 1, "Expected error function to be called")
 }
 
 func TestTimedSupervisor_Start_AlreadyRunning(t *testing.T) {
-	inner := new(MockSupervisor)
+	inner := new(streams.MockSupervisor)
 	inner.On("Commit", nil).Return(nil)
 	inner.On("Start").Return(nil)
 	inner.On("Close").Return(nil)
@@ -345,7 +368,7 @@ func TestTimedSupervisor_Start_AlreadyRunning(t *testing.T) {
 }
 
 func TestTimedSupervisor_Close(t *testing.T) {
-	inner := new(MockSupervisor)
+	inner := new(streams.MockSupervisor)
 	inner.On("Commit", nil).Return(nil)
 	inner.On("Start").Return(nil)
 	inner.On("Close").Return(nil)
@@ -361,7 +384,7 @@ func TestTimedSupervisor_Close(t *testing.T) {
 }
 
 func TestTimedSupervisor_Close_NotRunning(t *testing.T) {
-	inner := new(MockSupervisor)
+	inner := new(streams.MockSupervisor)
 	inner.On("Commit", nil).Return(nil)
 	inner.On("Close").Return(nil)
 
@@ -374,7 +397,7 @@ func TestTimedSupervisor_Close_NotRunning(t *testing.T) {
 
 func TestTimedSupervisor_Close_WithError(t *testing.T) {
 	wantErr := errors.New("error")
-	inner := new(MockSupervisor)
+	inner := new(streams.MockSupervisor)
 	inner.On("Start").Return(nil)
 	inner.On("Close").Return(wantErr)
 
@@ -389,8 +412,8 @@ func TestTimedSupervisor_Close_WithError(t *testing.T) {
 }
 
 func TestTimedSupervisor_Commit(t *testing.T) {
-	caller := new(MockProcessor)
-	inner := new(MockSupervisor)
+	caller := new(streams.MockProcessor)
+	inner := new(streams.MockSupervisor)
 	inner.On("Start").Return(nil)
 	inner.On("Commit", nil).Return(nil)
 	inner.On("Commit", caller).Return(nil)
@@ -407,8 +430,8 @@ func TestTimedSupervisor_Commit(t *testing.T) {
 }
 
 func TestTimedSupervisor_ManualCommitSkipsTimedCommit(t *testing.T) {
-	caller := new(MockProcessor)
-	inner := new(MockSupervisor)
+	caller := new(streams.MockProcessor)
+	inner := new(streams.MockSupervisor)
 	inner.On("Start").Return(nil)
 	inner.On("Commit", caller).Return(nil)
 	inner.On("Close").Return(nil)
@@ -426,8 +449,8 @@ func TestTimedSupervisor_ManualCommitSkipsTimedCommit(t *testing.T) {
 
 func TestTimedSupervisor_CommitSourceError(t *testing.T) {
 	wantErr := errors.New("error")
-	caller := new(MockProcessor)
-	inner := new(MockSupervisor)
+	caller := new(streams.MockProcessor)
+	inner := new(streams.MockSupervisor)
 	inner.On("Start").Return(nil)
 	inner.On("Commit", caller).Return(wantErr)
 	inner.On("Close").Return(nil)
@@ -443,8 +466,8 @@ func TestTimedSupervisor_CommitSourceError(t *testing.T) {
 }
 
 func TestTimedSupervisor_Commit_NotRunning(t *testing.T) {
-	caller := new(MockProcessor)
-	inner := new(MockSupervisor)
+	caller := new(streams.MockProcessor)
+	inner := new(streams.MockSupervisor)
 
 	supervisor := streams.NewTimedSupervisor(inner, 1, nil)
 
@@ -453,37 +476,37 @@ func TestTimedSupervisor_Commit_NotRunning(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func source(err error) *MockSource {
-	src := new(MockSource)
+func source(err error) *streams.MockSource {
+	src := new(streams.MockSource)
 	src.On("Commit", mock.Anything).Return(err)
 
 	return src
 }
 
-func committer(err error) *MockCommitter {
-	c := new(MockCommitter)
+func committer(err error) *streams.MockCommitter {
+	c := new(streams.MockCommitter)
 	c.On("Commit", mock.Anything).Return(err)
 
 	return c
 }
 
-func node(p streams.Processor) *MockNode {
-	n := new(MockNode)
+func node(p streams.Processor) *streams.MockNode {
+	n := new(streams.MockNode)
 	n.On("Processor").Return(p)
 
 	return n
 }
 
-func pump() *MockPump {
-	p := new(MockPump)
+func pump() *streams.MockPump {
+	p := new(streams.MockPump)
 	p.On("Lock").Return()
 	p.On("Unlock").Return()
 
 	return p
 }
 
-func metadata() *MockMetadata {
-	meta := new(MockMetadata)
+func metadata() *streams.MockMetadata {
+	meta := new(streams.MockMetadata)
 	meta.On("Merge", mock.Anything, mock.Anything).Return(meta)
 
 	return meta

@@ -3,7 +3,7 @@ package mocks
 import (
 	"time"
 
-	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v7"
 )
 
 var _ streams.Source = (*Source)(nil)
@@ -45,7 +45,6 @@ func (s *Source) Consume() (streams.Message, error) {
 func (s *Source) Commit(interface{}) error {
 	s.count++
 	if s.count == s.expected {
-		s.exitCh <- struct{}{}
 		close(s.exitCh)
 	}
 

@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v7"
 )
 
 // BatchSize is the size of commit batches.
@@ -44,8 +44,9 @@ func task(_ context.Context) (streams.Task, error) {
 
 	tp, _ := builder.Build()
 	task := streams.NewTask(tp, streams.WithMode(Mode))
-	task.OnError(func(err error) {
+	task.OnError(func(err error) error {
 		log.Fatal(err.Error())
+		return err
 	})
 
 	return task, nil

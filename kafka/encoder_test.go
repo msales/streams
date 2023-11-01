@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/msales/streams/v6/kafka"
+	"github.com/msales/streams/v7/kafka"
 	"github.com/stretchr/testify/assert"
 )
 
