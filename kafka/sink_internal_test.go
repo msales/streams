@@ -4,9 +4,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Shopify/sarama"
-	"github.com/msales/streams/v6"
+	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/msales/streams/v6"
 )
 
 func TestSink_ConsumeReturnsKeyEncodeError(t *testing.T) {

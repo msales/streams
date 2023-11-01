@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/msales/streams/v6"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/msales/streams/v6"
 )
 
 func TestMessage_Empty(t *testing.T) {

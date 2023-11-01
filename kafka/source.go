@@ -2,14 +2,14 @@ package kafka
 
 import (
 	"context"
+	"errors"
 	"runtime"
 	"sync"
 	"time"
 
 	"github.com/xdg/scram"
-	"golang.org/x/xerrors"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 
 	"github.com/msales/streams/v6"
 )
@@ -288,7 +288,7 @@ func (s *Source) Commit(v interface{}) error {
 	defer s.sessionLock.Unlock()
 
 	if s.session == nil { // May still happen, although it's a very slim chance.
-		return xerrors.New("kafka: consumer session was closed or doesn't exist")
+		return errors.New("kafka: consumer session was closed or doesn't exist")
 	}
 
 	state := v.(Metadata)
@@ -387,7 +387,7 @@ func (s *Source) runConsumerGroup(ctx context.Context, topic string) {
 
 	for {
 		err := s.consumer.Consume(ctx, []string{topic}, s)
-		if ctx.Err() == context.Canceled { // This is the proper way to end the consumption.
+		if errors.Is(ctx.Err(), context.Canceled) { // This is the proper way to end the consumption.
 			return
 		}
 		if err == nil {

@@ -3,9 +3,10 @@ package mocks_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/msales/streams/v6"
 	"github.com/msales/streams/v6/mocks"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPipe_ImplementsPipeInterface(t *testing.T) {

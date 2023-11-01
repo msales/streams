@@ -87,7 +87,7 @@ func (p *Sink) Process(msg streams.Message) error {
 	return p.pipe.Mark(msg)
 }
 
-//Commit commits a processors batch.
+// Commit commits a processors batch.
 func (p *Sink) Commit(ctx context.Context) error {
 	p.count = 0
 

@@ -1,9 +1,8 @@
 package streams
 
 import (
+	"errors"
 	"time"
-
-	"golang.org/x/xerrors"
 )
 
 // TimedPipe represents a pipe that can accumulate execution time.
@@ -84,12 +83,12 @@ func (p *processorPipe) Forward(msg Message) error {
 	return nil
 }
 
-// Forward queues the data to the the given processor(inner) child in the topology.
+// ForwardToChild queues the data to the the given processor(inner) child in the topology.
 func (p *processorPipe) ForwardToChild(msg Message, index int) error {
 	start := nanotime()
 
 	if index > len(p.children)-1 {
-		return xerrors.New("streams: child index out of bounds")
+		return errors.New("streams: child index out of bounds")
 	}
 
 	child := p.children[index]

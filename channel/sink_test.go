@@ -3,10 +3,11 @@ package channel_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/msales/streams/v6"
 	"github.com/msales/streams/v6/channel"
 	"github.com/msales/streams/v6/mocks"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNewSink(t *testing.T) {

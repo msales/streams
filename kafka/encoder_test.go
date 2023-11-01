@@ -4,8 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/msales/streams/v6/kafka"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/msales/streams/v6/kafka"
 )
 
 func TestByteDecoder_Decode(t *testing.T) {

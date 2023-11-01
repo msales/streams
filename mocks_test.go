@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/msales/streams/v6"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/msales/streams/v6"
 )
 
 var _ = (streams.Metadata)(&MockMetadata{})
