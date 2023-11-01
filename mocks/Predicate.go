@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	streams "github.com/msales/streams/v6"
+	streams "github.com/msales/streams/v7"
 	mock "github.com/stretchr/testify/mock"
 )
 

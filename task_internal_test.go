@@ -81,6 +81,132 @@ func TestStreamTask_CloseSupervisorCloseError(t *testing.T) {
 	assert.Equal(t, "close error", err.Error())
 }
 
+func TestStreamTask_HandleSourceError(t *testing.T) {
+	gotError := false
+
+	s := new(MockSource)
+	s.On("Consume").Return(NewMessage(nil, nil), errors.New("test error"))
+	s.On("Close").Return(nil)
+
+	b := NewStreamBuilder()
+	b.Source("src", s)
+
+	tp, _ := b.Build()
+	task := NewTask(tp)
+	task.OnError(func(err error) error {
+		gotError = true
+		return err
+	})
+
+	_ = task.Start(context.Background())
+
+	time.Sleep(time.Millisecond)
+
+	assert.False(t, task.(*streamTask).isRunning())
+
+	_ = task.Close()
+
+	assert.True(t, gotError)
+}
+
+func TestStreamTask_HandleSource_ErrorIsNotReturned(t *testing.T) {
+	gotError := false
+
+	s := new(MockSource)
+	s.On("Consume").Return(NewMessage(nil, nil), errors.New("test error"))
+	s.On("Close").Return(nil)
+
+	b := NewStreamBuilder()
+	b.Source("src", s)
+
+	tp, _ := b.Build()
+	task := NewTask(tp)
+	task.OnError(func(err error) error {
+		gotError = true
+		return nil
+	})
+
+	_ = task.Start(context.Background())
+
+	time.Sleep(time.Millisecond)
+
+	assert.True(t, task.(*streamTask).isRunning())
+
+	_ = task.Close()
+
+	assert.True(t, gotError)
+}
+
+func TestStreamTask_HandleProcessorError(t *testing.T) {
+	gotError := false
+
+	msgs := make(chan Message)
+	msg := NewMessage("test", "test")
+
+	p := new(MockProcessor)
+	p.On("WithPipe", mock.Anything).Return(nil)
+	p.On("Process", msg).Return(errors.New("test error"))
+	p.On("Close").Return(nil)
+
+	b := NewStreamBuilder()
+	b.Source("src", &ChanSource{Msgs: msgs}).
+		Process("processor", p)
+
+	tp, _ := b.Build()
+	task := NewTask(tp)
+	task.OnError(func(err error) error {
+		gotError = true
+		return err
+	})
+
+	_ = task.Start(context.Background())
+
+	msgs <- msg
+
+	time.Sleep(time.Millisecond)
+
+	assert.False(t, task.(*streamTask).isRunning())
+
+	_ = task.Close()
+
+	assert.True(t, gotError)
+}
+
+func TestStreamTask_HandleProcessorError_ErrorIsNotReturned(t *testing.T) {
+	gotError := false
+
+	msgs := make(chan Message)
+	msg := NewMessage("test", "test")
+
+	p := new(MockProcessor)
+	p.On("WithPipe", mock.Anything).Return(nil)
+	p.On("Process", msg).Return(errors.New("test error"))
+	p.On("Close").Return(nil)
+
+	b := NewStreamBuilder()
+	b.Source("src", &ChanSource{Msgs: msgs}).
+		Process("processor", p)
+
+	tp, _ := b.Build()
+	task := NewTask(tp)
+	task.OnError(func(err error) error {
+		gotError = true
+		return nil
+	})
+
+	_ = task.Start(context.Background())
+
+	msgs <- msg
+
+	time.Sleep(time.Millisecond)
+
+	assert.True(t, task.(*streamTask).isRunning())
+
+	_ = task.Close()
+
+	assert.True(t, gotError)
+}
+
 type fakeSupervisor struct {
 	StartErr    error
 	CommitError error

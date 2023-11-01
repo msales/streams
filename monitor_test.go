@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

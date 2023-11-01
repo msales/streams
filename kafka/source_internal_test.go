@@ -4,15 +4,16 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSource_ConsumeReturnsLastError(t *testing.T) {
 	want := errors.New("test")
 	s := Source{
-		lastErr: want,
+		errs: make(chan error, 1),
 	}
+	s.errs <- want
 
 	_, err := s.Consume()
 

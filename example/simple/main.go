@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v7"
 )
 
 func main() {
@@ -20,8 +20,9 @@ func main() {
 
 	tp, _ := builder.Build()
 	task := streams.NewTask(tp)
-	task.OnError(func(err error) {
+	task.OnError(func(err error) error {
 		log.Fatal(err.Error())
+		return err
 	})
 	task.Start(context.Background())
 	defer task.Close()

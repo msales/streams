@@ -3,7 +3,7 @@ package streams_test
 import (
 	"testing"
 
-	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v7"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -43,7 +43,7 @@ func TestSourceNode_Processor(t *testing.T) {
 }
 
 func TestNewProcessorNode(t *testing.T) {
-	p := new(MockProcessor)
+	p := new(streams.MockProcessor)
 	n := streams.NewProcessorNode("test", p)
 
 	assert.Equal(t, "test", n.Name())
@@ -71,7 +71,7 @@ func TestProcessorNode_Children(t *testing.T) {
 }
 
 func TestProcessorNode_Processor(t *testing.T) {
-	p := new(MockProcessor)
+	p := new(streams.MockProcessor)
 	n := streams.NewProcessorNode("test", p)
 
 	processor := n.Processor()
@@ -80,7 +80,7 @@ func TestProcessorNode_Processor(t *testing.T) {
 }
 
 func TestTopologyBuilder_AddSource(t *testing.T) {
-	s := new(MockSource)
+	s := new(streams.MockSource)
 	tb := streams.NewTopologyBuilder()
 
 	n := tb.AddSource("test", s)
@@ -94,7 +94,7 @@ func TestTopologyBuilder_AddSource(t *testing.T) {
 }
 
 func TestTopologyBuilder_AddProcessor(t *testing.T) {
-	p := new(MockProcessor)
+	p := new(streams.MockProcessor)
 	pn := &streams.ProcessorNode{}
 	tb := streams.NewTopologyBuilder()
 
@@ -112,11 +112,11 @@ func TestTopologyBuilder_AddProcessor(t *testing.T) {
 
 func TestTopologyBuilder_BuildChecksInspections(t *testing.T) {
 	tb := streams.NewTopologyBuilder()
-	n1 := tb.AddProcessor("1", new(MockCommitter), []streams.Node{})
-	n2 := tb.AddProcessor("1", new(MockProcessor), []streams.Node{n1})
-	_ = tb.AddProcessor("1", new(MockCommitter), []streams.Node{n2})
-	_ = tb.AddSource("src", new(MockSource))
-	_ = tb.AddSource("src", new(MockSource))
+	n1 := tb.AddProcessor("1", new(streams.MockCommitter), []streams.Node{})
+	n2 := tb.AddProcessor("1", new(streams.MockProcessor), []streams.Node{n1})
+	_ = tb.AddProcessor("1", new(streams.MockCommitter), []streams.Node{n2})
+	_ = tb.AddSource("src", new(streams.MockSource))
+	_ = tb.AddSource("src", new(streams.MockSource))
 
 	_, errs := tb.Build()
 
@@ -124,7 +124,7 @@ func TestTopologyBuilder_BuildChecksInspections(t *testing.T) {
 }
 
 func TestTopology_Sources(t *testing.T) {
-	s := new(MockSource)
+	s := new(streams.MockSource)
 	tb := streams.NewTopologyBuilder()
 	sn := tb.AddSource("test", s)
 	to, _ := tb.Build()
@@ -136,7 +136,7 @@ func TestTopology_Sources(t *testing.T) {
 }
 
 func TestTopology_Processors(t *testing.T) {
-	p := new(MockProcessor)
+	p := new(streams.MockProcessor)
 	tb := streams.NewTopologyBuilder()
 	pn := tb.AddProcessor("test2", p, []streams.Node{})
 	to, _ := tb.Build()

@@ -3,6 +3,7 @@ package streams
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"time"
 )
 
@@ -16,7 +17,11 @@ const (
 )
 
 // ErrorFunc represents a streams error handling function.
-type ErrorFunc func(error)
+type ErrorFunc func(error) error
+
+func passErrFn(err error) error {
+	return err
+}
 
 // TaskOptFunc represents a function that sets up the Task.
 type TaskOptFunc func(t *streamTask)
@@ -80,7 +85,8 @@ type supervisorOpts struct {
 type streamTask struct {
 	topology *Topology
 
-	running         bool
+	running uint32
+
 	mode            TaskMode
 	monitorInterval time.Duration
 	errorFn         ErrorFunc
@@ -104,7 +110,7 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 		mode:            Async,
 		monitorInterval: time.Second,
 		store:           store,
-		errorFn:         func(_ error) {},
+		errorFn:         passErrFn,
 		stats:           nullStats{},
 		supervisorOpts: supervisorOpts{
 			Strategy: Lossless,
@@ -129,10 +135,10 @@ func NewTask(topology *Topology, opts ...TaskOptFunc) Task {
 // Start starts the streams processors.
 func (t *streamTask) Start(ctx context.Context) error {
 	// If we are already running, exit
-	if t.running {
+	if t.isRunning() {
 		return errors.New("streams: task already running")
 	}
-	t.running = true
+	t.setRunning()
 
 	t.setupTopology(ctx)
 
@@ -164,7 +170,7 @@ func (t *streamTask) setupTopology(ctx context.Context) {
 
 func (t *streamTask) newPump(mon Monitor, node Node, pipe TimedPipe, errFn ErrorFunc) Pump {
 	if t.mode == Sync {
-		return NewSyncPump(mon, node, pipe)
+		return NewSyncPump(mon, node, pipe, errFn)
 	}
 
 	return NewAsyncPump(mon, node, pipe, errFn)
@@ -180,7 +186,7 @@ func (t *streamTask) resolvePumps(nodes []Node) []Pump {
 
 // Close stops and closes the streams processors.
 func (t *streamTask) Close() error {
-	t.running = false
+	t.setStopped()
 	t.srcPumps.StopAll()
 
 	return t.closeTopology()
@@ -222,10 +228,14 @@ func (t *streamTask) closeTopology() error {
 	return nil
 }
 
-func (t *streamTask) handleError(err error) {
-	t.running = false
+func (t *streamTask) handleError(err error) error {
+	err = t.errorFn(err)
+	if err != nil {
+		t.setStopped()
+		return err
+	}
 
-	t.errorFn(err)
+	return nil
 }
 
 // OnError sets the error handler.
@@ -235,6 +245,18 @@ func (t *streamTask) handleError(err error) {
 // the task at this point as it will either hang or panic.
 func (t *streamTask) OnError(fn ErrorFunc) {
 	t.errorFn = fn
+}
+
+func (t *streamTask) setRunning() bool {
+	return atomic.CompareAndSwapUint32(&t.running, stopped, running)
+}
+
+func (t *streamTask) isRunning() bool {
+	return running == atomic.LoadUint32(&t.running)
+}
+
+func (t *streamTask) setStopped() bool {
+	return atomic.CompareAndSwapUint32(&t.running, running, stopped)
 }
 
 // Tasks represents a slice of tasks.

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/msales/streams/v6"
+	"github.com/msales/streams/v7"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,8 +47,8 @@ func TestNewMessageWithContext(t *testing.T) {
 }
 
 func TestMessage_Metadata(t *testing.T) {
-	s := new(MockSource)
-	m := new(MockMetadata)
+	s := new(streams.MockSource)
+	m := new(streams.MockMetadata)
 	msg := streams.NewMessage("test", "test")
 
 	msg = msg.WithMetadata(s, m)
