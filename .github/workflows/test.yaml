@@ -2,27 +2,32 @@ name: Test
 
 on: push
 
+env:
+  GO111MODULE: on
+
 jobs:
-  test:
+  build:
     name: Test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.22', '1.22.x', '1.23', '1.23.x' ]
+
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Checkout actions repository
-        uses: actions/checkout@v2
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
         with:
-          repository: msales/github-actions
-          ref: master
-          token: ${{ secrets.GH_TOKEN }}
-          path: .github/actions/external
+          go-version: ${{ matrix.go-version }}
 
-      - name: Run the tests
-        id: test
-        uses: ./.github/actions/external/go-test
-        with:
-          org_token: ${{ secrets.GH_TOKEN }}
-          test: true
-          vet: true
-          race: false
+      - name: Display Go version
+        run: go version
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -bench=. -covermode=atomic -coverpkg=github.com/msales/streams/... ./...
+

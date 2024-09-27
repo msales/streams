@@ -45,7 +45,6 @@ func (s *Source) Consume() (streams.Message, error) {
 func (s *Source) Commit(interface{}) error {
 	s.count++
 	if s.count == s.expected {
-		s.exitCh <- struct{}{}
 		close(s.exitCh)
 	}
 

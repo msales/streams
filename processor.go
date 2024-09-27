@@ -72,7 +72,8 @@ func (fn PredicateFunc) Assert(msg Message) (bool, error) {
 }
 
 // BranchProcessor is a processor that branches into one or more streams
-//  based on the results of the predicates.
+//
+//	based on the results of the predicates.
 type BranchProcessor struct {
 	pipe  Pipe
 	preds []Predicate

@@ -4,8 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/msales/streams/v6"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/msales/streams/v6"
 )
 
 func TestProcessorPipe_Duration(t *testing.T) {

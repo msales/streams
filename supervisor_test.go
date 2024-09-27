@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/msales/streams/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/msales/streams/v6"
 )
 
 func TestNewSupervisor(t *testing.T) {
