@@ -253,6 +253,7 @@ func NewSource(c *SourceConfig) (*Source, error) {
 	go s.startConsumption(ctx, c.Topic, consumer)
 	go s.readErrors()
 
+	consumer.readyWG.Wait()   // Await till the consumer has been set up
 	consumer.sessionWG.Done() // Indicate that session is ready to be used.
 	return s, nil
 }
@@ -355,9 +356,13 @@ func (s *Source) startConsumption(ctx context.Context, topic string, consumer *c
 
 		if err != nil {
 			s.errs <- err
+			consumer.readyWG.Done()
 			return
 		}
 
+		// This will happen AFTER Setup function is called.
+		// Therefore, readyWG has to be initiated before calling Consume for the first time.
+		// After that it will work as expected.
 		consumer.readyWG.Add(1)
 	}
 }
@@ -408,6 +413,8 @@ func newConsumerHandler(messages chan *sarama.ConsumerMessage, done chan struct{
 		readyWG:   &sync.WaitGroup{},
 		sessionWG: &sync.WaitGroup{},
 	}
+
+	// Initially we are waiting for the first session to be ready.
 	ch.readyWG.Add(1)
 	ch.sessionWG.Add(1)
 
@@ -437,27 +444,15 @@ func (c *consumerHandler) Setup(session sarama.ConsumerGroupSession) error {
 }
 
 func (c *consumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
-	if !c.tracker.HasOffsets() {
-		return c.cleanup()
-	}
+	// Wait till all messages from the session are processed and committed.
+	c.tracker.Wait()
 
-	return c.cleanupAfterProcessing()
-}
-
-func (c *consumerHandler) cleanup() error {
 	c.sessionWG.Wait() // Wait till any ongoing session access is done.
 	c.sessionLock.Lock()
 	defer c.sessionLock.Unlock()
 	c.session = nil
 
 	return nil
-}
-
-func (c *consumerHandler) cleanupAfterProcessing() error {
-	// Wait till all messages from the session are processed and committed.
-	c.tracker.Wait()
-
-	return c.cleanup()
 }
 
 func (c *consumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
@@ -491,14 +486,15 @@ func (c *consumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 }
 
 // consumptionTracker tracks consumed offsets and allows waiting until they have been committed.
-// It's whole responsibility appeared when we discovered that session is overriden.
+// It's whole responsibility appeared when we discovered that session is overridden.
 // Due to the lifecycle of sarama.ConsumerGroupSession and how msales/streams is handling commits
 // we had to introduce a way to track claimed messages and make sure that they have been committed
 // once Cleanup of the session is in progress.
 type consumptionTracker struct {
-	close bool
-	mu    sync.RWMutex
-	wg    *sync.WaitGroup
+	isClosing bool
+
+	mu sync.RWMutex
+	wg *sync.WaitGroup
 	// partition -> offset
 	offsets map[int32]int64
 }
@@ -515,13 +511,13 @@ func (t *consumptionTracker) Close() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.close = true
+	t.isClosing = true
 }
 
 // Wait blocks until there is at least one consumed offset being tracked.
 func (t *consumptionTracker) Wait() {
 	t.mu.RLock()
-	isClosing := t.close
+	isClosing := t.isClosing
 	t.mu.RUnlock()
 	if isClosing {
 		return
