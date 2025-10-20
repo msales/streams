@@ -22,10 +22,10 @@ func TestSource_ConsumeReturnsLastError(t *testing.T) {
 func TestSource_ConsumeReturnsKeyDecodeError(t *testing.T) {
 	s := Source{
 		keyDecoder: errorDecoder{},
-		buf:        make(chan *sarama.ConsumerMessage, 1),
+		messages:   make(chan *sarama.ConsumerMessage, 1),
 	}
 
-	s.buf <- &sarama.ConsumerMessage{
+	s.messages <- &sarama.ConsumerMessage{
 		Key:   []byte(nil),
 		Value: []byte("foo"),
 	}
@@ -39,10 +39,10 @@ func TestSource_ConsumeReturnsValueDecodeError(t *testing.T) {
 	s := Source{
 		keyDecoder:   ByteDecoder{},
 		valueDecoder: errorDecoder{},
-		buf:          make(chan *sarama.ConsumerMessage, 1),
+		messages:     make(chan *sarama.ConsumerMessage, 1),
 	}
 
-	s.buf <- &sarama.ConsumerMessage{
+	s.messages <- &sarama.ConsumerMessage{
 		Key:   []byte(nil),
 		Value: []byte("foo"),
 	}
@@ -54,7 +54,7 @@ func TestSource_ConsumeReturnsValueDecodeError(t *testing.T) {
 
 func TestSource_ConsumeTimesOut(t *testing.T) {
 	s := Source{
-		buf: make(chan *sarama.ConsumerMessage, 1),
+		messages: make(chan *sarama.ConsumerMessage, 1),
 	}
 
 	msg, err := s.Consume()

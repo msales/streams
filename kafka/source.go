@@ -2,14 +2,13 @@ package kafka
 
 import (
 	"context"
+	"errors"
 	"runtime"
 	"sync"
 	"time"
 
-	"github.com/xdg/scram"
-	"golang.org/x/xerrors"
-
 	"github.com/Shopify/sarama"
+	"github.com/xdg/scram"
 
 	"github.com/msales/streams/v6"
 )
@@ -195,25 +194,22 @@ type PartitionOffset struct {
 
 // Source represents a Kafka stream source.
 type Source struct {
-	topic          string
-	consumer       sarama.ConsumerGroup
+	lastErr  error
+	errs     chan error
+	done     chan struct{}
+	messages chan *sarama.ConsumerMessage
+
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	client    sarama.ConsumerGroup
+	consumeWG *sync.WaitGroup
+	consumer  *consumerHandler
+	tracker   *consumptionTracker
+
 	commitStrategy CommitStrategy
-
-	ctx          context.Context
-	keyDecoder   Decoder
-	valueDecoder Decoder
-
-	buf     chan *sarama.ConsumerMessage
-	errs    chan error
-	lastErr error
-
-	session   sarama.ConsumerGroupSession
-	cancelCtx func()
-
-	consumerWG  sync.WaitGroup
-	sessionWG   sync.WaitGroup
-	sessionLock sync.Mutex
-	done        chan struct{}
+	keyDecoder     Decoder
+	valueDecoder   Decoder
 }
 
 // NewSource creates a new Kafka stream source.
@@ -223,30 +219,42 @@ func NewSource(c *SourceConfig) (*Source, error) {
 		return nil, err
 	}
 
-	consumer, err := sarama.NewConsumerGroup(c.Brokers, c.GroupID, &c.Config)
+	messagesCh := make(chan *sarama.ConsumerMessage, c.BufferSize)
+	doneCh := make(chan struct{})
+
+	tracker := newConsumptionTracker()
+	consumer := newConsumerHandler(messagesCh, doneCh, tracker)
+	client, err := sarama.NewConsumerGroup(c.Brokers, c.GroupID, &c.Config)
 	if err != nil {
 		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(c.Ctx)
-
 	s := &Source{
-		topic:          c.Topic,
-		consumer:       consumer,
-		ctx:            ctx,
+		done:     doneCh,
+		errs:     make(chan error, c.ErrorsBufferSize),
+		messages: messagesCh,
+
+		ctx:    ctx,
+		cancel: cancel,
+
+		client:    client,
+		consumer:  consumer,
+		tracker:   tracker,
+		consumeWG: &sync.WaitGroup{},
+
+		commitStrategy: c.CommitStrategy,
 		keyDecoder:     c.KeyDecoder,
 		valueDecoder:   c.ValueDecoder,
-		buf:            make(chan *sarama.ConsumerMessage, c.BufferSize),
-		errs:           make(chan error, c.ErrorsBufferSize),
-		cancelCtx:      cancel,
-		done:           make(chan struct{}),
-		commitStrategy: c.CommitStrategy,
 	}
-	s.sessionWG.Add(1)
 
+	s.consumeWG.Add(1)
+
+	go s.startConsumption(ctx, c.Topic, consumer)
 	go s.readErrors()
-	go s.runConsumerGroup(ctx, c.Topic)
 
+	consumer.readyWG.Wait()   // Await till the consumer has been set up
+	consumer.sessionWG.Done() // Indicate that session is ready to be used.
 	return s, nil
 }
 
@@ -257,7 +265,7 @@ func (s *Source) Consume() (streams.Message, error) {
 	}
 
 	select {
-	case msg := <-s.buf:
+	case msg := <-s.messages:
 		k, err := s.keyDecoder.Decode(msg.Key)
 		if err != nil {
 			return streams.EmptyMessage, err
@@ -283,12 +291,12 @@ func (s *Source) Commit(v interface{}) error {
 		return nil
 	}
 
-	s.sessionWG.Wait()   // Wait for the session to become available...
-	s.sessionLock.Lock() // ...then lock to prevent session from changing (avoid concurrent read-write).
-	defer s.sessionLock.Unlock()
+	// Lock the session for the duration of the commit.
+	session := s.consumer.LockSession()
+	defer s.consumer.FreeSession()
 
-	if s.session == nil { // May still happen, although it's a very slim chance.
-		return xerrors.New("kafka: consumer session was closed or doesn't exist")
+	if session == nil { // May still happen, although it's a very slim chance.
+		return errors.New("kafka: consumer session was closed or doesn't exist")
 	}
 
 	state := v.(Metadata)
@@ -299,12 +307,13 @@ func (s *Source) Commit(v interface{}) error {
 		// The result of the "Commit" method on the Committer should be idempotent whenever possible!
 		//
 		// If offsets are needed to be committed immediately, use CommitManual or CommitBoth.
-		s.session.MarkOffset(pos.Topic, pos.Partition, pos.Offset+1, "")
+		session.MarkOffset(pos.Topic, pos.Partition, pos.Offset+1, "")
+		s.tracker.MarkCommitted(pos.Partition, pos.Offset)
 	}
 
 	// If commit strategy is not CommitAuto, session should perform global, synchronous commit of current marked offsets.
 	if s.commitStrategy != CommitAuto {
-		s.session.Commit()
+		session.Commit()
 		runtime.Gosched() // If any error from consumer side happens after Commiting, it will be read and s.lastErr will be set.
 	}
 
@@ -313,51 +322,12 @@ func (s *Source) Commit(v interface{}) error {
 
 // Close closes the Source.
 func (s *Source) Close() error {
-	close(s.done)       // Stop claiming messages and consuming errors.
-	s.cancelCtx()       // Stop consuming (close the session).
-	s.consumerWG.Wait() // Wait for the consumer group to stop consuming.
+	s.tracker.Close()
+	close(s.done)
+	s.cancel()
+	s.consumeWG.Wait()
 
-	return s.consumer.Close() // Close the consumer group.
-}
-
-// Setup is ran once for a new consumer session, before the consumption starts.
-func (s *Source) Setup(session sarama.ConsumerGroupSession) error {
-	s.sessionLock.Lock()
-
-	s.session = session
-
-	s.sessionLock.Unlock()
-	s.sessionWG.Done()
-
-	return nil
-}
-
-// Cleanup is ran once for a session, after the consumption ends.
-func (s *Source) Cleanup(_ sarama.ConsumerGroupSession) error {
-	s.sessionWG.Add(1)
-	s.sessionLock.Lock()
-
-	s.session = nil
-
-	s.sessionLock.Unlock()
-
-	return nil
-}
-
-// ConsumeClaim consumes messages from a single partition of a topic.
-func (s *Source) ConsumeClaim(_ sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	for msg := range claim.Messages() {
-		select {
-		case s.buf <- msg:
-		// This is to avoid deadlocking during shutdown in a case where:
-		// - the pumps are not running anymore
-		// - s.buf is full (but not draining, since pumps are off)
-		// - we have consumed a message and are attempting to send it to s.buf
-		case <-s.done:
-		}
-	}
-
-	return nil
+	return s.client.Close()
 }
 
 func (s *Source) createMetadata(msg *sarama.ConsumerMessage) Metadata {
@@ -368,6 +338,35 @@ func (s *Source) createMetadata(msg *sarama.ConsumerMessage) Metadata {
 	}}
 }
 
+func (s *Source) startConsumption(ctx context.Context, topic string, consumer *consumerHandler) {
+	defer s.consumeWG.Done()
+
+	for {
+		// `Consume` should be called inside an infinite loop, when a
+		// server-side rebalance happens, the consumer session will need to be
+		// recreated to get the new claims
+		err := s.client.Consume(s.ctx, []string{topic}, consumer)
+		if errors.Is(ctx.Err(), context.Canceled) { // This is the proper way to end the consumption.
+			return
+		}
+
+		if err == nil {
+			err = ctx.Err()
+		}
+
+		if err != nil {
+			s.errs <- err
+			consumer.readyWG.Done()
+			return
+		}
+
+		// This will happen AFTER Setup function is called.
+		// Therefore, readyWG has to be initiated before calling Consume for the first time.
+		// After that it will work as expected.
+		consumer.readyWG.Add(1)
+	}
+}
+
 func (s *Source) readErrors() {
 	for {
 		select {
@@ -375,27 +374,199 @@ func (s *Source) readErrors() {
 			return
 		case err := <-s.errs:
 			s.lastErr = err
-		case err := <-s.consumer.Errors():
+		case err := <-s.client.Errors():
 			s.lastErr = err
 		}
 	}
 }
 
-func (s *Source) runConsumerGroup(ctx context.Context, topic string) {
-	s.consumerWG.Add(1)
-	defer s.consumerWG.Done()
+// consumerHandler contains implementation of sarama.ConsumerGroupHandler.
+// It controls the lifecycle of the consumer group session and passes claimed messages to the Source.
+// How the lifecycle works:
+//  1. When a new session is started, Setup is called. It sets the session in the handler and
+//     prepares the handler for message consumption.
+//  2. ConsumeClaim is called for each claim (partition) assigned to the consumer. It reads messages
+//     from the claim and sends them to the Source via the messages channel.
+//  3. When a rebalance is triggered, Cleanup is called. It waits for all messages from the current session
+//     to be processed and committed before allowing the session to be cleaned up.
+//  4. The Source processes messages and commits offsets using the Commit method.
+//  5. If there are no more messages in the buffer and the session is being cleaned up, it signals
+//     the handler to unlock the session cleanup.
+type consumerHandler struct {
+	readyWG   *sync.WaitGroup
+	sessionWG *sync.WaitGroup
+	messages  chan *sarama.ConsumerMessage
+	done      chan struct{}
 
+	tracker *consumptionTracker
+
+	session     sarama.ConsumerGroupSession
+	sessionLock sync.RWMutex
+}
+
+func newConsumerHandler(messages chan *sarama.ConsumerMessage, done chan struct{}, tracker *consumptionTracker) *consumerHandler {
+	ch := &consumerHandler{
+		tracker:  tracker,
+		messages: messages,
+		done:     done,
+
+		readyWG:   &sync.WaitGroup{},
+		sessionWG: &sync.WaitGroup{},
+	}
+
+	// Initially we are waiting for the first session to be ready.
+	ch.readyWG.Add(1)
+	ch.sessionWG.Add(1)
+
+	return ch
+}
+
+func (c *consumerHandler) LockSession() sarama.ConsumerGroupSession {
+	c.sessionWG.Add(1)
+	c.sessionLock.Lock()
+
+	return c.session
+}
+
+func (c *consumerHandler) FreeSession() {
+	c.sessionLock.Unlock()
+	c.sessionWG.Done()
+}
+
+func (c *consumerHandler) Setup(session sarama.ConsumerGroupSession) error {
+	c.sessionLock.Lock()
+	c.session = session
+	c.sessionLock.Unlock()
+
+	c.readyWG.Done()
+
+	return nil
+}
+
+func (c *consumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
+	// Wait till all messages from the session are processed and committed.
+	c.tracker.Wait()
+
+	c.sessionWG.Wait() // Wait till any ongoing session access is done.
+	c.sessionLock.Lock()
+	defer c.sessionLock.Unlock()
+	c.session = nil
+
+	return nil
+}
+
+func (c *consumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	// NOTE:
+	// Do not move the code below to a goroutine.
+	// The `ConsumeClaim` itself is called within a goroutine, see:
+	// https://github.com/IBM/sarama/blob/main/consumer_group.go#L27-L29
 	for {
-		err := s.consumer.Consume(ctx, []string{topic}, s)
-		if ctx.Err() == context.Canceled { // This is the proper way to end the consumption.
-			return
-		}
-		if err == nil {
-			err = ctx.Err()
-		}
-		if err != nil {
-			s.errs <- err
-			return
+		select {
+		case message, ok := <-claim.Messages():
+			if !ok {
+				return nil
+			}
+
+			c.tracker.MarkConsumed(message.Partition, message.Offset)
+			select {
+			case c.messages <- message:
+			// This is to avoid deadlocking during shutdown in a case where:
+			// - the pumps are not running anymore
+			// - s.buf is full (but not draining, since pumps are off)
+			// - we have consumed a message and are attempting to send it to s.buf
+			case <-c.done:
+			}
+		// Should return when `session.Context()` is done.
+		// If not, will raise `ErrRebalanceInProgress` or `read tcp <ip>:<port>: i/o timeout` when kafka rebalance. see:
+		// https://github.com/IBM/sarama/issues/1192
+		case <-session.Context().Done():
+			return nil
 		}
 	}
+}
+
+// consumptionTracker tracks consumed offsets and allows waiting until they have been committed.
+// It's whole responsibility appeared when we discovered that session is overridden.
+// Due to the lifecycle of sarama.ConsumerGroupSession and how msales/streams is handling commits
+// we had to introduce a way to track claimed messages and make sure that they have been committed
+// once Cleanup of the session is in progress.
+type consumptionTracker struct {
+	isClosing bool
+
+	mu sync.RWMutex
+	wg *sync.WaitGroup
+	// partition -> offset
+	offsets map[int32]int64
+}
+
+func newConsumptionTracker() *consumptionTracker {
+	return &consumptionTracker{
+		offsets: make(map[int32]int64),
+		wg:      &sync.WaitGroup{},
+	}
+}
+
+// Close blocks until all consumed offsets have been committed.
+func (t *consumptionTracker) Close() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.isClosing = true
+}
+
+// Wait blocks until there is at least one consumed offset being tracked.
+func (t *consumptionTracker) Wait() {
+	t.mu.RLock()
+	isClosing := t.isClosing
+	t.mu.RUnlock()
+	if isClosing {
+		return
+	}
+
+	t.wg.Wait()
+}
+
+// HasOffsets returns true if there are no offsets being tracked.
+func (t *consumptionTracker) HasOffsets() bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	return len(t.offsets) != 0
+}
+
+// MarkConsumed marks the given partition and offset as consumed.
+func (t *consumptionTracker) MarkConsumed(partition int32, offset int64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if _, ok := t.offsets[partition]; !ok {
+		// First time seeing this partition, increment the wait group.
+		t.wg.Add(1)
+	}
+
+	t.offsets[partition] = offset
+}
+
+// MarkCommitted marks the given partition and offset as committed.
+func (t *consumptionTracker) MarkCommitted(partition int32, offset int64) bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	currentOffset, ok := t.offsets[partition]
+	if !ok {
+		return false
+	}
+
+	// We only track the latest offset for each partition, so if the committed offset is less than
+	// the current offset, we ignore it.
+	// This can happen if somehow claimed message with offset 150 is processed before claimed message with offset 180.
+	if offset < currentOffset {
+		return false
+	}
+
+	// Remove the partition tracking as it has been committed.
+	delete(t.offsets, partition)
+	t.wg.Done()
+
+	return true
 }

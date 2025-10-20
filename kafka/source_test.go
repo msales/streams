@@ -197,7 +197,18 @@ func TestNewSource(t *testing.T) {
 				0, 0, 0, 3, 0x01, 0x02, 0x03, // Userdata
 			},
 		}),
-		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t),
+		"HeartbeatRequest": sarama.NewMockHeartbeatResponse(t).
+			SetError(sarama.ErrNoError),
+		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t).
+			SetOffset("test_group", "test_topic", 0, 10, "", sarama.ErrNoError),
+		"OffsetRequest": sarama.NewMockOffsetResponse(t).
+			SetOffset("test_topic", 0, sarama.OffsetNewest, 10).
+			SetOffset("test_topic", 0, sarama.OffsetOldest, 7).
+			SetVersion(1),
+		"FetchRequest": sarama.NewMockFetchResponse(t, 1).
+			SetVersion(11).
+			SetMessage("test_topic", 0, 10, sarama.StringEncoder("foo")).
+			SetHighWaterMark("test_topic", 0, 14),
 		"LeaveGroupRequest": sarama.NewMockWrapper(&sarama.LeaveGroupResponse{
 			Err: sarama.ErrNoError,
 		}),
